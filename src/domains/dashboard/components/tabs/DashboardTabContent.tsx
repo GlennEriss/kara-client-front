@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  CircleDollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
@@ -126,8 +127,8 @@ function ActionableCard({
     <Link
       href={href}
       className={cn(
-        className,
         "group relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#234D65] focus-visible:ring-offset-2",
+        className,
       )}
     >
       <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 text-[#234D65]/50 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -384,6 +385,79 @@ export function DashboardTabContent({
             ))}
           </div>
           )}
+        </section>
+      )}
+
+      {payload.financialSections && payload.financialSections.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <CircleDollarSign className="h-5 w-5 text-[#234D65]" />
+                <h3 className="text-lg font-bold text-[#234D65]">
+                  Situation financière vérifiée
+                </h3>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Calculée avec les mêmes règles que les bilans financiers.
+              </p>
+            </div>
+            <Badge
+              variant="outline"
+              className="w-fit border-emerald-200 bg-emerald-50 text-emerald-700"
+            >
+              Source comptable commune
+            </Badge>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            {payload.financialSections.map((section) => (
+              <article
+                key={section.key}
+                className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+              >
+                <div className="border-b border-gray-100 bg-[#234D65]/[0.035] p-4 sm:p-5">
+                  <h4 className="font-bold text-[#234D65]">{section.title}</h4>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                    {section.description}
+                  </p>
+                </div>
+                <div className="divide-y divide-gray-100 px-4 sm:px-5">
+                  {section.lines.map((line) => (
+                    <ActionableCard
+                      key={line.key}
+                      href={line.href}
+                      className="flex flex-col gap-2 py-4 pr-7 sm:flex-row sm:items-start sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#234D65]">
+                          {line.label}
+                        </p>
+                        {line.description && (
+                          <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+                            {line.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-end">
+                        <p className="text-base font-bold text-[#234D65]">
+                          {formatMetric(line.value, line.format)}
+                        </p>
+                        {line.tone && (
+                          <Badge
+                            variant="outline"
+                            className={getToneBadgeClass(line.tone, isExecutive)}
+                          >
+                            {getToneLabel(line.tone)}
+                          </Badge>
+                        )}
+                      </div>
+                    </ActionableCard>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
         </section>
       )}
 

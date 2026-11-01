@@ -14,6 +14,11 @@ import type {
     DashboardTabPayload,
 } from '../entities/dashboard.types'
 import { addContractMonths } from '@/utils/contract-months'
+import { buildFinancialReport } from '@/domains/financial/reports/builders/buildFinancialReport'
+import type { FinancialReport, FinancialReportModuleKey } from '@/domains/financial/reports/entities/financial-report.types'
+import type { FinancialReportSources } from '@/domains/financial/reports/entities/financial-report-sources.types'
+import { loadFinancialReportSources } from '@/domains/financial/reports/services/loadFinancialReportSources'
+import { currentMonthKey } from '@/domains/financial/reports/utils/report-months'
 
 type FirestoreRecord = Record<string, unknown> & { id: string }
 
@@ -314,6 +319,148 @@ function filterRecordsByMemberScope(
     if (!memberId) return false
     return memberScope.scopedMemberIds.has(memberId)
   })
+}
+
+function scopeFinancialSources(
+  sources: FinancialReportSources,
+  memberScope: MemberScopeContext
+): FinancialReportSources {
+  if (!memberScope.hasMemberScope) return sources
+
+  const memberIds = memberScope.scopedMemberIds
+  const caisseSpecialeContracts = sources.caisseSpecialeContracts.filter(
+    (contract) => typeof contract.memberId === 'string' && memberIds.has(contract.memberId)
+  )
+  const caisseSpecialeIds = new Set(caisseSpecialeContracts.map((contract) => contract.id))
+  const caisseImprevueContracts = sources.caisseImprevueContracts.filter(
+    (contract) => typeof contract.memberId === 'string' && memberIds.has(contract.memberId)
+  )
+  const caisseImprevueIds = new Set(caisseImprevueContracts.map((contract) => contract.id))
+  const creditContracts = sources.creditContracts.filter((contract) => memberIds.has(contract.clientId))
+  const creditIds = new Set(creditContracts.map((contract) => contract.id))
+  const placements = sources.placements.filter(
+    (placement) => typeof placement.benefactorId === 'string' && memberIds.has(placement.benefactorId)
+  )
+  const placementIds = new Set(placements.map((placement) => placement.id))
+
+  return {
+    caisseSpecialeContracts,
+    caisseSpecialePayments: sources.caisseSpecialePayments.filter((payment) => caisseSpecialeIds.has(payment.parentId)),
+    caisseSpecialeRefunds: sources.caisseSpecialeRefunds.filter((refund) => caisseSpecialeIds.has(refund.parentId)),
+    caisseImprevueContracts,
+    caisseImprevuePayments: sources.caisseImprevuePayments.filter((payment) => caisseImprevueIds.has(payment.parentId)),
+    caisseImprevueSupports: sources.caisseImprevueSupports.filter((support) => caisseImprevueIds.has(support.parentId)),
+    caisseImprevueRefunds: sources.caisseImprevueRefunds.filter((refund) => caisseImprevueIds.has(refund.parentId)),
+    creditContracts,
+    creditPayments: sources.creditPayments.filter((payment) => creditIds.has(payment.creditId)),
+    creditPenalties: sources.creditPenalties.filter((penalty) => creditIds.has(penalty.creditId)),
+    guarantorPayments: sources.guarantorPayments.filter((payment) => creditIds.has(payment.creditId)),
+    placements,
+    placementCommissions: sources.placementCommissions.filter((commission) => placementIds.has(commission.parentId)),
+    placementEarlyExits: sources.placementEarlyExits.filter((exit) => placementIds.has(exit.parentId)),
+    membershipRequests: sources.membershipRequests.filter((request) => {
+      const memberId = getMemberIdFrom(request, ['memberId', 'userId', 'uid'])
+      return memberId ? memberIds.has(memberId) : false
+    }),
+  }
+}
+
+function buildCurrentFinancialReport(sources: FinancialReportSources): FinancialReport {
+  const month = currentMonthKey()
+  return buildFinancialReport(sources, { from: month, to: month, now: new Date() })
+}
+
+function getFinancialLine(
+  report: FinancialReport,
+  moduleKey: FinancialReportModuleKey,
+  blockKey: 'treasury' | 'result' | 'outstanding' | 'risks',
+  lineKey: string
+) {
+  return report.modules
+    .find((module) => module.key === moduleKey)
+    ?.blocks.find((block) => block.key === blockKey)
+    ?.lines.find((line) => line.key === lineKey)
+}
+
+function financialLine(
+  report: FinancialReport,
+  moduleKey: FinancialReportModuleKey,
+  blockKey: 'treasury' | 'result' | 'outstanding' | 'risks',
+  lineKey: string,
+  options: {
+    key?: string
+    label?: string
+    description?: string
+    tone?: DashboardKpiItem['tone']
+    href?: string
+  } = {}
+) {
+  const line = getFinancialLine(report, moduleKey, blockKey, lineKey)
+  return {
+    key: options.key || `${moduleKey}_${blockKey}_${lineKey}`,
+    label: options.label || line?.label || lineKey,
+    value: line?.values.at(-1) || 0,
+    format: line?.unit === 'count' ? ('number' as const) : ('currency' as const),
+    description: options.description || line?.description,
+    tone: options.tone,
+    href: options.href,
+  }
+}
+
+function buildExecutiveFinancialSections(report: FinancialReport): NonNullable<DashboardTabPayload['financialSections']> {
+  const toneForPositiveRisk = (lineKey: string): DashboardKpiItem['tone'] =>
+    (getFinancialLine(report, 'synthesis', 'risks', lineKey)?.values.at(-1) || 0) > 0 ? 'danger' : 'success'
+  const treasuryNet = getFinancialLine(report, 'synthesis', 'treasury', 'net')?.values.at(-1) || 0
+  const resultNet = getFinancialLine(report, 'synthesis', 'result', 'net')?.values.at(-1) || 0
+
+  return [
+    {
+      key: 'receivables',
+      title: 'Sommes dues à l’association',
+      description: 'Créances encore dues à la date du calcul. Elles ne sont pas mélangées avec l’épargne à restituer.',
+      lines: [
+        financialLine(report, 'credit_speciale', 'outstanding', 'receivables', { href: routes.admin.creditSpecialeContrats }),
+        financialLine(report, 'credit_fixe', 'outstanding', 'receivables', { href: routes.admin.creditFixeContrats }),
+        financialLine(report, 'credit_aide', 'outstanding', 'receivables', { href: routes.admin.creditAideContrats }),
+        financialLine(report, 'caisse_imprevue', 'outstanding', 'supports_outstanding', { href: routes.admin.caisseImprevue }),
+        financialLine(report, 'synthesis', 'outstanding', 'receivables_total', { tone: 'primary', href: routes.admin.financialReports }),
+      ],
+    },
+    {
+      key: 'funds_to_return',
+      title: 'Fonds détenus à restituer',
+      description: 'Épargne et capitaux confiés à l’association. Ce sont des fonds à rendre, pas des bénéfices.',
+      lines: [
+        financialLine(report, 'caisse_speciale', 'outstanding', 'funds_held', { href: routes.admin.caisseSpeciale }),
+        financialLine(report, 'caisse_imprevue', 'outstanding', 'funds_held', { href: routes.admin.caisseImprevue }),
+        financialLine(report, 'placements', 'outstanding', 'capital_to_return', { href: routes.admin.placements }),
+        financialLine(report, 'synthesis', 'outstanding', 'payables_total', { tone: 'primary', href: routes.admin.financialReports }),
+      ],
+    },
+    {
+      key: 'credit_risks',
+      title: 'Retards et risques de crédit',
+      description: 'Montants exigibles, pénalités non payées et pertes réellement constatées dans les crédits.',
+      lines: [
+        financialLine(report, 'credit_speciale', 'risks', 'late_amount', { href: routes.admin.calendrier }),
+        financialLine(report, 'credit_fixe', 'risks', 'late_amount', { href: routes.admin.calendrier }),
+        financialLine(report, 'synthesis', 'risks', 'late_contracts', { tone: toneForPositiveRisk('late_contracts'), href: routes.admin.calendrier }),
+        financialLine(report, 'synthesis', 'risks', 'unpaid_penalties', { tone: (getFinancialLine(report, 'synthesis', 'risks', 'unpaid_penalties')?.values.at(-1) || 0) > 0 ? 'warning' : 'success', href: routes.admin.creditSpecialeContrats }),
+        financialLine(report, 'synthesis', 'risks', 'losses', { tone: toneForPositiveRisk('losses'), href: routes.admin.financialReports }),
+      ],
+    },
+    {
+      key: 'current_month',
+      title: 'Mouvements du mois en cours',
+      description: 'Argent réellement entré et sorti depuis le début du mois, toutes activités confondues.',
+      lines: [
+        financialLine(report, 'synthesis', 'treasury', 'in_total', { tone: 'success', href: routes.admin.financialReports }),
+        financialLine(report, 'synthesis', 'treasury', 'out_total', { href: routes.admin.financialReports }),
+        financialLine(report, 'synthesis', 'treasury', 'net', { tone: treasuryNet >= 0 ? 'success' : 'danger', href: routes.admin.financialReports }),
+        financialLine(report, 'synthesis', 'result', 'net', { label: 'Résultat net du mois', tone: resultNet >= 0 ? 'success' : 'danger', href: routes.admin.financialReports }),
+      ],
+    },
+  ]
 }
 
 function createDistribution(
@@ -1463,13 +1610,10 @@ function buildExecutivePayload(
   caisseImprevueContracts: FirestoreRecord[],
   creditDemands: FirestoreRecord[],
   creditContracts: FirestoreRecord[],
-  creditPenalties: FirestoreRecord[],
-  creditPayments: FirestoreRecord[],
-  caissePayments: FirestoreRecord[],
   placementDemands: FirestoreRecord[],
   placements: FirestoreRecord[],
-  placementCommissions: FirestoreRecord[],
   callPlans: FirestoreRecord[],
+  financialReport: FinancialReport,
   filters: DashboardFilters
 ): DashboardTabPayload {
   const creditTypeOf = (record: FirestoreRecord): 'SPECIALE' | 'FIXE' | 'AIDE' | 'UNKNOWN' => {
@@ -1477,16 +1621,6 @@ function buildExecutivePayload(
     if (normalized === 'SPECIALE' || normalized === 'FIXE' || normalized === 'AIDE') return normalized
     return 'UNKNOWN'
   }
-
-  const computeCreditEncours = (contracts: FirestoreRecord[]) =>
-    contracts.reduce((sum, contract) => {
-      const remaining = safeNumber(contract.amountRemaining)
-      if (remaining > 0) return sum + remaining
-
-      const totalAmount = safeNumber(contract.totalAmount) || safeNumber(contract.amount)
-      const paid = safeNumber(contract.amountPaid)
-      return sum + Math.max(totalAmount - paid, 0)
-    }, 0)
 
   const computeCiEstimatedOverdue = (contracts: FirestoreRecord[]) => {
     const today = new Date()
@@ -1529,110 +1663,16 @@ function buildExecutivePayload(
 
   const pendingGlobal = pendingMembershipRequests + pendingCaisseSpeciale + pendingCaisseImprevue + pendingCredit + pendingPlacement
 
-  const csEncours = caisseSpecialeContracts.reduce((sum, contract) => {
-    const status = getStatus(contract)
-    if (status !== 'ACTIVE' && status !== 'LATE_NO_PENALTY' && status !== 'LATE_WITH_PENALTY') return sum
-    const totalExpected = safeNumber(contract.monthlyAmount) * safeNumber(contract.monthsPlanned)
-    const paid = safeNumber(contract.nominalPaid)
-    return sum + Math.max(totalExpected - paid, 0)
-  }, 0)
-
-  const ciEncours = caisseImprevueContracts.reduce((sum, contract) => {
-    if (getStatus(contract) !== 'ACTIVE') return sum
-    const nominal = safeNumber(contract.subscriptionCINominal)
-    return sum + nominal
-  }, 0)
+  const csEncours = getFinancialLine(financialReport, 'caisse_speciale', 'outstanding', 'funds_held')?.values.at(-1) || 0
+  const ciEncours = getFinancialLine(financialReport, 'caisse_imprevue', 'outstanding', 'funds_held')?.values.at(-1) || 0
 
   const creditSpecialeContracts = creditContracts.filter((contract) => creditTypeOf(contract) === 'SPECIALE')
   const creditFixeContracts = creditContracts.filter((contract) => creditTypeOf(contract) === 'FIXE')
-  const creditAideContracts = creditContracts.filter((contract) => creditTypeOf(contract) === 'AIDE')
 
-  const creditSpecialeEncours = computeCreditEncours(creditSpecialeContracts)
-  const creditFixeEncours = computeCreditEncours(creditFixeContracts)
-  const creditAideEncours = computeCreditEncours(creditAideContracts)
-  const placementEncours = placements.reduce((sum, placement) => {
-    if (String(placement.status || '').toLowerCase() !== 'active') return sum
-    return sum + safeNumber(placement.amount)
-  }, 0)
-
-  const csPenaltiesTotal = caisseSpecialeContracts.reduce((sum, contract) => sum + safeNumber(contract.penaltiesTotal), 0)
-  const csLossesAtRisk = caisseSpecialeContracts.reduce((sum, contract) => {
-    const status = getStatus(contract)
-    if (status !== 'LATE_NO_PENALTY' && status !== 'LATE_WITH_PENALTY') return sum
-    const monthly = safeNumber(contract.monthlyAmount)
-    const months = safeNumber(contract.monthsPlanned)
-    const paid = safeNumber(contract.nominalPaid)
-    return sum + Math.max(monthly * months - paid, 0)
-  }, 0)
-
-  const creditExpectedInterest = creditContracts.reduce((sum, contract) => {
-    const totalAmount = safeNumber(contract.totalAmount)
-    const principal = safeNumber(contract.amount)
-    if (totalAmount > 0 && principal > 0) return sum + Math.max(totalAmount - principal, 0)
-    return sum + Math.max(principal * safeNumber(contract.interestRate) / 100, 0)
-  }, 0)
-  const creditPenaltiesTotal = creditPenalties.reduce((sum, penalty) => sum + safeNumber(penalty.amount), 0)
-  const creditLossesAtRisk = creditContracts
-    .filter((contract) => getStatus(contract) === 'OVERDUE')
-    .reduce((sum, contract) => sum + Math.max(safeNumber(contract.amountRemaining), 0), 0)
-
-  const placementProjectedCommissions = placements
-    .filter((placement) => String(placement.status || '').toLowerCase() === 'active')
-    .reduce((sum, placement) => {
-      const amount = safeNumber(placement.amount)
-      const rate = safeNumber(placement.rate)
-      const months = safeNumber(placement.periodMonths)
-      return sum + ((amount * rate) / 100) * Math.max(months, 0)
-    }, 0)
-  const placementWeightedRateDenominator = placements
-    .filter((placement) => String(placement.status || '').toLowerCase() === 'active')
-    .reduce((sum, placement) => sum + safeNumber(placement.amount), 0)
-  const placementWeightedRateNumerator = placements
-    .filter((placement) => String(placement.status || '').toLowerCase() === 'active')
-    .reduce((sum, placement) => sum + (safeNumber(placement.amount) * safeNumber(placement.rate)), 0)
-  const placementCommissionRate = placementWeightedRateDenominator > 0 ? placementWeightedRateNumerator / placementWeightedRateDenominator : 0
-  const placementLossesAtRisk = placements
-    .filter((placement) => placement.hasOverdueCommission === true)
-    .reduce((sum, placement) => {
-      const amount = safeNumber(placement.amount)
-      const rate = safeNumber(placement.rate)
-      return sum + ((amount * rate) / 100)
-    }, 0)
-  const creditContractIds = new Set(creditContracts.map((contract) => contract.id))
-  const interestPaidCredits = creditPayments
-    .filter((payment) => {
-      const creditId = typeof payment.creditId === 'string' ? payment.creditId : ''
-      return creditId && creditContractIds.has(creditId)
-    })
-    .reduce((sum, payment) => sum + safeNumber(payment.interestAmount), 0)
-  const creditPenaltiesPaidFromPayments = creditPayments
-    .filter((payment) => {
-      const creditId = typeof payment.creditId === 'string' ? payment.creditId : ''
-      return creditId && creditContractIds.has(creditId)
-    })
-    .reduce((sum, payment) => sum + safeNumber(payment.penaltyAmount), 0)
-
-  const caisseContractIds = new Set(caisseSpecialeContracts.map((contract) => contract.id))
-  const caissePenaltiesPaid = caissePayments.reduce((sum, payment) => {
-    const contractId = typeof payment.contractId === 'string' ? payment.contractId : ''
-    if (contractId && !caisseContractIds.has(contractId)) return sum
-    return sum + extractPenaltyAmountFromPaymentRecord(payment)
-  }, 0)
-
-  const placementIds = new Set(placements.map((placement) => placement.id))
-  const placementCommissionsPaid = placementCommissions
-    .filter((commission) => {
-      const placementId = typeof commission.placementId === 'string' ? commission.placementId : ''
-      if (!placementId || !placementIds.has(placementId)) return false
-      return String(commission.status || '').toUpperCase() === 'PAID'
-    })
-    .reduce((sum, commission) => sum + safeNumber(commission.amount), 0)
-
-  const financialBenefitsEstimated = creditExpectedInterest + placementProjectedCommissions + csPenaltiesTotal
-  const financialPenaltiesTotal = csPenaltiesTotal + creditPenaltiesTotal
-  const financialLossesAtRisk = csLossesAtRisk + creditLossesAtRisk + placementLossesAtRisk
-  const financialBenefitsPaid = interestPaidCredits + creditPenaltiesPaidFromPayments + placementCommissionsPaid + caissePenaltiesPaid
-  const financialPenaltiesPaid = creditPenaltiesPaidFromPayments + caissePenaltiesPaid
+  const creditSpecialeEncours = getFinancialLine(financialReport, 'credit_speciale', 'outstanding', 'receivables')?.values.at(-1) || 0
+  const creditFixeEncours = getFinancialLine(financialReport, 'credit_fixe', 'outstanding', 'receivables')?.values.at(-1) || 0
+  const creditAideEncours = getFinancialLine(financialReport, 'credit_aide', 'outstanding', 'receivables')?.values.at(-1) || 0
+  const placementEncours = getFinancialLine(financialReport, 'placements', 'outstanding', 'capital_to_return')?.values.at(-1) || 0
   const restCreditContracts = [...creditSpecialeContracts, ...creditFixeContracts]
   const restMonthsGlobal = restCreditContracts.reduce((sum, contract) => sum + extractRestMonthEntries(contract).length, 0)
   const restImpactGlobal = restCreditContracts.reduce((sum, contract) => {
@@ -1640,6 +1680,15 @@ function buildExecutivePayload(
     return sum + entries.reduce((acc, entry) => acc + Math.max(entry.monthlyAmount, 0), 0)
   }, 0)
   const callMetrics = getCallActivityMetrics(callPlans, [], null)
+  const receivablesTotal = getFinancialLine(financialReport, 'synthesis', 'outstanding', 'receivables_total')?.values.at(-1) || 0
+  const fundsToReturnTotal = getFinancialLine(financialReport, 'synthesis', 'outstanding', 'payables_total')?.values.at(-1) || 0
+  const lateCreditAmount = getFinancialLine(financialReport, 'synthesis', 'risks', 'late_amount')?.values.at(-1) || 0
+  const lateCreditContracts = getFinancialLine(financialReport, 'synthesis', 'risks', 'late_contracts')?.values.at(-1) || 0
+  const unpaidCreditPenalties = getFinancialLine(financialReport, 'synthesis', 'risks', 'unpaid_penalties')?.values.at(-1) || 0
+  const confirmedLosses = getFinancialLine(financialReport, 'synthesis', 'risks', 'losses')?.values.at(-1) || 0
+  const currentMonthIn = getFinancialLine(financialReport, 'synthesis', 'treasury', 'in_total')?.values.at(-1) || 0
+  const currentMonthNet = getFinancialLine(financialReport, 'synthesis', 'treasury', 'net')?.values.at(-1) || 0
+  const currentMonthResult = getFinancialLine(financialReport, 'synthesis', 'result', 'net')?.values.at(-1) || 0
 
   const detailedModuleSummaries = [
     {
@@ -1667,7 +1716,7 @@ function buildExecutivePayload(
       family: 'credit' as const,
       pending: pendingCreditAide,
       encours: creditAideEncours,
-      impayes: creditAideContracts.filter((contract) => getStatus(contract) === 'OVERDUE').length,
+      impayes: getFinancialLine(financialReport, 'credit_aide', 'risks', 'late_contracts')?.values.at(-1) || 0,
     },
     {
       label: 'Credit speciale',
@@ -1675,7 +1724,7 @@ function buildExecutivePayload(
       family: 'credit' as const,
       pending: pendingCreditSpeciale,
       encours: creditSpecialeEncours,
-      impayes: creditSpecialeContracts.filter((contract) => getStatus(contract) === 'OVERDUE').length,
+      impayes: getFinancialLine(financialReport, 'credit_speciale', 'risks', 'late_contracts')?.values.at(-1) || 0,
     },
     {
       label: 'Credit fixe',
@@ -1683,7 +1732,7 @@ function buildExecutivePayload(
       family: 'credit' as const,
       pending: pendingCreditFixe,
       encours: creditFixeEncours,
-      impayes: creditFixeContracts.filter((contract) => getStatus(contract) === 'OVERDUE').length,
+      impayes: getFinancialLine(financialReport, 'credit_fixe', 'risks', 'late_contracts')?.values.at(-1) || 0,
     },
     {
       label: 'Placements',
@@ -1695,61 +1744,12 @@ function buildExecutivePayload(
     },
   ]
 
-  const moduleSummaries = [
-    {
-      label: 'Caisse',
-      family: 'caisse' as const,
-      pending: detailedModuleSummaries
-        .filter((summary) => summary.family === 'caisse')
-        .reduce((sum, summary) => sum + summary.pending, 0),
-      encours: detailedModuleSummaries
-        .filter((summary) => summary.family === 'caisse')
-        .reduce((sum, summary) => sum + summary.encours, 0),
-      impayes: detailedModuleSummaries
-        .filter((summary) => summary.family === 'caisse')
-        .reduce((sum, summary) => sum + summary.impayes, 0),
-    },
-    {
-      label: 'Credit',
-      family: 'credit' as const,
-      pending: detailedModuleSummaries
-        .filter((summary) => summary.family === 'credit')
-        .reduce((sum, summary) => sum + summary.pending, 0),
-      encours: detailedModuleSummaries
-        .filter((summary) => summary.family === 'credit')
-        .reduce((sum, summary) => sum + summary.encours, 0),
-      impayes: detailedModuleSummaries
-        .filter((summary) => summary.family === 'credit')
-        .reduce((sum, summary) => sum + summary.impayes, 0),
-    },
-    {
-      label: 'Placements',
-      family: 'placement' as const,
-      pending: detailedModuleSummaries
-        .filter((summary) => summary.family === 'placement')
-        .reduce((sum, summary) => sum + summary.pending, 0),
-      encours: detailedModuleSummaries
-        .filter((summary) => summary.family === 'placement')
-        .reduce((sum, summary) => sum + summary.encours, 0),
-      impayes: detailedModuleSummaries
-        .filter((summary) => summary.family === 'placement')
-        .reduce((sum, summary) => sum + summary.impayes, 0),
-    },
-  ]
-
   const selectedModule = filters.moduleCompare
-  const selectedSummaries =
-    selectedModule === 'all'
-      ? moduleSummaries
-      : moduleSummaries.filter((summary) => summary.family === selectedModule)
-
   const selectedDetailedSummaries =
     selectedModule === 'all'
       ? detailedModuleSummaries
       : detailedModuleSummaries.filter((summary) => summary.family === selectedModule)
 
-  const selectedEncours = selectedSummaries.reduce((sum, summary) => sum + summary.encours, 0)
-  const selectedImpayes = selectedSummaries.reduce((sum, summary) => sum + summary.impayes, 0)
   const activeMemberRows = new Map<string, {
     memberId: string
     name: string
@@ -1872,23 +1872,24 @@ function buildExecutivePayload(
       numberKpi('calls_today', "Appels à traiter aujourd'hui", callMetrics.plannedToday, `${callMetrics.completedToday} déjà terminé(s)`, callMetrics.plannedToday > 0 ? 'warning' : 'success', routes.admin.calendrier),
       numberKpi('calls_overdue', 'Appels planifiés en retard', callMetrics.overduePlans, 'Lots des jours précédents non terminés', callMetrics.overduePlans > 0 ? 'danger' : 'success', routes.admin.calendrier),
       numberKpi('pending_global', 'Demandes en attente', pendingGlobal, 'Tous modules confondus', pendingGlobal > 0 ? 'warning' : 'success'),
-      numberKpi('impayes_global', 'Impayés', selectedImpayes, 'Contrats et placements en retard', selectedImpayes > 0 ? 'danger' : 'success', routes.admin.calendrier),
+      numberKpi('late_credit_contracts', 'Contrats de crédit en retard', lateCreditContracts, 'Échéances réellement dépassées', lateCreditContracts > 0 ? 'danger' : 'success', routes.admin.calendrier),
       percentKpi('weekly_call_completion', 'Réalisation des appels', callMetrics.completionRate, 'Semaine en cours', callMetrics.completionRate >= 80 ? 'success' : callMetrics.weekPlans.length > 0 ? 'warning' : 'neutral', routes.admin.calendrier),
-      currencyKpi('encours_global', 'Encours global', selectedEncours, selectedModule === 'all' ? 'Tous modules' : `Module ${selectedModule}`, 'primary'),
+      currencyKpi('receivables_total', 'Sommes dues à l’association', receivablesTotal, 'Créances actuelles vérifiées', 'primary', routes.admin.financialReports),
+      currencyKpi('funds_to_return_total', 'Fonds à restituer', fundsToReturnTotal, 'Épargne et capitaux détenus', 'primary', routes.admin.financialReports),
+      currencyKpi('late_credit_amount', 'Échéances de crédit en retard', lateCreditAmount, 'Montant déjà exigible', lateCreditAmount > 0 ? 'danger' : 'success', routes.admin.calendrier),
+      currencyKpi('unpaid_credit_penalties', 'Pénalités de crédit impayées', unpaidCreditPenalties, 'Pénalités créées et non réglées', unpaidCreditPenalties > 0 ? 'warning' : 'success', routes.admin.creditSpecialeContrats),
+      currencyKpi('confirmed_losses', 'Pertes réellement constatées', confirmedLosses, 'Créances clôturées en perte', confirmedLosses > 0 ? 'danger' : 'success', routes.admin.financialReports),
+      currencyKpi('current_month_in', 'Entrées du mois', currentMonthIn, 'Encaissements réels du mois en cours', 'success', routes.admin.financialReports),
+      currencyKpi('current_month_net', 'Solde de trésorerie du mois', currentMonthNet, 'Entrées moins sorties du mois', currentMonthNet >= 0 ? 'success' : 'danger', routes.admin.financialReports),
+      currencyKpi('current_month_result', 'Résultat net du mois', currentMonthResult, 'Produits moins charges', currentMonthResult >= 0 ? 'success' : 'danger', routes.admin.financialReports),
       numberKpi('members_active', 'Membres actifs', membersActive, 'Membres du périmètre sélectionné', 'primary', routes.admin.memberships),
       numberKpi('members_with_active_contracts', 'Membres avec contrats actifs', membersWithActiveContracts.length, 'Tous modules confondus', 'primary'),
-      currencyKpi('benefits_estimated', 'Benefices estimes', financialBenefitsEstimated, 'Interets, commissions et penalites', 'success'),
-      currencyKpi('penalties_total', 'Penalites (FCFA)', financialPenaltiesTotal, 'Caisse speciale + credits', 'warning'),
-      currencyKpi('benefits_paid', 'Benefices encaisses', financialBenefitsPaid, 'Flux effectivement encaisses', 'success'),
-      currencyKpi('penalties_paid', 'Penalites encaissees', financialPenaltiesPaid, 'Penalites effectivement payees', 'warning'),
-      currencyKpi('losses_at_risk', 'Pertes a risque', financialLossesAtRisk, 'Exposition en retard et commissions dues', 'danger'),
-      percentKpi('placement_commission_rate', 'Taux commissions placement', safePercent(placementCommissionRate), 'Moyenne ponderee des placements actifs'),
       numberKpi('rest_months_credit', 'Mois repos credits', restMonthsGlobal, 'Credits speciale + fixe', 'neutral'),
       currencyKpi('rest_impact_credit', 'Impact repos credits', restImpactGlobal, 'Revenu decale sur mois de repos', 'warning'),
     ],
     distributions: [
       createDistribution('pending_by_module', 'Demandes en attente par module détaillé', moduleDistribution, 'bar', 'demandes'),
-      createDistribution('encours_by_module', 'Encours par sous-module', encoursDistribution, 'pie', 'FCFA'),
+      createDistribution('financial_position_by_module', 'Créances et fonds détenus par sous-module', encoursDistribution, 'pie', 'FCFA'),
     ],
     rankings: [
       createRanking(
@@ -1914,10 +1915,11 @@ function buildExecutivePayload(
         'alertes'
       ),
     ],
+    financialSections: buildExecutiveFinancialSections(financialReport),
     notes: [
-      `Benefices estimes = interets credits (${Math.round(creditExpectedInterest).toLocaleString('fr-FR')} FCFA) + commissions placement (${Math.round(placementProjectedCommissions).toLocaleString('fr-FR')} FCFA) + penalites caisse (${Math.round(csPenaltiesTotal).toLocaleString('fr-FR')} FCFA).`,
-      `Benefices encaisses = interets credits payes (${Math.round(interestPaidCredits).toLocaleString('fr-FR')} FCFA) + penalites payees credits (${Math.round(creditPenaltiesPaidFromPayments).toLocaleString('fr-FR')} FCFA) + commissions placement payees (${Math.round(placementCommissionsPaid).toLocaleString('fr-FR')} FCFA) + penalites caisse payees (${Math.round(caissePenaltiesPaid).toLocaleString('fr-FR')} FCFA).`,
-      `Pertes a risque = caisse (${Math.round(csLossesAtRisk).toLocaleString('fr-FR')} FCFA) + credits (${Math.round(creditLossesAtRisk).toLocaleString('fr-FR')} FCFA) + placements (${Math.round(placementLossesAtRisk).toLocaleString('fr-FR')} FCFA).`,
+      'Les montants financiers vérifiés utilisent exactement le moteur des bilans financiers.',
+      'Les sommes dues à l’association et les fonds à restituer sont volontairement séparés : ils n’ont pas la même nature comptable.',
+      'Une perte n’est affichée que lorsqu’un crédit a réellement été clôturé en perte. Les retards restent présentés comme des créances exigibles.',
     ],
   }
 }
@@ -2202,41 +2204,33 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
   let snapshot: DashboardTabPayload
 
   if (activeTab === 'executive') {
+    const { adminFirestore } = await import('@/firebase/adminFirestore')
+    if (!adminFirestore) throw new Error('Firestore admin indisponible pour le calcul financier')
+
     const [
+      financialSourcesRaw,
       membershipRequestsRaw,
       caisseSpecialeDemandsRaw,
-      caisseSpecialeContractsRaw,
       caisseImprevueDemandsRaw,
-      caisseImprevueContractsRaw,
       creditDemandsRaw,
-      creditContractsRaw,
-      creditPenaltiesRaw,
-      creditPaymentsRaw,
-      caissePaymentsRaw,
       placementDemandsRaw,
-      placementsRaw,
-      placementCommissionsRaw,
       callPlansRaw,
     ] = await Promise.all([
+      loadFinancialReportSources(adminFirestore),
       readCollectionDocs(firebaseCollectionNames.membershipRequests),
       readCollectionDocs(firebaseCollectionNames.caisseSpecialeDemands),
-      readCollectionDocs(firebaseCollectionNames.caisseContracts),
       readCollectionDocs(firebaseCollectionNames.caisseImprevueDemands),
-      readCollectionDocs(firebaseCollectionNames.contractsCI),
       readCollectionDocs(firebaseCollectionNames.creditDemands),
-      readCollectionDocs(firebaseCollectionNames.creditContracts),
-      readCollectionDocs(firebaseCollectionNames.creditPenalties),
-      readCollectionDocs(firebaseCollectionNames.creditPayments),
-      readCollectionGroupDocs('payments'),
       readCollectionDocs(firebaseCollectionNames.placementDemands),
-      readCollectionDocs(firebaseCollectionNames.placements),
-      readCollectionGroupDocs('commissions'),
       readCollectionDocs(firebaseCollectionNames.callPlans),
     ])
 
-    const creditPayments = filterRecordsByDate(creditPaymentsRaw, dateRange, ['paymentDate', 'createdAt'])
-    const caissePayments = filterRecordsByDate(caissePaymentsRaw, dateRange, ['date', 'recordedAt', 'createdAt', 'updatedAt'])
-    const placementCommissions = filterRecordsByDate(placementCommissionsRaw, dateRange, ['paidAt', 'dueDate', 'createdAt'])
+    const financialSources = scopeFinancialSources(financialSourcesRaw, memberScope)
+    const financialReport = buildCurrentFinancialReport(financialSources)
+    const caisseSpecialeContracts = financialSources.caisseSpecialeContracts as FirestoreRecord[]
+    const caisseImprevueContracts = financialSources.caisseImprevueContracts as FirestoreRecord[]
+    const creditContracts = financialSources.creditContracts as unknown as FirestoreRecord[]
+    const placements = financialSources.placements as FirestoreRecord[]
 
     // Executive: "en attente" est un stock actuel a traiter, pas un flux lie a la periode.
     const membershipRequests = membershipRequestsRaw
@@ -2247,20 +2241,8 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       (record) => getMemberIdFrom(record, ['memberId'])
     )
 
-    const caisseSpecialeContracts = filterRecordsByMemberScope(
-      filterRecordsByDate(caisseSpecialeContractsRaw, dateRange, ['createdAt']),
-      memberScope,
-      (record) => getMemberIdFrom(record, ['memberId'])
-    )
-
     const caisseImprevueDemands = filterRecordsByMemberScope(
       caisseImprevueDemandsRaw,
-      memberScope,
-      (record) => getMemberIdFrom(record, ['memberId'])
-    )
-
-    const caisseImprevueContracts = filterRecordsByMemberScope(
-      filterRecordsByDate(caisseImprevueContractsRaw, dateRange, ['createdAt', 'firstPaymentDate']),
       memberScope,
       (record) => getMemberIdFrom(record, ['memberId'])
     )
@@ -2271,20 +2253,8 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       (record) => getMemberIdFrom(record, ['clientId'])
     )
 
-    const creditContracts = filterRecordsByMemberScope(
-      filterRecordsByDate(creditContractsRaw, dateRange, ['createdAt', 'firstPaymentDate']),
-      memberScope,
-      (record) => getMemberIdFrom(record, ['clientId'])
-    )
-
     const placementDemands = filterRecordsByMemberScope(
       placementDemandsRaw,
-      memberScope,
-      (record) => getMemberIdFrom(record, ['benefactorId'])
-    )
-
-    const placements = filterRecordsByMemberScope(
-      filterRecordsByDate(placementsRaw, dateRange, ['createdAt', 'startDate']),
       memberScope,
       (record) => getMemberIdFrom(record, ['benefactorId'])
     )
@@ -2304,13 +2274,10 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       caisseImprevueContracts,
       creditDemands,
       creditContracts,
-      creditPenaltiesRaw,
-      creditPayments,
-      caissePayments,
       placementDemands,
       placements,
-      placementCommissions,
       callPlans,
+      financialReport,
       filters
     )
   } else if (activeTab === 'caisse_speciale') {

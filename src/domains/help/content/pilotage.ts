@@ -17,11 +17,11 @@ export const tableauDeBordHelp: HelpTopic = {
         {
           type: 'definitions',
           items: [
-            { term: 'Encours global', text: 'Ce que les membres doivent encore sur leurs contrats en cours, tous modules (ou le module choisi).' },
+            { term: 'Sommes dues à l’association', text: 'Créances encore dues : crédits restant à rembourser et supports de caisse imprévue non remboursés.' },
+            { term: 'Fonds à restituer', text: 'Épargne des caisses et capitaux de placements détenus par l’association, mais appartenant aux membres ou bienfaiteurs.' },
             { term: 'Impayés', text: 'Le nombre de contrats et de placements en retard.' },
-            { term: 'Bénéfices estimés', text: 'Intérêts attendus des crédits + commissions prévues des placements + pénalités de caisse.' },
-            { term: 'Bénéfices encaissés', text: 'La part de ces gains réellement payée.' },
-            { term: 'Pertes à risque', text: 'Les montants exposés : retards des caisses et des crédits, commissions de placement dues.' },
+            { term: 'Montant en retard', text: 'Part des échéances déjà dépassées qui reste impayée. Ce montant n’est pas encore une perte.' },
+            { term: 'Pertes constatées', text: 'Créances réellement abandonnées lors de la clôture d’un crédit en perte.' },
             { term: 'Alertes opérationnelles', text: 'Pour chaque sous-module, les dossiers en retard ; « Action requise » dès qu’il y en a un.' },
             { term: 'Appels à traiter', text: 'Les appels planifiés aujourd’hui et ceux des jours précédents qui ne sont pas encore terminés.' },
             { term: 'Réalisation des appels', text: 'La part des appels planifiés cette semaine qui disposent déjà d’un compte rendu.' },

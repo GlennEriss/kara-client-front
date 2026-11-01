@@ -71,12 +71,30 @@ export interface DashboardRankingBlock {
   items: DashboardRankingItem[]
 }
 
+export interface DashboardFinancialLine {
+  key: string
+  label: string
+  value: number
+  format?: 'number' | 'currency' | 'percent'
+  description?: string
+  tone?: DashboardKpiItem['tone']
+  href?: string
+}
+
+export interface DashboardFinancialSection {
+  key: string
+  title: string
+  description: string
+  lines: DashboardFinancialLine[]
+}
+
 export interface DashboardTabPayload {
   title: string
   subtitle?: string
   kpis: DashboardKpiItem[]
   distributions?: DashboardDistributionBlock[]
   rankings?: DashboardRankingBlock[]
+  financialSections?: DashboardFinancialSection[]
   notes?: string[]
 }
 
