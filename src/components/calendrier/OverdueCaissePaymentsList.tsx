@@ -16,6 +16,8 @@ import { useLastContactByPerson, useRecordCall } from '@/hooks/useCallLogs'
 import { useCallPlans, useCompleteCallPlan, useScheduleCallBatch } from '@/hooks/useCallPlans'
 import { useAdmins } from '@/hooks/useAdmins'
 import { useMyAccess } from '@/hooks/useMyAccess'
+import { ADMIN_ROLE_LABELS, type AdminUser } from '@/db/admin.db'
+import { effectivePermissions, restrictedRoleOf } from '@/constantes/permissions'
 import { CALL_OUTCOME_COLORS, CALL_OUTCOME_LABELS, type ContactChannel } from '@/services/call-logs/callLog'
 import { CallHistorySheet } from '@/components/calendrier/CallHistorySheet'
 import { LogCallModal, type CallTarget } from '@/components/calendrier/LogCallModal'
@@ -139,6 +141,26 @@ function daysLabel(days: number): string {
   return `${days} jour${days > 1 ? 's' : ''}`
 }
 
+/** Reproduit le calcul d'accès de la plateforme pour le module Calendrier. */
+function canAccessCalendar(admin: AdminUser): boolean {
+  if (admin.roles.includes('SuperAdmin')) return true
+
+  const restrictedRole = restrictedRoleOf(admin.roles)
+  // Une ancienne fiche non restreinte sans permissions explicites conserve
+  // l'accès complet, comme dans `useMyAccess`.
+  if (!restrictedRole && admin.permissions === undefined) return true
+
+  const permissions = effectivePermissions(admin.permissions ?? [], {
+    version: admin.permissionsVersion,
+    restrictedRole,
+  })
+  return permissions.includes('calendar.view')
+}
+
+function adminRoleLabel(admin: AdminUser): string {
+  return admin.roles.map((role) => ADMIN_ROLE_LABELS[role] ?? role).join(' / ') || 'Compte administratif'
+}
+
 /**
  * Choisit le modèle de rappel adapté au retardataire et fournit ses variables.
  * Le texte lui-même est édité dans Système → Modèles de messages.
@@ -240,7 +262,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
   const { data: adminsPage } = useAdmins({}, 1, 100)
   const eligibleAdmins = useMemo(
     () => (adminsPage?.data ?? []).filter((admin) =>
-      admin.isActive && !!admin.email && admin.roles.some((role) => role === 'Admin' || role === 'SuperAdmin')
+      admin.isActive && !!admin.email && canAccessCalendar(admin)
     ),
     [adminsPage],
   )
@@ -882,7 +904,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                   <SelectItem value="unassigned">Non attribué — visible par tous</SelectItem>
                   {eligibleAdmins.map((admin) => (
                     <SelectItem key={admin.id} value={admin.id}>
-                      {`${admin.firstName} ${admin.lastName}`.trim() || admin.email} — {admin.roles.includes('SuperAdmin') ? 'Superadmin' : 'Admin'}
+                      {`${admin.firstName} ${admin.lastName}`.trim() || admin.email} — {adminRoleLabel(admin)}
                     </SelectItem>
                   ))}
                 </SelectContent>
