@@ -20,6 +20,8 @@ interface MemberSearchInputProps {
   label?: string
   placeholder?: string
   initialDisplayName?: string
+  /** Nom à afficher lorsqu'une sélection est appliquée depuis le formulaire parent. */
+  selectedDisplayName?: string
   isRequired?: boolean
   helperText?: string
   inputId?: string
@@ -34,6 +36,7 @@ export default function MemberSearchInput({
   label = 'Rechercher un membre',
   placeholder = 'Rechercher par nom, prénom ou matricule...',
   initialDisplayName,
+  selectedDisplayName,
   isRequired = true,
   helperText,
   inputId = 'member-search',
@@ -111,6 +114,13 @@ export default function MemberSearchInput({
       setSearchQuery(initialDisplayName)
     }
   }, [initialDisplayName, value, searchQuery])
+
+  // Synchroniser une sélection programmée (ex. « Le titulaire est aussi le parrain »).
+  useEffect(() => {
+    if ((value || selectedMemberId) && selectedDisplayName) {
+      setSearchQuery(selectedDisplayName)
+    }
+  }, [value, selectedMemberId, selectedDisplayName])
 
   useEffect(() => {
     if (!value && !selectedMemberId) {
