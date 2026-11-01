@@ -80,6 +80,19 @@ export const evenementsHelp: HelpTopic = {
         },
       ],
     },
+    {
+      kind: 'faq',
+      blocks: [
+        {
+          type: 'faq',
+          items: [
+            { question: 'Pourquoi les membres ne voient-ils pas l’événement ?', answer: 'Vérifiez qu’il est publié et non conservé en brouillon. S’il utilise un sondage, vérifiez aussi ses dates d’ouverture et de clôture.' },
+            { question: 'Le lieu qui a le plus de voix est-il choisi automatiquement ?', answer: 'Non. Un administrateur confirme le lieu officiel après lecture des résultats ; il peut retenir un autre lieu si l’organisation l’exige.' },
+            { question: 'Peut-on modifier un événement publié ?', answer: 'Oui, si votre compte possède la permission correspondante. Vérifiez ensuite les dates, le lieu et l’affiche visibles par les membres.' },
+          ],
+        },
+      ],
+    },
   ],
 }
 
@@ -117,6 +130,15 @@ export const documentsAssociationHelp: HelpTopic = {
           tone: 'info',
           text: 'À l’ouverture, la page reprend la version publiée : on la corrige sans tout ressaisir. Le remplissage se fait depuis un ordinateur.',
         },
+        {
+          type: 'steps',
+          title: 'Corriger une version publiée',
+          items: [
+            'Ouvrez le document concerné et vérifiez que l’aperçu reprend bien la version actuellement publiée.',
+            'Corrigez les champs ou signatures nécessaires puis contrôlez toutes les pages de l’aperçu.',
+            'Publiez la nouvelle version : elle remplace la précédente dans l’espace membre.',
+          ],
+        },
       ],
     },
     {
@@ -127,6 +149,25 @@ export const documentsAssociationHelp: HelpTopic = {
           items: [
             { term: 'Dernière version', text: 'C’est toujours le dernier texte publié qui fait foi.' },
             { term: 'Agent de recouvrement', text: 'Il consulte les documents, sans les remplir, les télécharger ni les publier.' },
+            { term: 'Publication', text: 'Enregistrer des champs ne suffit pas : seule l’action Publier rend la nouvelle version visible aux membres.' },
+            { term: 'Signatures', text: 'Contrôlez le nom, la qualité et la signature de chaque signataire avant publication.' },
+          ],
+        },
+        {
+          type: 'note',
+          tone: 'warning',
+          text: 'Une publication remplace immédiatement la version visible par les membres. Téléchargez la version précédente si vous devez en conserver une copie hors de la plateforme.',
+        },
+      ],
+    },
+    {
+      kind: 'faq',
+      blocks: [
+        {
+          type: 'faq',
+          items: [
+            { question: 'Pourquoi mes changements ne sont-ils pas visibles par les membres ?', answer: 'Vérifiez que vous avez publié après les modifications. L’aperçu local n’est pas une publication.' },
+            { question: 'Pourquoi les boutons de signature ou de publication sont-ils absents ?', answer: 'Votre compte est probablement en lecture seule pour cette section. Le super admin doit vérifier vos accès et permissions.' },
           ],
         },
       ],

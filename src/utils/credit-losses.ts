@@ -172,14 +172,22 @@ export function buildSimpleCreditSchedule(
   return items.filter((item) => item.status === 'PAID' || item.payment > 0)
 }
 
-/** Manque à gagner total d'un contrat (cycle en cours), en FCFA. */
-export function computeCreditLossTotal(contract: CreditContract, payments: CreditPayment[]): number {
+/**
+ * Manque à gagner généré à la date demandée (cycle en cours), en FCFA.
+ * Les échéances futures ne constituent pas encore un manque à gagner.
+ */
+export function computeCreditLossTotal(
+  contract: CreditContract,
+  payments: CreditPayment[],
+  asOf: Date = new Date(),
+): number {
   const cyclePayments = getCreditPaymentsForCurrentCycle(contract, payments)
+  const asOfTime = asOf.getTime()
 
   if (contract.creditType === 'FIXE' || contract.creditType === 'AIDE') {
     return customRound(
       buildSimpleCreditSchedule(contract, cyclePayments)
-        .filter((row) => row.month > contract.duration && row.principal > 0)
+        .filter((row) => row.month > contract.duration && row.principal > 0 && row.date.getTime() <= asOfTime)
         .reduce((sum, row) => sum + customRound(row.principal * SIMPLE_CREDIT_LOSS_RATE), 0),
     )
   }
@@ -189,7 +197,7 @@ export function computeCreditLossTotal(contract: CreditContract, payments: Credi
   const monthlyRate = contract.interestRate / 100
   return customRound(
     buildCreditSpecialeHistory(contract, cyclePayments, { projectUntilZero: true })
-      .filter((row) => row.phase === 'FIXE' && !row.isRest && row.capitalStart > 0)
+      .filter((row) => row.phase === 'FIXE' && !row.isRest && row.capitalStart > 0 && row.date.getTime() <= asOfTime)
       .reduce((sum, row) => sum + customRound(row.capitalStart * monthlyRate), 0),
   )
 }
@@ -200,8 +208,12 @@ export function missedEarningsPaid(contract: Pick<CreditContract, 'missedEarning
 }
 
 /** Manque à gagner calculé, encaissé, et restant à encaisser. */
-export function computeMissedEarningsBalance(contract: CreditContract, payments: CreditPayment[]) {
-  const gross = computeCreditLossTotal(contract, payments)
+export function computeMissedEarningsBalance(
+  contract: CreditContract,
+  payments: CreditPayment[],
+  asOf: Date = new Date(),
+) {
+  const gross = computeCreditLossTotal(contract, payments, asOf)
   const paid = missedEarningsPaid(contract)
   return { gross, paid, net: Math.max(0, gross - paid) }
 }

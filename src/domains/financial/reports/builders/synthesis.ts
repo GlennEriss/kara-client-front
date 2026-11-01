@@ -87,6 +87,8 @@ export function buildSynthesisModule(modules: FinancialReportModule[], size: num
           'Tout ce que l’association doit rendre à ses membres et bienfaiteurs à la fin du mois.', { kind: 'stock', level: 'subtotal' }),
       ]),
       makeBlock('risks', [
+        makeLine('missed_earnings_outstanding', 'Manque à gagner généré restant à date (crédits)', credits('missed_earnings_outstanding'),
+          'Manque à gagner déjà généré à la date du bilan, diminué des montants encaissés à ce titre.', { kind: 'stock', level: 'total' }),
         makeLine('missed_earnings', 'Manque à gagner du mois (crédits)', credits('missed_earnings'),
           'Intérêts que l’association n’a pas touchés sur les crédits en partie fixe ou au-delà de leur durée.'),
         makeLine('losses', 'Pertes constatées (crédits clôturés en perte)', credits('losses'),

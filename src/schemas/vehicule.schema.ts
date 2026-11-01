@@ -59,7 +59,7 @@ export const vehicleInsuranceFormSchema = z.object({
     .min(3, 'Plaque invalide')
     .regex(/[A-Za-z0-9-]+/, 'Format de plaque invalide'),
   insuranceCompany: z.string().min(1, "Le nom de l'assurance est requis"),
-  policyNumber: z.string().optional(),
+  policyNumber: z.string().trim().min(2, 'Le numéro de police est requis'),
   warrantyMonths: z
     .coerce.number({ message: 'Durée invalide' })
     .int('La durée doit être un nombre entier')
@@ -67,7 +67,7 @@ export const vehicleInsuranceFormSchema = z.object({
     .max(60, 'Durée maximale 60 mois'),
   premiumAmount: z
     .coerce.number({ message: 'Montant invalide' })
-    .nonnegative('Montant positif requis'),
+    .min(1, 'Le montant doit être positif'),
   currency: z.string().min(1, 'La devise est requise').default('FCFA'),
   startDate: z.coerce.date({ message: 'Date de début requise' }),
   endDate: z.coerce.date({ message: "Date de fin requise" }),
@@ -133,7 +133,7 @@ export type VehicleInsuranceFormValues = z.infer<typeof vehicleInsuranceFormSche
 export const vehicleInsuranceFiltersSchema = z.object({
   status: z.enum(['all', 'active', 'expires_soon', 'expired']).default('all'),
   insuranceCompany: z.string().optional(),
-  vehicleType: z.enum(['all', 'car', 'motorcycle', 'truck', 'bus', 'other']).default('all'),
+  vehicleType: z.enum(['all', 'car', 'motorcycle', 'truck', 'bus', 'maison', 'other']).default('all'),
   searchQuery: z.string().optional(),
   sponsorMemberId: z.string().optional(),
   alphabeticalOrder: z.enum(['asc', 'desc']).default('asc'),

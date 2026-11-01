@@ -63,6 +63,7 @@ export const caisseSpecialeHelp: HelpTopic = {
           items: [
             'Remboursement final : quand toutes les échéances sont payées, demandez le remboursement final, faites-le valider, puis marquez-le payé avec la preuve.',
             'Retrait anticipé : avant la fin, le retrait est traité immédiatement. Le contrat est clos et le membre reçoit son épargne et le bonus acquis.',
+            'Cliquez sur « Générer le procès-verbal de liquidation » : l’aperçu PDF s’ouvre immédiatement. Complétez les informations manquantes, contrôlez le montant, puis téléchargez le document pour signature.',
             'Une demande de remboursement en attente ou approuvée peut être annulée, avec un motif.',
           ],
         },
@@ -85,6 +86,10 @@ export const caisseSpecialeHelp: HelpTopic = {
             { term: 'Pénalités et bonus', text: 'Les pénalités sont retirées du bonus, jamais de l’épargne elle-même.' },
             { term: 'Remboursement final', text: 'Possible seulement quand toutes les échéances prévues sont payées ; une seule demande à la fois.' },
             { term: 'Retrait anticipé', text: 'Possible dès qu’au moins un versement a été fait ; le contrat est alors clos.' },
+            {
+              term: 'Procès-verbal de liquidation',
+              text: 'Il peut être préparé avant la demande. Sans remboursement enregistré, la date et le mode de règlement restent à compléter ; si une demande existe, ses informations sont reprises automatiquement.',
+            },
           ],
         },
         {
@@ -123,6 +128,10 @@ export const caisseSpecialeHelp: HelpTopic = {
             {
               question: 'Où changer le taux des pénalités ou le barème des bonus ?',
               answer: 'Dans Caisse spéciale › Paramètres. Chaque type de caisse a ses propres réglages.',
+            },
+            {
+              question: 'Pourquoi la liste indique-t-elle « Aucune demande de remboursement » alors que le procès-verbal s’ouvre ?',
+              answer: 'Ce message concerne uniquement l’historique des demandes. Le procès-verbal peut être préparé avant la demande ; vérifiez et complétez alors les champs de règlement avant de le faire signer.',
             },
           ],
         },

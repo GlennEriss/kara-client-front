@@ -8,6 +8,11 @@ export const creditSpecialeHelp: HelpTopic = {
     'Prêts à intérêts mensuels remboursés en 7 mois au plus, avec une partie fixe sans intérêts au-delà. Variantes : crédit en semaines et achat en boutique partenaire.',
   pages: [
     {
+      path: '/credit-speciale',
+      label: 'Accès au crédit spécial',
+      summary: 'Redirection vers la liste des contrats de crédit spécial.',
+    },
+    {
       path: '/credit-speciale/simulations',
       label: 'Simulations',
       summary: 'Calculer un échéancier avant toute demande : mensualité, durée, intérêts et commission du garant.',
@@ -137,7 +142,7 @@ export const creditSpecialeHelp: HelpTopic = {
             },
             {
               term: 'Manque à gagner',
-              text: 'Les intérêts que l’association ne touche pas en partie fixe : le taux du contrat × la dette, pour chaque mois en partie fixe. Affiché après la date de fin prévue, ou dès un basculement manuel.',
+              text: 'Les intérêts que l’association ne touche pas sur les échéances déjà arrivées en partie fixe : taux du contrat × dette au début du mois. Les mois futurs ne sont pas comptés.',
             },
             {
               term: 'Crédit en semaines',
@@ -196,6 +201,10 @@ export const creditSpecialeHelp: HelpTopic = {
             {
               question: 'Où voir les contrats qui ne produisent plus d’intérêts ?',
               answer: 'Dans l’onglet « Partie fixe » de la liste des contrats, qui ne montre que les contrats non clôturés.',
+            },
+            {
+              question: 'Pourquoi le manque à gagner change-t-il avec le temps ?',
+              answer: 'Il est généré à chaque échéance de partie fixe arrivée. Il utilise la dette au début du mois ; un remboursement modifie donc les mois suivants. Les échéances futures ne sont jamais ajoutées par avance.',
             },
           ],
         },

@@ -118,6 +118,8 @@ describe('bilan financier', () => {
   it('crédit spécial : manque à gagner, pénalités impayées et retard', () => {
     // Partie fixe de M8 à M13 (mois passés) : 10 % de la dette de chaque mois.
     expect(line('credit_speciale', 'risks', 'missed_earnings').total).toBe(576_000)
+    expect(at('credit_speciale', 'risks', 'missed_earnings_outstanding', '2026-10')).toBe(576_000)
+    expect(at('synthesis', 'risks', 'missed_earnings_outstanding', '2026-10')).toBe(576_000)
     expect(at('credit_speciale', 'risks', 'unpaid_penalties', '2026-10')).toBe(91_667)
     expect(at('credit_speciale', 'risks', 'late_amount', '2026-10')).toBe(410_000)
     expect(at('credit_speciale', 'risks', 'late_contracts', '2026-10')).toBe(1)

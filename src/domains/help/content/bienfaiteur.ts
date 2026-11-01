@@ -133,8 +133,8 @@ export const vehiculesHelp: HelpTopic = {
           type: 'steps',
           title: 'Valider une déclaration de membre',
           items: [
-            'Ouvrez l’onglet « À valider » et vérifiez la déclaration auprès de l’assureur partenaire.',
-            'Corrigez les champs qui diffèrent : la valeur déclarée et la valeur retenue restent visibles.',
+            'Ouvrez l’onglet « À valider » et contrôlez les informations, la police et le reçu transmis par le membre auprès de l’assureur partenaire.',
+            'Complétez notamment le parrain, puis corrigez les champs qui diffèrent : la valeur déclarée et la valeur retenue restent visibles des deux côtés.',
             'Cliquez sur « Enregistrer et valider », ou refusez la déclaration avec un motif.',
           ],
         },
@@ -144,6 +144,7 @@ export const vehiculesHelp: HelpTopic = {
           items: [
             'À l’échéance, utilisez « Renouveler l’assurance » : la nouvelle période est ajoutée à la fiche.',
             'Le bouton WhatsApp envoie au titulaire un rappel avant ou après l’expiration.',
+            'Dans son espace, le membre voit l’alerte et peut utiliser « Demander le renouvellement » pour ouvrir une conversation WhatsApp préremplie avec l’association.',
           ],
         },
         {
@@ -166,6 +167,21 @@ export const vehiculesHelp: HelpTopic = {
             { term: 'Part du membre', text: 'Un pourcentage de cette commission revient au membre qui a enregistré le véhicule ; le reste est gardé par LE KARA.' },
             { term: 'Une ligne par période', text: 'Un reversement est créé à la validation, puis à chaque renouvellement.' },
             { term: 'Commission confidentielle', text: 'Les membres ne voient pas la commission de l’assureur.' },
+            { term: 'Échéance synchronisée', text: 'Le statut passe automatiquement à « Expire bientôt » dans les 30 derniers jours, puis à « Expirée ». Le membre reçoit aussi les rappels prévus.' },
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'faq',
+      blocks: [
+        {
+          type: 'faq',
+          items: [
+            { question: 'Pourquoi une assurance est-elle encore « À valider » ?', answer: 'Une déclaration faite par un membre doit être contrôlée puis validée par un administrateur. Ouvrez-la, comparez les pièces et utilisez « Enregistrer et valider ».' },
+            { question: 'Pourquoi aucun reversement n’est-il calculé ?', answer: 'Vérifiez que l’assureur est configuré comme partenaire avec ses taux, puis que l’assurance ou son renouvellement a été validé.' },
+            { question: 'Le membre ne doit pas voir la commission de l’assureur.', answer: 'C’est prévu : la commission partenaire reste confidentielle. Le membre ne voit que les informations et montants qui lui sont destinés.' },
+            { question: 'Le membre voit-il les corrections et les pièces ?', answer: 'Oui. Après validation, sa fiche affiche les corrections retenues, la police, le reçu, la prime et l’échéance. Il ne peut plus modifier le dossier validé.' },
           ],
         },
       ],
@@ -251,6 +267,19 @@ export const boutiquesHelp: HelpTopic = {
           type: 'note',
           tone: 'info',
           text: 'Le suivi « Ventes » montre, par boutique partenaire, ce que l’association a financé, versé aux vendeurs, ce qui reste à verser et ce qui a été remboursé.',
+        },
+      ],
+    },
+    {
+      kind: 'faq',
+      blocks: [
+        {
+          type: 'faq',
+          items: [
+            { question: 'Pourquoi une boutique ou un article n’apparaît-il pas aux membres ?', answer: 'Il est encore en attente, a été refusé ou est masqué. La boutique et chaque article doivent être validés.' },
+            { question: 'Une boutique publiée est-elle automatiquement partenaire du crédit ?', answer: 'Non. Le partenariat d’achat à crédit est activé séparément, avec la remise négociée avec l’association.' },
+            { question: 'Que faut-il vérifier avant de valider un article ?', answer: 'Contrôlez le nom, la description, le prix, les photos et la disponibilité. Le prix validé sert ensuite au financement de l’achat à crédit.' },
+          ],
         },
       ],
     },

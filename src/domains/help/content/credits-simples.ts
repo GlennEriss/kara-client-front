@@ -54,6 +54,7 @@ export const creditFixeHelp: HelpTopic = {
   category: 'Crédits',
   summary: 'Prêts à intérêt unique, remboursés en mensualités sur 14 mois au plus.',
   pages: [
+    { path: '/credit-fixe', label: 'Accès au crédit fixe', summary: 'Redirection vers la liste des contrats de crédit fixe.' },
     { path: '/credit-fixe/simulation', label: 'Simulation', summary: 'Calculer l’échéancier d’un crédit fixe : intérêt unique, mensualités et total à rembourser.' },
     { path: '/credit-fixe/demandes', label: 'Demandes', summary: 'Enregistrer, approuver ou rejeter les demandes, puis créer le contrat.' },
     { path: '/credit-fixe/contrats', label: 'Contrats', summary: 'Suivre les contrats de crédit fixe : versements, retards, clôture.' },
@@ -77,7 +78,7 @@ export const creditFixeHelp: HelpTopic = {
           items: [
             { term: 'Intérêt unique', text: 'Montant × taux (jusqu’à 50 %), appliqué une fois. Total à rembourser = montant + intérêt.' },
             { term: 'Durée', text: 'De 1 à 14 mois ; montant de 1 000 à 10 000 000 FCFA.' },
-            { term: 'Manque à gagner', text: '10 % du reste dû pour chaque mois au-delà de la durée prévue, tant que le contrat n’est pas soldé.' },
+            { term: 'Manque à gagner', text: '10 % du reste dû pour chaque échéance déjà arrivée au-delà de la durée prévue, tant que le contrat n’est pas soldé. Les mois futurs ne sont pas comptés.' },
             { term: 'Rajout', text: 'Un seul rajout par contrat, sur un contrat actif ou partiel sans pénalité impayée.' },
           ],
         },
@@ -101,7 +102,7 @@ export const creditFixeHelp: HelpTopic = {
             },
             {
               question: 'Le membre paie après la fin prévue : que se passe-t-il ?',
-              answer: 'Le contrat reste ouvert jusqu’au remboursement complet, et un manque à gagner de 10 % du reste dû est compté pour chaque mois de dépassement.',
+              answer: 'Le contrat reste ouvert jusqu’au remboursement complet, et un manque à gagner de 10 % du reste dû est généré à chaque échéance arrivée après la durée prévue.',
             },
           ],
         },
@@ -116,6 +117,7 @@ export const creditAideHelp: HelpTopic = {
   category: 'Crédits',
   summary: 'Petits prêts d’aide à intérêt unique (5 % au plus), remboursés en 3 mois au plus.',
   pages: [
+    { path: '/credit-aide', label: 'Accès au crédit aide', summary: 'Redirection vers la liste des contrats de crédit aide.' },
     { path: '/credit-aide/simulation', label: 'Simulation', summary: 'Calculer l’échéancier d’un crédit aide sur 3 mois au plus.' },
     { path: '/credit-aide/demandes', label: 'Demandes', summary: 'Enregistrer, approuver ou rejeter les demandes de crédit aide, puis créer le contrat.' },
     { path: '/credit-aide/contrats', label: 'Contrats', summary: 'Suivre les contrats de crédit aide jusqu’au remboursement ou à la transformation.' },
@@ -143,7 +145,7 @@ export const creditAideHelp: HelpTopic = {
               term: 'Transformation',
               text: 'Si, au 3e mois, il reste une somme à payer, le contrat passe au statut « Transformé » : le solde restant est à reprendre en crédit spécial.',
             },
-            { term: 'Manque à gagner', text: '10 % du reste dû pour chaque mois au-delà de la durée prévue.' },
+            { term: 'Manque à gagner', text: '10 % du reste dû pour chaque échéance déjà arrivée au-delà de la durée prévue.' },
           ],
         },
         {

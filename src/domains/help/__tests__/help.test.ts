@@ -63,6 +63,19 @@ describe('aide : contenu', () => {
     }
   })
 
+  it('chaque fiche propose un parcours de prise en main et des réponses pratiques', () => {
+    for (const topic of HELP_TOPICS) {
+      const kinds = topic.sections.map((section) => section.kind)
+      const blocks = topic.sections.flatMap((section) => section.blocks)
+
+      expect(new Set(kinds).size, `${topic.key} contient une section en double`).toBe(kinds.length)
+      expect(kinds, `${topic.key} doit expliquer comment utiliser la section`).toContain('howto')
+      expect(kinds, `${topic.key} doit contenir une FAQ`).toContain('faq')
+      expect(blocks.some((block) => block.type === 'steps'), `${topic.key} doit avoir au moins un pas-à-pas`).toBe(true)
+      expect(blocks.some((block) => block.type === 'faq'), `${topic.key} doit répondre aux cas fréquents`).toBe(true)
+    }
+  })
+
   it('chaque page n’est couverte que par une fiche et existe dans l’application', () => {
     const paths = HELP_TOPICS.flatMap((topic) => topic.pages.map((page) => page.path))
     expect(new Set(paths).size).toBe(paths.length)

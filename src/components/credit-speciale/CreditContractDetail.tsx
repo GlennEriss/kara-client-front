@@ -253,7 +253,7 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
             ? `Restant · ${fcfa(missedEarningsCollected)} déjà encaissé`
             : contract.creditType === 'FIXE'
               ? 'Pertes après la durée contractuelle'
-              : 'Manque à gagner en partie fixe',
+              : 'Manque à gagner généré en partie fixe',
           tone: 'danger' as const,
         }]
       : []),
@@ -968,11 +968,13 @@ export default function CreditContractDetail({
   const progressPercentage = progressTotal > 0 ? (contract.amountPaid / progressTotal) * 100 : 0
 
   const lossHistoryRows = React.useMemo(() => {
+    const asOfTime = Date.now()
+
     if (contract.creditType === 'FIXE' || contract.creditType === 'AIDE') {
       const FIXED_LOSS_RATE = 0.1
 
       return actualSchedule
-        .filter((row) => row.month > contract.duration && row.principal > 0)
+        .filter((row) => row.month > contract.duration && row.principal > 0 && row.date.getTime() <= asOfTime)
         .map((row) => ({
           month: row.month,
           date: row.date,
@@ -987,7 +989,7 @@ export default function CreditContractDetail({
     const cyclePrefix = currentCycle && currentCycle.cycleNumber > 1 ? 'Apres augmentation - ' : ''
 
     return specialHistory
-      .filter((row) => row.phase === 'FIXE' && !row.isRest && row.capitalStart > 0)
+      .filter((row) => row.phase === 'FIXE' && !row.isRest && row.capitalStart > 0 && row.date.getTime() <= asOfTime)
       .map((row) => ({
         month: row.month,
         date: row.date,
