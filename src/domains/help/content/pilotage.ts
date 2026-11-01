@@ -87,7 +87,7 @@ export const calendrierHelp: HelpTopic = {
             'Chaque jour affiche les échéances prévues ; un clic ouvre le détail des membres concernés.',
             'Les filtres affinent la vue : type de caisse, fréquence de versement, mode de versement des placements.',
             'La liste des versements en retard montre, pour chaque membre, le montant dû, l’échéance la plus ancienne et le dernier contact. Le filtre par mois ne garde que les membres dont l’échéance la plus ancienne tombe dans le mois choisi ; le total et les exports suivent ce filtre.',
-            'Le superadmin peut sélectionner plusieurs retardataires, planifier leurs appels sur un jour de la semaine en cours et attribuer le lot à un admin ou à un superadmin. Un lot non attribué reste visible par tous les admins du calendrier.',
+            'Le superadmin peut sélectionner plusieurs retardataires, planifier leurs appels sur un jour de la semaine en cours et attribuer le lot à tout compte actif autorisé à consulter le calendrier, notamment un agent de recouvrement. Un lot non attribué reste visible par tous les utilisateurs du calendrier.',
           ],
         },
       ],
@@ -109,7 +109,7 @@ export const calendrierHelp: HelpTopic = {
           items: [
             'Dans les versements en retard, cochez les personnes à intégrer au lot.',
             'Cliquez sur « Planifier les appels », puis choisissez aujourd’hui ou un prochain jour de la semaine en cours.',
-            'Laissez le lot non attribué ou choisissez un admin/superadmin actif.',
+            'Laissez le lot non attribué ou choisissez un compte actif disposant de l’accès au calendrier.',
             'Les appels apparaissent dans « Appels planifiés cette semaine ». Le compte rendu d’appel marque automatiquement la tâche comme terminée.',
             'Le superadmin utilise « Suivi des lots » pour consulter l’avancement, les appels terminés, la personne qui les a traités et leur date de réalisation.',
             'La création de lots reste facultative : la liste complète des versements en retard et ses actions restent disponibles.',
