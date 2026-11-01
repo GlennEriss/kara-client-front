@@ -2384,7 +2384,8 @@ export interface VehicleInsurance {
 /**
  * Assureur partenaire (collection `vehicleInsurancePartners`, admins seulement) :
  * il verse à LE KARA une commission sur la prime de chaque véhicule assuré, et
- * LE KARA en reverse une part au membre qui a enregistré le véhicule.
+ * LE KARA en reverse une part au parrain du dossier. Le titulaire membre peut
+ * être son propre parrain.
  */
 export interface VehicleInsurancePartner {
   id: string
@@ -2392,7 +2393,7 @@ export interface VehicleInsurancePartner {
   name: string
   /** Commission versée par l'assureur à LE KARA, en % de la prime. */
   commissionRate: number
-  /** Part de cette commission reversée au membre, en %. */
+  /** Part de cette commission reversée au parrain, en %. */
   memberSharePercent: number
   updatedAt?: Date
   updatedBy?: string
@@ -2422,7 +2423,7 @@ export interface VehicleInsuranceReward {
   startDate: Date
   endDate: Date
   premiumAmount: number
-  /** Membre qui a enregistré le véhicule : c'est lui qui reçoit le reversement. */
+  /** Parrain du dossier ; il peut être le titulaire lui-même. */
   beneficiaryId: string
   beneficiaryMatricule?: string
   beneficiaryName: string

@@ -17,15 +17,33 @@ describe('reversement assurance véhicule', () => {
     expect(findInsurancePartner(partners, 'Autre')).toBeUndefined()
   })
 
-  it('calcule la commission attendue et la part du membre', () => {
+  it('calcule la commission attendue et la part du parrain', () => {
     expect(computeVehicleReward(250_000, partners[0])).toEqual({ expectedCommission: 25_000, memberAmount: 7_500 })
     expect(memberShareOf(20_000, 30)).toBe(6_000)
   })
 
-  it('reverse au titulaire membre, sinon au parrain', () => {
+  it('reverse au parrain, y compris quand le titulaire se parraine lui-même', () => {
+    expect(
+      resolveRewardBeneficiary({
+        holderType: 'member',
+        memberId: 'm1',
+        memberFirstName: 'Awa',
+        memberLastName: 'N.',
+        sponsorMemberId: 'm1',
+        sponsorName: 'N. Awa',
+      }),
+    ).toMatchObject({ id: 'm1', name: 'N. Awa' })
+    expect(
+      resolveRewardBeneficiary({
+        holderType: 'member',
+        memberId: 'm1',
+        sponsorMemberId: 's2',
+        sponsorName: 'Paul',
+      }),
+    ).toMatchObject({ id: 's2', name: 'Paul' })
     expect(
       resolveRewardBeneficiary({ holderType: 'member', memberId: 'm1', memberFirstName: 'Awa', memberLastName: 'N.' }),
-    ).toMatchObject({ id: 'm1', name: 'Awa N.' })
+    ).toMatchObject({ id: 'm1', name: 'N. Awa' })
     expect(
       resolveRewardBeneficiary({ holderType: 'non-member', sponsorMemberId: 's1', sponsorName: 'Paul' }),
     ).toMatchObject({ id: 's1', name: 'Paul' })

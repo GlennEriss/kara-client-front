@@ -152,13 +152,12 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
             </section>
           )}
 
-          {(insurance.notes || (canDownloadDocuments && insurance.attachments && (insurance.attachments.policyUrl || insurance.attachments.receiptUrl))) && (
+          {(insurance.notes || (canDownloadDocuments && insurance.attachments?.receiptUrl)) && (
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               {insurance.notes && <SectionCard icon={<ReceiptText className="h-4 w-4" />} title="Notes"><p className="whitespace-pre-line text-sm leading-6 text-slate-700">{insurance.notes}</p></SectionCard>}
-              {canDownloadDocuments && insurance.attachments && (insurance.attachments.policyUrl || insurance.attachments.receiptUrl) && (
+              {canDownloadDocuments && insurance.attachments?.receiptUrl && (
                 <SectionCard icon={<FileCheck2 className="h-4 w-4" />} title="Pièces justificatives">
                   <div className="flex flex-wrap gap-2">
-                    {insurance.attachments.policyUrl && <Button asChild variant="outline" size="sm" className="rounded-xl"><a href={insurance.attachments.policyUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" />Police d&apos;assurance</a></Button>}
                     {insurance.attachments.receiptUrl && <Button asChild variant="outline" size="sm" className="rounded-xl"><a href={insurance.attachments.receiptUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" />Reçu</a></Button>}
                   </div>
                 </SectionCard>

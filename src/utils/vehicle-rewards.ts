@@ -18,7 +18,7 @@ export const findInsurancePartner = (
 }
 
 /**
- * Commission attendue de l'assureur (prime × taux) et part du membre
+ * Commission attendue de l'assureur (prime × taux) et part du parrain
  * (commission × part). Montants arrondis au franc.
  */
 export const computeVehicleReward = (
@@ -36,8 +36,9 @@ export const memberShareOf = (commission: number, memberSharePercent: number): n
   Math.round((Number(commission) || 0) * (memberSharePercent / 100))
 
 /**
- * Membre qui reçoit le reversement : celui qui a enregistré le véhicule.
- * Titulaire membre : lui-même ; titulaire non-membre : son parrain.
+ * Membre qui reçoit le reversement : le parrain sélectionné. Un titulaire
+ * membre peut être son propre parrain. Repli sur le titulaire pour les anciennes
+ * assurances membre qui n'avaient pas encore de parrain enregistré.
  */
 export const resolveRewardBeneficiary = (
   insurance: Pick<
@@ -52,18 +53,18 @@ export const resolveRewardBeneficiary = (
     | 'sponsorName'
   >,
 ): { id: string; matricule?: string; name: string } | null => {
-  if (insurance.holderType === 'member' && insurance.memberId) {
-    return {
-      id: insurance.memberId,
-      matricule: insurance.memberMatricule || undefined,
-      name: [insurance.memberFirstName, insurance.memberLastName].filter(Boolean).join(' ').trim() || insurance.memberId,
-    }
-  }
   if (insurance.sponsorMemberId) {
     return {
       id: insurance.sponsorMemberId,
       matricule: insurance.sponsorMatricule || undefined,
       name: insurance.sponsorName || insurance.sponsorMemberId,
+    }
+  }
+  if (insurance.holderType === 'member' && insurance.memberId) {
+    return {
+      id: insurance.memberId,
+      matricule: insurance.memberMatricule || undefined,
+      name: [insurance.memberLastName, insurance.memberFirstName].filter(Boolean).join(' ').trim() || insurance.memberId,
     }
   }
   return null

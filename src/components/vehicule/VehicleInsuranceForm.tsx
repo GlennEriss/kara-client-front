@@ -1,6 +1,7 @@
 'use client'
 
 import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -42,7 +43,6 @@ interface Props {
 }
 
 export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting = false, mode = 'create', isLoadingMembers = false }: Props) {
-  const [policyFile, setPolicyFile] = useState<File | null>(null)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const defaultValues = useMemo(() => {
@@ -121,6 +121,8 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
   const form = useVehicleInsuranceForm(defaultValues)
 
   const holderType = form.watch('holderType')
+  const holderMemberId = form.watch('memberId')
+  const sponsorName = form.watch('sponsorName')
   const initialMemberDisplayName =
     initialInsurance && initialInsurance.memberFirstName
       ? `${initialInsurance.memberFirstName || ''} ${initialInsurance.memberLastName || ''}`.trim()
@@ -160,20 +162,25 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
       return
     }
 
-    const insuredMemberId = form.getValues('memberId')
-    if (holderType === 'member' && insuredMemberId && memberId === insuredMemberId) {
-      form.setError('sponsorMemberId', {
-        type: 'manual',
-        message: "Le parrain doit être différent du membre titulaire",
-      })
-      return
-    }
-
     form.clearErrors('sponsorMemberId')
     form.setValue('sponsorMemberId', memberId, { shouldDirty: true, shouldValidate: true })
-    form.setValue('sponsorName', `${member.firstName || ''} ${member.lastName || ''}`.trim(), { shouldDirty: true, shouldValidate: true })
+    form.setValue('sponsorName', `${member.lastName || ''} ${member.firstName || ''}`.trim(), { shouldDirty: true, shouldValidate: true })
     form.setValue('sponsorMatricule', member.matricule || null, { shouldDirty: true, shouldValidate: true })
     form.setValue('sponsorContacts', member.contacts || [], { shouldDirty: true, shouldValidate: true })
+  }
+
+  const useHolderAsSponsor = () => {
+    const memberId = form.getValues('memberId')
+    if (!memberId) return
+    form.clearErrors('sponsorMemberId')
+    form.setValue('sponsorMemberId', memberId, { shouldDirty: true, shouldValidate: true })
+    form.setValue(
+      'sponsorName',
+      `${form.getValues('memberLastName') || ''} ${form.getValues('memberFirstName') || ''}`.trim(),
+      { shouldDirty: true, shouldValidate: true },
+    )
+    form.setValue('sponsorMatricule', form.getValues('memberMatricule') || null, { shouldDirty: true, shouldValidate: true })
+    form.setValue('sponsorContacts', form.getValues('memberContacts') || [], { shouldDirty: true, shouldValidate: true })
   }
 
   const handleHolderTypeChange = (value: 'member' | 'non-member') => {
@@ -205,11 +212,6 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
       const ownerId = values.memberMatricule || values.memberId || initialInsurance?.id || 'externe'
       const insuranceFolder = initialInsurance?.id || `nouveau-${Date.now()}`
       const attachments = { ...(initialInsurance?.attachments || values.attachments || {}) }
-      if (policyFile) {
-        const uploaded = await createFile(policyFile, ownerId, `vehicle-insurances/${ownerId}/${insuranceFolder}`)
-        attachments.policyUrl = uploaded.url
-        attachments.policyPath = uploaded.path
-      }
       if (receiptFile) {
         const uploaded = await createFile(receiptFile, ownerId, `vehicle-insurances/${ownerId}/${insuranceFolder}`)
         attachments.receiptUrl = uploaded.url
@@ -217,7 +219,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
       }
       await onSubmit({ ...values, attachments })
     } catch (error) {
-      toast.error("Impossible de téléverser les pièces d'assurance", {
+      toast.error('Impossible de téléverser le reçu de paiement', {
         description: error instanceof Error ? error.message : undefined,
       })
     } finally {
@@ -227,9 +229,9 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
 
   return (
     <Form {...form}>
-      <form id="vehicle-insurance-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+      <form id="vehicle-insurance-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-5">
         {/* Section Titulaire */}
-        <Card className="border-2">
+        <Card className="gap-4 border-slate-200 py-5 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-blue-100">
@@ -334,27 +336,6 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
                 <div className="grid md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="nonMemberFirstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-semibold">
-                          Prénom <span className="text-red-500">*</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            value={field.value || ''}
-                            placeholder="Prénom"
-                            className="h-11"
-                            disabled={mode === 'edit'}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
                     name="nonMemberLastName"
                     render={({ field }) => (
                       <FormItem>
@@ -366,6 +347,27 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
                             {...field}
                             value={field.value || ''}
                             placeholder="Nom"
+                            className="h-11"
+                            disabled={mode === 'edit'}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="nonMemberFirstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-semibold">
+                          Prénom <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value || ''}
+                            placeholder="Prénom"
                             className="h-11"
                             disabled={mode === 'edit'}
                           />
@@ -419,7 +421,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
         </Card>
 
         {/* Section Véhicule */}
-        <Card className="border-2">
+        <Card className="gap-4 border-slate-200 py-5 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-green-100">
@@ -531,7 +533,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
         </Card>
 
         {/* Section Assurance */}
-        <Card className="border-2">
+        <Card className="gap-4 border-slate-200 py-5 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-purple-100">
@@ -580,7 +582,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
         </Card>
 
         {/* Section Financière */}
-        <Card className="border-2">
+        <Card className="gap-4 border-slate-200 py-5 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-amber-100">
@@ -632,6 +634,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
                 <FormItem>
                   <FormControl>
                     <MemberSearchInput
+                      key={`vehicle-sponsor-${field.value || 'empty'}`}
                       value={field.value || ''}
                       onChange={handleSponsorChange}
                       selectedMemberId={field.value || undefined}
@@ -639,7 +642,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
                       disabled={isLoadingMembers}
                       label="Parrain"
                       placeholder="Nom, prénom, matricule ou téléphone du parrain"
-                      initialDisplayName={initialSponsorDisplayName}
+                      initialDisplayName={sponsorName || initialSponsorDisplayName}
                       isRequired
                       helperText="Tapez # suivi du matricule ou le nom d'un membre pour le retrouver rapidement"
                       inputId="vehicle-sponsor-member-search"
@@ -649,11 +652,16 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
                 </FormItem>
               )}
             />
+            {holderType === 'member' && holderMemberId && (
+              <Button type="button" variant="outline" size="sm" onClick={useHolderAsSponsor} className="w-full sm:w-fit">
+                Le titulaire est aussi le parrain
+              </Button>
+            )}
           </CardContent>
         </Card>
 
         {/* Section Dates */}
-        <Card className="border-2">
+        <Card className="gap-4 border-slate-200 py-5 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-red-100">
@@ -695,33 +703,28 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
           </CardContent>
         </Card>
 
-        <Card className="border-2">
+        <Card className="gap-4 border-slate-200 py-5 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <div className="rounded-lg bg-cyan-100 p-2"><Upload className="h-4 w-4 text-cyan-700" /></div>
               <div>
                 <CardTitle className="text-lg">Pièces justificatives</CardTitle>
-                <CardDescription>Police d&apos;assurance et reçu, en PDF ou image</CardDescription>
+                <CardDescription>Reçu de paiement, en PDF ou image</CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <FormLabel>Police d&apos;assurance</FormLabel>
-              <Input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={isUploading || isSubmitting} onChange={event => setPolicyFile(event.target.files?.[0] || null)} />
-              {initialInsurance?.attachments?.policyUrl && !policyFile && <p className="text-xs text-emerald-700">Une police est déjà enregistrée.</p>}
-            </div>
-            <div className="space-y-2">
+          <CardContent>
+            <div className="max-w-xl space-y-2">
               <FormLabel>Reçu de paiement</FormLabel>
               <Input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={isUploading || isSubmitting} onChange={event => setReceiptFile(event.target.files?.[0] || null)} />
               {initialInsurance?.attachments?.receiptUrl && !receiptFile && <p className="text-xs text-emerald-700">Un reçu est déjà enregistré.</p>}
             </div>
-            {isUploading && <p className="flex items-center gap-2 text-sm text-[#234D65] md:col-span-2"><Loader2 className="h-4 w-4 animate-spin" />Téléversement des documents…</p>}
+            {isUploading && <p className="mt-3 flex items-center gap-2 text-sm text-[#234D65]"><Loader2 className="h-4 w-4 animate-spin" />Téléversement du reçu…</p>}
           </CardContent>
         </Card>
 
         {/* Section Notes */}
-        <Card className="border-2">
+        <Card className="gap-4 border-slate-200 py-5 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-gray-100">

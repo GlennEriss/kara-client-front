@@ -3,6 +3,7 @@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { PageHero } from '@/components/ui/page-hero'
 import { useAllMembers } from '@/hooks/useMembers'
 import { useMyAccess } from '@/hooks/useMyAccess'
@@ -491,42 +492,41 @@ export function VehicleInsuranceList() {
           setValidateAfterSave(false)
         }
       }}>
-        <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[90dvh] flex flex-col">
-          <DialogHeader className="flex-shrink-0 pb-4 border-b">
-            <DialogTitle className="text-2xl font-bold">{formMode === 'create' ? 'Ajouter une assurance véhicule' : validateAfterSave ? 'Valider la déclaration' : "Modifier l'assurance"}</DialogTitle>
-            {validateAfterSave && (
-              <p className="mt-2 text-sm text-gray-600">
-                Vérifiez les informations auprès de l&apos;assureur partenaire et complétez la fiche : l&apos;enregistrement valide la déclaration.
-              </p>
-            )}
+        <ModalContent size="3xl" className="!w-[calc(100vw-1rem)] max-h-[95dvh] sm:!w-[95vw]">
+          <ModalHeader
+            icon={ShieldCheck}
+            title={formMode === 'create' ? 'Ajouter un véhicule assuré' : validateAfterSave ? 'Valider la déclaration' : "Modifier l'assurance"}
+            description={
+              validateAfterSave
+                ? "Vérifiez les informations auprès de l'assureur partenaire avant de valider."
+                : formMode === 'create'
+                  ? 'Renseignez le titulaire, le véhicule, la couverture et le reçu de paiement.'
+                  : "Mettez à jour les informations du véhicule et de son assurance."
+            }
+          />
+          <ModalBody className="space-y-4 bg-slate-50/60 px-4 py-4 sm:px-6 sm:py-5">
             {validateAfterSave && currentInsurance && (
-              <div className="mt-2">
-                <VehicleRewardEstimate
-                  insuranceCompany={currentInsurance.insuranceCompany}
-                  premiumAmount={currentInsurance.premiumAmount}
-                />
-              </div>
+              <VehicleRewardEstimate
+                insuranceCompany={currentInsurance.insuranceCompany}
+                premiumAmount={currentInsurance.premiumAmount}
+              />
             )}
             {formMode === 'create' && (
-              <div className="space-y-1 mt-2">
-                <p className="text-sm text-gray-600">
-                  Ajoutez les informations d'assurance pour un membre qui possède déjà un véhicule.
-                </p>
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
                 {membersLoading ? (
-                  <p className="text-xs text-gray-400">Chargement des membres...</p>
+                  <p className="text-slate-500">Chargement des membres…</p>
                 ) : membersWithCar.length === 0 ? (
-                  <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Aucun membre avec véhicule trouvé. Assurez-vous que des membres ont l'attribut "hasCar" activé.
+                  <p className="font-medium text-amber-700">
+                    Aucun membre avec véhicule n&apos;est actuellement identifié. Vous pouvez néanmoins enregistrer un titulaire non-membre.
                   </p>
                 ) : (
-                  <p className="text-xs text-gray-500 font-medium">
-                    {membersWithCar.length} {membersWithCar.length === 1 ? 'membre disponible' : 'membres disponibles'} avec véhicule
+                  <p className="text-slate-600">
+                    <span className="font-semibold text-[#234D65]">{membersWithCar.length}</span>{' '}
+                    {membersWithCar.length === 1 ? 'membre identifié avec un véhicule' : 'membres identifiés avec un véhicule'}.
                   </p>
                 )}
               </div>
             )}
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-1 pr-2 -mr-2">
             <VehicleInsuranceForm 
               onSubmit={handleSubmitForm} 
               initialInsurance={currentInsurance} 
@@ -534,8 +534,8 @@ export function VehicleInsuranceList() {
               mode={formMode}
               isLoadingMembers={membersLoading}
             />
-          </div>
-          <DialogFooter className="flex-shrink-0 pt-4 border-t bg-gray-50 -mx-6 -mb-6 px-6 pb-6">
+          </ModalBody>
+          <ModalFooter className="flex-col-reverse bg-white sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button 
               type="button" 
               variant="outline" 
@@ -547,8 +547,8 @@ export function VehicleInsuranceList() {
             <Button 
               type="submit"
               form="vehicle-insurance-form"
-              disabled={createMutation.isPending || updateMutation.isPending || validateMutation.isPending || membersWithCar.length === 0}
-              className="min-w-[140px] bg-[#234D65] hover:bg-[#2c5a73]"
+              disabled={createMutation.isPending || updateMutation.isPending || validateMutation.isPending}
+              className="min-w-[160px] bg-[#234D65] hover:bg-[#2c5a73]"
             >
               {createMutation.isPending || updateMutation.isPending ? (
                 <>Enregistrement...</>
@@ -560,8 +560,8 @@ export function VehicleInsuranceList() {
                 <>Mettre à jour</>
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
 
       <Dialog open={isRenewDialogOpen} onOpenChange={open => {
