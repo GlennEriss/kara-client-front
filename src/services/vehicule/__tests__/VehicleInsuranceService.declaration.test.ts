@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import type { VehicleInsurance } from '@/types/types'
 
 vi.mock('@/factories/RepositoryFactory', () => ({ RepositoryFactory: { getVehicleInsuranceRepository: vi.fn(() => ({})) } }))
@@ -12,6 +13,10 @@ describe('VehicleInsuranceService - déclarations des membres', () => {
   let current: VehicleInsurance
   const repository = {
     getById: vi.fn(async () => current),
+    create: vi.fn(async (data: Omit<VehicleInsurance, 'id'>) => {
+      current = { id: 'created', ...data }
+      return 'created'
+    }),
     update: vi.fn(async (_id: string, updates: Partial<VehicleInsurance>) => {
       current = { ...current, ...updates }
     }),
@@ -37,6 +42,71 @@ describe('VehicleInsuranceService - déclarations des membres', () => {
     expect(current.declarationStatus).toBe('validated')
     expect(current.status).toBe('active')
     expect(current.validatedBy).toBe('A1')
+  })
+
+  it('ne transmet aucun champ de pièce jointe indéfini à Firestore', async () => {
+    const payload = {
+      holderType: 'member',
+      city: 'Libreville',
+      memberId: '1234.MK.000001',
+      memberFirstName: 'Awa',
+      memberLastName: 'N.',
+      memberContacts: [],
+      sponsorMemberId: '1234.MK.000001',
+      sponsorName: 'N. Awa',
+      sponsorContacts: [],
+      vehicleType: 'car',
+      plateNumber: 'AB-123-CD',
+      insuranceCompany: 'Assureur test',
+      policyNumber: 'POL-001',
+      warrantyMonths: 12,
+      premiumAmount: 100_000,
+      currency: 'FCFA',
+      startDate: new Date(),
+      endDate: inDays(365),
+      attachments: {
+        policyUrl: undefined,
+        policyPath: undefined,
+        receiptUrl: undefined,
+        receiptPath: undefined,
+      },
+    } as VehicleInsuranceFormValues
+
+    await service.createInsurance(payload, 'A1')
+
+    const saved = repository.create.mock.calls.at(-1)?.[0]
+    expect(saved).not.toHaveProperty('attachments')
+  })
+
+  it('ne conserve que le reçu réellement renseigné', async () => {
+    const payload = {
+      holderType: 'member',
+      city: 'Libreville',
+      memberId: '1234.MK.000001',
+      sponsorMemberId: '1234.MK.000001',
+      sponsorName: 'N. Awa',
+      vehicleType: 'car',
+      plateNumber: 'AB-123-CD',
+      insuranceCompany: 'Assureur test',
+      policyNumber: 'POL-001',
+      warrantyMonths: 12,
+      premiumAmount: 100_000,
+      currency: 'FCFA',
+      startDate: new Date(),
+      endDate: inDays(365),
+      attachments: {
+        policyUrl: undefined,
+        receiptUrl: 'https://example.test/recu.pdf',
+        receiptPath: 'vehicle-insurances/membre/dossier/recu.pdf',
+      },
+    } as VehicleInsuranceFormValues
+
+    await service.createInsurance(payload, 'A1')
+
+    expect(repository.create.mock.calls.at(-1)?.[0].attachments).toEqual({
+      receiptUrl: 'https://example.test/recu.pdf',
+      receiptPath: 'vehicle-insurances/membre/dossier/recu.pdf',
+    })
   })
 
   it('donne le statut « expire bientôt » ou « expirée » selon la date de fin', async () => {

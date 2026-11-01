@@ -331,12 +331,16 @@ export class VehicleInsuranceService {
       return undefined
     }
 
-    return {
-      policyUrl: attachments.policyUrl || undefined,
-      policyPath: attachments.policyPath || undefined,
-      receiptUrl: attachments.receiptUrl || undefined,
-      receiptPath: attachments.receiptPath || undefined,
-    }
+    const normalized = Object.fromEntries(
+      Object.entries({
+        policyUrl: attachments.policyUrl,
+        policyPath: attachments.policyPath,
+        receiptUrl: attachments.receiptUrl,
+        receiptPath: attachments.receiptPath,
+      }).filter(([, value]) => typeof value === 'string' && value.trim().length > 0),
+    ) as NonNullable<VehicleInsurance['attachments']>
+
+    return Object.keys(normalized).length > 0 ? normalized : undefined
   }
 
   /**

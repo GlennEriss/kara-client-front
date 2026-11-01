@@ -56,7 +56,7 @@ const ModalContent = React.forwardRef<
     <DialogContent
       ref={ref}
       className={cn(
-        "flex max-h-[90vh] flex-col gap-0 p-0",
+        "flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0",
         MODAL_SIZES[size],
         className
       )}
