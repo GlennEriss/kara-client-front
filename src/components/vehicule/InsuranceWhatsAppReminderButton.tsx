@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { generateWhatsAppUrl } from '@/domains/memberships/utils/whatsappUrl'
 import { getInsuranceHolderPhone, insuranceReminderTemplate } from '@/utils/vehicule/insuranceReminder'
 import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
+import { useAuditLogger } from '@/hooks/useAuditLog'
+import { VEHICLE_AUDIT_MODULE } from '@/constantes/audit-modules'
 import type { VehicleInsurance } from '@/types/types'
 
 interface Props {
@@ -25,6 +27,7 @@ export function InsuranceWhatsAppReminderButton({ insurance, iconOnly = false, c
   const disabled = !phone
   // Texte personnalisable dans Système → Modèles de messages.
   const renderMessage = useRenderMessageTemplate()
+  const { log } = useAuditLogger()
 
   const handleClick = () => {
     if (!phone) {
@@ -35,6 +38,13 @@ export function InsuranceWhatsAppReminderButton({ insurance, iconOnly = false, c
       const { key, variables } = insuranceReminderTemplate(insurance)
       const url = generateWhatsAppUrl(phone, renderMessage(key, variables))
       window.open(url, '_blank', 'noopener,noreferrer')
+      log({
+        action: 'other',
+        ...VEHICLE_AUDIT_MODULE,
+        targetType: 'assurance',
+        targetId: insurance.id,
+        description: `Ouverture d'un rappel WhatsApp pour une assurance véhicule${insurance.plateNumber ? ` (${insurance.plateNumber})` : ''}`,
+      })
     } catch {
       toast.error('Numéro de téléphone invalide')
     }

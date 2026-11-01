@@ -61,7 +61,7 @@ export async function listInsurancePartners(): Promise<VehicleInsurancePartner[]
 export async function saveInsurancePartner(
   partner: Omit<VehicleInsurancePartner, 'id' | 'updatedAt' | 'updatedBy'> & { id?: string },
   adminId: string,
-): Promise<void> {
+): Promise<string> {
   const id = partner.id || doc(collection(db, PARTNERS)).id
   await setDoc(doc(db, PARTNERS, id), {
     name: partner.name.trim(),
@@ -70,6 +70,7 @@ export async function saveInsurancePartner(
     updatedAt: serverTimestamp(),
     updatedBy: adminId,
   })
+  return id
 }
 
 export async function deleteInsurancePartner(id: string): Promise<void> {

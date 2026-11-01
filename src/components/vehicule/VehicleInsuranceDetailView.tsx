@@ -11,6 +11,9 @@ import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
 import { InsuranceWhatsAppReminderButton } from './InsuranceWhatsAppReminderButton'
 import { VehicleRewardsSection } from './VehicleRewards'
 import { useMyAccess } from '@/hooks/useMyAccess'
+import { useAuditLogger } from '@/hooks/useAuditLog'
+import { VEHICLE_AUDIT_MODULE } from '@/constantes/audit-modules'
+import { useEffect, useRef } from 'react'
 
 const VEHICLE_TYPE_LABELS: Record<string, string> = {
   car: 'Voiture',
@@ -36,8 +39,22 @@ interface Props {
 
 export function VehicleInsuranceDetailView({ insuranceId }: Props) {
   const { can } = useMyAccess()
+  const { log } = useAuditLogger()
+  const loggedInsuranceId = useRef<string | null>(null)
   useVehicleInsurancesRealtimeSync(true)
   const { data, isLoading } = useVehicleInsurance(insuranceId)
+
+  useEffect(() => {
+    if (!data || loggedInsuranceId.current === data.id) return
+    loggedInsuranceId.current = data.id
+    log({
+      action: 'view',
+      ...VEHICLE_AUDIT_MODULE,
+      targetType: 'assurance',
+      targetId: data.id,
+      description: `Consultation d'une assurance véhicule${data.plateNumber ? ` (${data.plateNumber})` : ''}`,
+    })
+  }, [data, log])
 
   if (isLoading) {
     return (

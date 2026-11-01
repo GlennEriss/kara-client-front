@@ -16,3 +16,9 @@ export const CHARITY_AUDIT_MODULE = {
   module: 'bienfaiteur',
   moduleLabel: 'Bienfaiteur',
 } as const
+
+/** Assurances de véhicules, déclarations et reversements aux parrains. */
+export const VEHICLE_AUDIT_MODULE = {
+  module: 'vehicules',
+  moduleLabel: 'Véhicules',
+} as const
