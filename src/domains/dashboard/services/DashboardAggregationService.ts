@@ -463,6 +463,138 @@ function buildExecutiveFinancialSections(report: FinancialReport): NonNullable<D
   ]
 }
 
+function moduleHref(moduleKey: FinancialReportModuleKey): string {
+  if (moduleKey === 'caisse_speciale') return routes.admin.caisseSpeciale
+  if (moduleKey === 'caisse_imprevue') return routes.admin.caisseImprevue
+  if (moduleKey === 'credit_speciale') return routes.admin.creditSpeciale
+  if (moduleKey === 'credit_fixe') return routes.admin.creditFixe
+  if (moduleKey === 'credit_aide') return routes.admin.creditAide
+  if (moduleKey === 'placements') return routes.admin.placements
+  return routes.admin.financialReports
+}
+
+function buildModuleFinancialSections(
+  report: FinancialReport,
+  moduleKey: FinancialReportModuleKey
+): NonNullable<DashboardTabPayload['financialSections']> {
+  const module = report.modules.find((entry) => entry.key === moduleKey)
+  if (!module) return []
+
+  const descriptions = {
+    treasury: 'Entrées et sorties réellement enregistrées depuis le début du mois.',
+    result: 'Produits moins charges du mois. L’épargne et les capitaux confiés ne sont pas des produits.',
+    outstanding: 'Situation actuelle : sommes encore dues ou fonds que l’association devra restituer.',
+    risks: 'Échéances dépassées, pénalités impayées et pertes réellement constatées.',
+  }
+
+  return module.blocks.map((block) => ({
+    key: `${moduleKey}_${block.key}`,
+    title: block.title === 'Trésorerie' || block.title === 'Résultat' ? `${block.title} — mois en cours` : block.title,
+    description: descriptions[block.key],
+    lines: block.lines.map((line) => ({
+      key: `${moduleKey}_${block.key}_${line.key}`,
+      label: line.label,
+      value: line.values.at(-1) || 0,
+      format: line.unit === 'count' ? ('number' as const) : ('currency' as const),
+      description: line.description,
+      tone:
+        block.key === 'risks' && (line.values.at(-1) || 0) > 0
+          ? line.key === 'unpaid_penalties' ? ('warning' as const) : ('danger' as const)
+          : line.level === 'total' ? ('primary' as const) : undefined,
+      href: moduleHref(moduleKey),
+    })),
+  }))
+}
+
+function financialKpi(
+  report: FinancialReport,
+  moduleKey: FinancialReportModuleKey,
+  blockKey: 'treasury' | 'result' | 'outstanding' | 'risks',
+  lineKey: string,
+  options: { label?: string; subtitle?: string; tone?: DashboardKpiItem['tone']; href?: string } = {}
+): DashboardKpiItem {
+  const line = getFinancialLine(report, moduleKey, blockKey, lineKey)
+  const value = line?.values.at(-1) || 0
+  return {
+    key: `verified_${moduleKey}_${blockKey}_${lineKey}`,
+    label: options.label || line?.label || lineKey,
+    value,
+    format: line?.unit === 'count' ? 'number' : 'currency',
+    subtitle: options.subtitle || (blockKey === 'treasury' || blockKey === 'result' ? 'Mois en cours' : 'Situation actuelle'),
+    tone: options.tone || 'neutral',
+    href: options.href || moduleHref(moduleKey),
+  }
+}
+
+function applyAuthoritativeModuleFinancials(
+  payload: DashboardTabPayload,
+  report: FinancialReport,
+  moduleKey: 'caisse_speciale' | 'caisse_imprevue' | 'credit_speciale' | 'credit_fixe' | 'credit_aide' | 'placements'
+): DashboardTabPayload {
+  const keepKeys: Record<typeof moduleKey, Set<string>> = {
+    caisse_speciale: new Set(['demands_pending', 'contracts_active', 'late_contracts']),
+    caisse_imprevue: new Set(['demands_pending', 'contracts_active', 'due_vs_paid', 'estimated_overdue', 'collection_rate']),
+    credit_speciale: new Set(['demands_pending', 'contracts_active']),
+    credit_fixe: new Set(['demands_pending', 'contracts_active']),
+    credit_aide: new Set(['demands_pending', 'contracts_active']),
+    placements: new Set(['demands_pending', 'placements_active', 'overdue_commissions', 'commission_rate']),
+  }
+  const operationalKpis = payload.kpis.filter(
+    (kpi) => keepKeys[moduleKey].has(kpi.key) || kpi.key.startsWith('rest_') || kpi.key.startsWith('post_rest_')
+  )
+
+  let verifiedKpis: DashboardKpiItem[] = []
+  if (moduleKey === 'caisse_speciale') {
+    verifiedKpis = [
+      financialKpi(report, moduleKey, 'outstanding', 'funds_held', { tone: 'primary' }),
+      financialKpi(report, moduleKey, 'treasury', 'in_contributions', { tone: 'success' }),
+      financialKpi(report, moduleKey, 'treasury', 'out_refunds'),
+      financialKpi(report, moduleKey, 'result', 'income_penalties', { tone: 'success' }),
+      financialKpi(report, moduleKey, 'result', 'net', { label: 'Résultat net du mois', tone: 'primary' }),
+    ]
+  } else if (moduleKey === 'caisse_imprevue') {
+    verifiedKpis = [
+      financialKpi(report, moduleKey, 'outstanding', 'funds_held', { tone: 'primary' }),
+      financialKpi(report, moduleKey, 'outstanding', 'supports_outstanding', { tone: 'warning' }),
+      financialKpi(report, moduleKey, 'treasury', 'in_contributions', { tone: 'success' }),
+      financialKpi(report, moduleKey, 'treasury', 'in_supports_repaid', { tone: 'success' }),
+      financialKpi(report, moduleKey, 'result', 'net', { label: 'Résultat net du mois', tone: 'primary' }),
+    ]
+  } else if (moduleKey === 'placements') {
+    verifiedKpis = [
+      financialKpi(report, moduleKey, 'outstanding', 'capital_to_return', { tone: 'primary' }),
+      financialKpi(report, moduleKey, 'treasury', 'in_capital', { tone: 'success' }),
+      financialKpi(report, moduleKey, 'treasury', 'out_commissions', { label: 'Commissions versées ce mois' }),
+      financialKpi(report, moduleKey, 'treasury', 'out_capital', { label: 'Capitaux restitués ce mois' }),
+      financialKpi(report, moduleKey, 'result', 'net', { label: 'Résultat net du mois', tone: 'primary' }),
+    ]
+  } else {
+    const lateContracts = getFinancialLine(report, moduleKey, 'risks', 'late_contracts')?.values.at(-1) || 0
+    const lateAmount = getFinancialLine(report, moduleKey, 'risks', 'late_amount')?.values.at(-1) || 0
+    const penalties = getFinancialLine(report, moduleKey, 'risks', 'unpaid_penalties')?.values.at(-1) || 0
+    const losses = getFinancialLine(report, moduleKey, 'risks', 'losses')?.values.at(-1) || 0
+    verifiedKpis = [
+      financialKpi(report, moduleKey, 'outstanding', 'receivables', { tone: 'primary' }),
+      financialKpi(report, moduleKey, 'risks', 'late_contracts', { tone: lateContracts > 0 ? 'danger' : 'success', href: routes.admin.calendrier }),
+      financialKpi(report, moduleKey, 'risks', 'late_amount', { tone: lateAmount > 0 ? 'danger' : 'success', href: routes.admin.calendrier }),
+      financialKpi(report, moduleKey, 'risks', 'unpaid_penalties', { tone: penalties > 0 ? 'warning' : 'success' }),
+      financialKpi(report, moduleKey, 'risks', 'losses', { tone: losses > 0 ? 'danger' : 'success' }),
+      financialKpi(report, moduleKey, 'result', 'income_interest', { label: 'Intérêts perçus ce mois', tone: 'success' }),
+      financialKpi(report, moduleKey, 'result', 'net', { label: 'Résultat net du mois', tone: 'primary' }),
+    ]
+  }
+
+  return {
+    ...payload,
+    kpis: [...operationalKpis, ...verifiedKpis],
+    financialSections: buildModuleFinancialSections(report, moduleKey),
+    notes: [
+      ...(payload.notes || []),
+      'Les montants financiers de cet onglet utilisent le même calcul que les bilans financiers.',
+    ],
+  }
+}
+
 function createDistribution(
   key: string,
   title: string,
@@ -2413,6 +2545,22 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     snapshot = buildMetiersPayload(professionsRaw, memberScope)
   } else {
     snapshot = buildGeographiePayload(memberScope)
+  }
+
+  const financialModuleByTab: Partial<Record<DashboardTabKey, Parameters<typeof applyAuthoritativeModuleFinancials>[2]>> = {
+    caisse_speciale: 'caisse_speciale',
+    caisse_imprevue: 'caisse_imprevue',
+    credit_speciale: 'credit_speciale',
+    credit_fixe: 'credit_fixe',
+    caisse_aide: 'credit_aide',
+    placements: 'placements',
+  }
+  const financialModule = financialModuleByTab[activeTab]
+  if (financialModule) {
+    const { adminFirestore } = await import('@/firebase/adminFirestore')
+    if (!adminFirestore) throw new Error('Firestore admin indisponible pour le calcul financier')
+    const sources = scopeFinancialSources(await loadFinancialReportSources(adminFirestore), memberScope)
+    snapshot = applyAuthoritativeModuleFinancials(snapshot, buildCurrentFinancialReport(sources), financialModule)
   }
 
   return {
