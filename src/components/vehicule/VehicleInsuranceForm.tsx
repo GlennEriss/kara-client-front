@@ -634,7 +634,6 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
                 <FormItem>
                   <FormControl>
                     <MemberSearchInput
-                      key={`vehicle-sponsor-${field.value || 'empty'}`}
                       value={field.value || ''}
                       onChange={handleSponsorChange}
                       selectedMemberId={field.value || undefined}
@@ -643,6 +642,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
                       label="Parrain"
                       placeholder="Nom, prénom, matricule ou téléphone du parrain"
                       initialDisplayName={sponsorName || initialSponsorDisplayName}
+                      selectedDisplayName={sponsorName || undefined}
                       isRequired
                       helperText="Tapez # suivi du matricule ou le nom d'un membre pour le retrouver rapidement"
                       inputId="vehicle-sponsor-member-search"
