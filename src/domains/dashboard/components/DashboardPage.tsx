@@ -136,18 +136,18 @@ export default function DashboardPage() {
       <PageHero
         icon={LayoutDashboard}
         title="Tableau de bord"
-        subtitle="Pilotage multi-modules en temps réel, avec lecture par onglet métier."
+        subtitle="Les priorités, les risques et les performances de chaque activité."
         rightSlot={
           <Button
             type="button"
             onClick={handleRefresh}
             disabled={isFetching}
-            className="bg-white text-[#234D65] hover:bg-white/90 shadow-md"
+            className="bg-white px-3 text-[#234D65] shadow-md hover:bg-white/90 sm:px-4"
           >
             <RefreshCw
-              className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+              className={`h-4 w-4 sm:mr-2 ${isFetching ? "animate-spin" : ""}`}
             />
-            Actualiser
+            <span className="hidden sm:inline">Actualiser</span>
           </Button>
         }
       />
@@ -160,7 +160,7 @@ export default function DashboardPage() {
         )}
         {hasActiveMemberScope && (
           <span className="rounded-full bg-[#234D65]/10 px-2 py-1 font-medium text-[#234D65]">
-            Scope membre actif
+            Périmètre membre actif
           </span>
         )}
       </div>
@@ -197,7 +197,7 @@ export default function DashboardPage() {
       ) : (
         <Card>
           <CardContent className="p-6 text-sm text-gray-500">
-            Aucune donnee disponible pour ce contexte.
+            Aucune donnée disponible pour ce contexte.
           </CardContent>
         </Card>
       )}

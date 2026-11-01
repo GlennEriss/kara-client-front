@@ -56,6 +56,18 @@ interface ActiveMemberSummary {
   encours: number
 }
 
+interface CallActivityMetrics {
+  weekPlans: FirestoreRecord[]
+  periodLogs: FirestoreRecord[]
+  plannedToday: number
+  completedToday: number
+  overduePlans: number
+  completionRate: number
+  promises: number
+  unreachable: number
+  reachRate: number
+}
+
 function safeNumber(value: unknown): number {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0
@@ -304,16 +316,23 @@ function filterRecordsByMemberScope(
   })
 }
 
-function createDistribution(key: string, title: string, items: Array<{ label: string; value: number }>, chartType: 'bar' | 'pie' = 'bar'): DashboardDistributionBlock {
+function createDistribution(
+  key: string,
+  title: string,
+  items: Array<{ label: string; value: number }>,
+  chartType: 'bar' | 'pie' = 'bar',
+  unit?: string
+): DashboardDistributionBlock {
   return {
     key,
     title,
     chartType,
+    unit,
     items,
   }
 }
 
-function createRanking(key: string, title: string, items: Array<{ label: string; value: number; subLabel?: string }>, unit?: string): DashboardRankingBlock {
+function createRanking(key: string, title: string, items: DashboardRankingBlock['items'], unit?: string): DashboardRankingBlock {
   return {
     key,
     title,
@@ -360,7 +379,14 @@ function getMemberIdFrom(record: FirestoreRecord, keys: string[]): string | null
   return null
 }
 
-function currencyKpi(key: string, label: string, value: number, subtitle?: string, tone: DashboardKpiItem['tone'] = 'primary'): DashboardKpiItem {
+function currencyKpi(
+  key: string,
+  label: string,
+  value: number,
+  subtitle?: string,
+  tone: DashboardKpiItem['tone'] = 'primary',
+  href?: string
+): DashboardKpiItem {
   return {
     key,
     label,
@@ -368,10 +394,18 @@ function currencyKpi(key: string, label: string, value: number, subtitle?: strin
     format: 'currency',
     subtitle,
     tone,
+    href,
   }
 }
 
-function numberKpi(key: string, label: string, value: number, subtitle?: string, tone: DashboardKpiItem['tone'] = 'neutral'): DashboardKpiItem {
+function numberKpi(
+  key: string,
+  label: string,
+  value: number,
+  subtitle?: string,
+  tone: DashboardKpiItem['tone'] = 'neutral',
+  href?: string
+): DashboardKpiItem {
   return {
     key,
     label,
@@ -379,17 +413,26 @@ function numberKpi(key: string, label: string, value: number, subtitle?: string,
     format: 'number',
     subtitle,
     tone,
+    href,
   }
 }
 
-function percentKpi(key: string, label: string, value: number, subtitle?: string): DashboardKpiItem {
+function percentKpi(
+  key: string,
+  label: string,
+  value: number,
+  subtitle?: string,
+  tone: DashboardKpiItem['tone'] = 'neutral',
+  href?: string
+): DashboardKpiItem {
   return {
     key,
     label,
     value,
     format: 'percent',
     subtitle,
-    tone: 'neutral',
+    tone,
+    href,
   }
 }
 
@@ -580,8 +623,8 @@ function buildCaisseSpecialePayload(
         { label: 'Approuvees', value: approved },
         { label: 'Rejetees', value: rejected },
         { label: 'Converties', value: converted },
-      ]),
-      createDistribution('caisse_type', 'Contrats par categorie', topNFromMap(byCaisseTypeMap, 6), 'pie'),
+      ], 'bar', 'demandes'),
+      createDistribution('caisse_type', 'Contrats par catégorie', topNFromMap(byCaisseTypeMap, 6), 'pie', 'contrats'),
     ],
   }
 }
@@ -705,8 +748,8 @@ function buildCaisseImprevuePayload(
         { label: 'Rejetees', value: rejected },
         { label: 'Converties', value: converted },
         { label: 'Reouvertes', value: reopened },
-      ]),
-      createDistribution('frequency', 'Contrats par frequence', topNFromMap(byFrequencyMap, 4), 'pie'),
+      ], 'bar', 'demandes'),
+      createDistribution('frequency', 'Contrats par fréquence', topNFromMap(byFrequencyMap, 4), 'pie', 'contrats'),
     ],
     notes: [
       `Montant nominal actif: ${Math.round(totalNominalActive).toLocaleString('fr-FR')} FCFA`,
@@ -920,15 +963,15 @@ function buildCreditPayload(
         { label: 'En attente', value: pending },
         { label: 'Approuvees', value: approved },
         { label: 'Rejetees', value: rejected },
-      ]),
-      createDistribution('contract_status', 'Contrats par statut', topNFromMap(contractStatusMap, 8), 'bar'),
+      ], 'bar', 'demandes'),
+      createDistribution('contract_status', 'Contrats par statut', topNFromMap(contractStatusMap, 8), 'bar', 'contrats'),
       ...(isRestTrackedModule
         ? [
             createDistribution('recouvrement_post_repos', 'Recouvrement apres repos (cumule)', [
               { label: '<= 30 jours', value: Math.round(recovered30) },
               { label: '<= 60 jours', value: Math.round(recovered60) },
               { label: '<= 90 jours', value: Math.round(recovered90) },
-            ]),
+            ], 'bar', 'FCFA'),
           ]
         : []),
     ],
@@ -1016,9 +1059,9 @@ function buildPlacementsPayload(
         { label: 'Approuvees', value: approved },
         { label: 'Rejetees', value: rejected },
         { label: 'Converties', value: converted },
-      ]),
-      createDistribution('payout_mode', 'Repartition mode de paiement', topNFromMap(payoutModeMap, 4), 'pie'),
-      createDistribution('placement_status', 'Repartition statut placements', topNFromMap(placementStatusMap, 6), 'bar'),
+      ], 'bar', 'demandes'),
+      createDistribution('payout_mode', 'Répartition par mode de paiement', topNFromMap(payoutModeMap, 4), 'pie', 'placements'),
+      createDistribution('placement_status', 'Répartition des statuts des placements', topNFromMap(placementStatusMap, 6), 'bar', 'placements'),
     ],
   }
 }
@@ -1074,7 +1117,7 @@ function buildAdministrationPayload(
       numberKpi('admins_top_processed', 'Admins traiteurs', topAdmins.length, 'Avec activite sur periode', 'neutral'),
     ],
     distributions: [
-      createDistribution('roles', 'Repartition par role', topNFromMap(rolesMap, 6), 'pie'),
+      createDistribution('roles', 'Répartition par rôle', topNFromMap(rolesMap, 6), 'pie', 'comptes'),
     ],
     rankings: [
       createRanking('top_admins', 'Principaux admins traiteurs', topAdmins, 'actions'),
@@ -1082,9 +1125,61 @@ function buildAdministrationPayload(
   }
 }
 
+function toLocalDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getCallActivityMetrics(
+  callPlans: FirestoreRecord[],
+  callLogs: FirestoreRecord[],
+  dateRange: DateRange | null
+): CallActivityMetrics {
+  const now = new Date()
+  const todayKey = toLocalDateKey(now)
+  const weekStart = new Date(now)
+  const day = weekStart.getDay()
+  weekStart.setDate(weekStart.getDate() - (day === 0 ? 6 : day - 1))
+  const weekStartKey = toLocalDateKey(weekStart)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekEnd.getDate() + 6)
+  const weekEndKey = toLocalDateKey(weekEnd)
+
+  const scheduledWeekPlans = callPlans.filter((plan) => {
+    const scheduledDate = typeof plan.scheduledDate === 'string' ? plan.scheduledDate : ''
+    return scheduledDate >= weekStartKey && scheduledDate <= weekEndKey
+  })
+  // Le taux ne pénalise pas les appels planifiés plus tard dans la semaine.
+  const weekPlans = scheduledWeekPlans.filter((plan) => String(plan.scheduledDate || '') <= todayKey)
+  const todayPlans = weekPlans.filter((plan) => plan.scheduledDate === todayKey)
+  const completedThisWeek = weekPlans.filter((plan) => plan.status === 'completed').length
+  const periodLogs = filterRecordsByDate(callLogs, dateRange, ['createdAt'])
+  const reachedOutcomes = new Set(['promesse_paiement', 'paiement_effectue', 'refus', 'a_rappeler'])
+  const reached = periodLogs.filter((log) => reachedOutcomes.has(String(log.outcome || ''))).length
+
+  return {
+    weekPlans,
+    periodLogs,
+    plannedToday: todayPlans.filter((plan) => plan.status !== 'completed').length,
+    completedToday: todayPlans.filter((plan) => plan.status === 'completed').length,
+    overduePlans: callPlans.filter((plan) => {
+      const scheduledDate = typeof plan.scheduledDate === 'string' ? plan.scheduledDate : ''
+      return scheduledDate && scheduledDate < todayKey && plan.status !== 'completed'
+    }).length,
+    completionRate: weekPlans.length > 0 ? (completedThisWeek / weekPlans.length) * 100 : 0,
+    promises: periodLogs.filter((log) => log.outcome === 'promesse_paiement').length,
+    unreachable: periodLogs.filter((log) => log.outcome === 'injoignable').length,
+    reachRate: periodLogs.length > 0 ? (reached / periodLogs.length) * 100 : 0,
+  }
+}
+
 function buildRecouvrementPayload(
   agentsRaw: FirestoreRecord[],
   paymentsRaw: FirestoreRecord[],
+  callPlansRaw: FirestoreRecord[],
+  callLogsRaw: FirestoreRecord[],
   dateRange: DateRange | null
 ): DashboardTabPayload {
   const agents = agentsRaw
@@ -1132,27 +1227,66 @@ function buildRecouvrementPayload(
 
   const totalPaymentCount = relevantPayments.length
   const tauxSansAgent = totalPaymentCount > 0 ? (countWithoutAgent / totalPaymentCount) * 100 : 0
+  const callMetrics = getCallActivityMetrics(callPlansRaw, callLogsRaw, dateRange)
+
+  const outcomeLabels: Record<string, string> = {
+    promesse_paiement: 'Promesse de paiement',
+    paiement_effectue: 'Paiement effectué',
+    injoignable: 'Injoignable',
+    numero_invalide: 'Numéro invalide',
+    refus: 'Refus de payer',
+    a_rappeler: 'À rappeler',
+    message_envoye: 'Message envoyé',
+    autre: 'Autre',
+  }
+  const outcomes = new Map<string, number>()
+  const contactsByAdmin = new Map<string, { name: string; count: number }>()
+  for (const log of callMetrics.periodLogs) {
+    const outcome = typeof log.outcome === 'string' ? log.outcome : 'autre'
+    outcomes.set(outcome, (outcomes.get(outcome) || 0) + 1)
+
+    const adminId = typeof log.adminId === 'string' && log.adminId ? log.adminId : 'non-renseigne'
+    const adminName = typeof log.adminName === 'string' && log.adminName ? log.adminName : adminId
+    const current = contactsByAdmin.get(adminId)
+    contactsByAdmin.set(adminId, { name: adminName, count: (current?.count || 0) + 1 })
+  }
+
+  const outcomeDistribution = Array.from(outcomes.entries())
+    .map(([outcome, count]) => ({ label: outcomeLabels[outcome] || outcome, value: count }))
+    .sort((a, b) => b.value - a.value)
+  const contactRanking = Array.from(contactsByAdmin.values())
+    .map((contact) => ({ label: contact.name, value: contact.count, href: routes.admin.relances }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10)
 
   return {
     title: 'Recouvrement',
-    subtitle: 'Performance des agents et repartition des encaissements par agent.',
+    subtitle: 'Pilotage des appels planifiés, des résultats de relance et des encaissements.',
     kpis: [
-      numberKpi('agents_total', 'Total agents', totalAgents, 'Agents recouvrement', 'primary'),
-      numberKpi('agents_active', 'Agents actifs', activeAgents.length, 'Disponibles', 'success'),
-      numberKpi('birthdays', 'Anniversaires du mois', birthdaysThisMonth, 'Agents actifs concernes', 'neutral'),
-      percentKpi('without_agent_rate', 'Paiements sans agent', tauxSansAgent, `${countWithoutAgent} paiements`),
+      numberKpi('calls_today', "Appels à faire aujourd'hui", callMetrics.plannedToday, `${callMetrics.completedToday} déjà terminé(s)`, callMetrics.plannedToday > 0 ? 'warning' : 'success', routes.admin.calendrier),
+      numberKpi('calls_overdue', 'Appels planifiés en retard', callMetrics.overduePlans, 'Lots non terminés avant aujourd’hui', callMetrics.overduePlans > 0 ? 'danger' : 'success', routes.admin.calendrier),
+      percentKpi('weekly_completion', 'Réalisation de la semaine', callMetrics.completionRate, `${callMetrics.weekPlans.filter((plan) => plan.status === 'completed').length}/${callMetrics.weekPlans.length} appels`, callMetrics.completionRate >= 80 ? 'success' : callMetrics.weekPlans.length > 0 ? 'warning' : 'neutral', routes.admin.calendrier),
+      numberKpi('promises', 'Promesses de paiement', callMetrics.promises, 'Sur la période sélectionnée', 'primary', routes.admin.relances),
+      percentKpi('reach_rate', 'Taux de joignabilité', callMetrics.reachRate, `${callMetrics.periodLogs.length} contact(s) enregistré(s)`, callMetrics.reachRate >= 60 ? 'success' : 'neutral', routes.admin.relances),
+      numberKpi('unreachable', 'Contacts injoignables', callMetrics.unreachable, 'Sur la période sélectionnée', callMetrics.unreachable > 0 ? 'warning' : 'neutral', routes.admin.relances),
+      numberKpi('agents_total', 'Total agents', totalAgents, 'Agents de recouvrement', 'primary', routes.admin.agentsRecouvrement),
+      numberKpi('agents_active', 'Agents actifs', activeAgents.length, 'Disponibles', 'success', routes.admin.agentsRecouvrement),
+      numberKpi('birthdays', 'Anniversaires du mois', birthdaysThisMonth, 'Agents actifs concernés', 'neutral'),
+      percentKpi('without_agent_rate', 'Paiements sans agent', tauxSansAgent, `${countWithoutAgent} paiement(s)`, tauxSansAgent > 0 ? 'warning' : 'success'),
     ],
     distributions: [
+      createDistribution('call_outcomes', 'Résultats des relances', outcomeDistribution, 'pie', 'contacts'),
       createDistribution('gender', 'Repartition H/F', [
         { label: 'Hommes', value: menCount },
         { label: 'Femmes', value: womenCount },
-      ], 'pie'),
+      ], 'pie', 'agents'),
       createDistribution('activity', 'Statut activite', [
         { label: 'Actifs', value: activeAgents.length },
         { label: 'Inactifs', value: inactiveAgentsCount },
-      ]),
+      ], 'bar', 'agents'),
     ],
     rankings: [
+      createRanking('contact_activity', 'Contacts enregistrés par utilisateur', contactRanking, 'contacts'),
       createRanking('top_collectors', 'Principaux collecteurs', topCollectors, 'FCFA'),
       createRanking('without_agent_amount', 'Encaissements hors agent', [
         {
@@ -1213,7 +1347,7 @@ function buildGroupesPayload(groupsRaw: FirestoreRecord[], memberScope: MemberSc
       createDistribution('group_coverage', 'Couverture des groupes', [
         { label: 'Groupes avec membres', value: groupsWithMembers },
         { label: 'Groupes vides', value: groupsWithoutMembers },
-      ], 'pie'),
+      ], 'pie', 'groupes'),
     ],
     rankings: [
       createRanking('top_groups', 'Principaux groupes par effectif', topGroups, 'membres'),
@@ -1258,7 +1392,7 @@ function buildMetiersPayload(professionsRaw: FirestoreRecord[], memberScope: Mem
       createDistribution('profession_completion', 'Completeness metier', [
         { label: 'Avec metier', value: withProfession },
         { label: 'Sans metier', value: withoutProfession },
-      ], 'pie'),
+      ], 'pie', 'membres'),
     ],
     rankings: [
       createRanking('top_professions', 'Principaux metiers', topProfessions, 'membres'),
@@ -1335,6 +1469,7 @@ function buildExecutivePayload(
   placementDemands: FirestoreRecord[],
   placements: FirestoreRecord[],
   placementCommissions: FirestoreRecord[],
+  callPlans: FirestoreRecord[],
   filters: DashboardFilters
 ): DashboardTabPayload {
   const creditTypeOf = (record: FirestoreRecord): 'SPECIALE' | 'FIXE' | 'AIDE' | 'UNKNOWN' => {
@@ -1504,10 +1639,12 @@ function buildExecutivePayload(
     const entries = extractRestMonthEntries(contract)
     return sum + entries.reduce((acc, entry) => acc + Math.max(entry.monthlyAmount, 0), 0)
   }, 0)
+  const callMetrics = getCallActivityMetrics(callPlans, [], null)
 
   const detailedModuleSummaries = [
     {
       label: 'Caisse speciale',
+      href: routes.admin.caisseSpeciale,
       family: 'caisse' as const,
       pending: pendingCaisseSpeciale,
       encours: csEncours,
@@ -1518,6 +1655,7 @@ function buildExecutivePayload(
     },
     {
       label: 'Caisse imprevue',
+      href: routes.admin.caisseImprevue,
       family: 'caisse' as const,
       pending: pendingCaisseImprevue,
       encours: ciEncours,
@@ -1525,6 +1663,7 @@ function buildExecutivePayload(
     },
     {
       label: 'Caisse aide',
+      href: routes.admin.creditAide,
       family: 'credit' as const,
       pending: pendingCreditAide,
       encours: creditAideEncours,
@@ -1532,6 +1671,7 @@ function buildExecutivePayload(
     },
     {
       label: 'Credit speciale',
+      href: routes.admin.creditSpeciale,
       family: 'credit' as const,
       pending: pendingCreditSpeciale,
       encours: creditSpecialeEncours,
@@ -1539,6 +1679,7 @@ function buildExecutivePayload(
     },
     {
       label: 'Credit fixe',
+      href: routes.admin.creditFixe,
       family: 'credit' as const,
       pending: pendingCreditFixe,
       encours: creditFixeEncours,
@@ -1546,6 +1687,7 @@ function buildExecutivePayload(
     },
     {
       label: 'Placements',
+      href: routes.admin.placements,
       family: 'placement' as const,
       pending: pendingPlacement,
       encours: placementEncours,
@@ -1724,14 +1866,17 @@ function buildExecutivePayload(
   const encoursDistribution = selectedDetailedSummaries.map((summary) => ({ label: summary.label, value: Math.round(summary.encours) }))
 
   return {
-    title: 'Executif',
-    subtitle: 'Vue direction avec detail des sous-modules et alertes operationnelles.',
+    title: 'Exécutif',
+    subtitle: "Les priorités du jour, les risques à surveiller et l'état des principaux modules.",
     kpis: [
-      numberKpi('members_active', 'Membres actifs', membersActive, 'Membres scopes actifs', 'primary'),
-      numberKpi('members_with_active_contracts', 'Membres avec contrats actifs', membersWithActiveContracts.length, 'Tous modules confondus', 'primary'),
-      numberKpi('pending_global', 'Demandes en attente', pendingGlobal, 'Tous modules confondus', 'warning'),
+      numberKpi('calls_today', "Appels à traiter aujourd'hui", callMetrics.plannedToday, `${callMetrics.completedToday} déjà terminé(s)`, callMetrics.plannedToday > 0 ? 'warning' : 'success', routes.admin.calendrier),
+      numberKpi('calls_overdue', 'Appels planifiés en retard', callMetrics.overduePlans, 'Lots des jours précédents non terminés', callMetrics.overduePlans > 0 ? 'danger' : 'success', routes.admin.calendrier),
+      numberKpi('pending_global', 'Demandes en attente', pendingGlobal, 'Tous modules confondus', pendingGlobal > 0 ? 'warning' : 'success'),
+      numberKpi('impayes_global', 'Impayés', selectedImpayes, 'Contrats et placements en retard', selectedImpayes > 0 ? 'danger' : 'success', routes.admin.calendrier),
+      percentKpi('weekly_call_completion', 'Réalisation des appels', callMetrics.completionRate, 'Semaine en cours', callMetrics.completionRate >= 80 ? 'success' : callMetrics.weekPlans.length > 0 ? 'warning' : 'neutral', routes.admin.calendrier),
       currencyKpi('encours_global', 'Encours global', selectedEncours, selectedModule === 'all' ? 'Tous modules' : `Module ${selectedModule}`, 'primary'),
-      numberKpi('impayes_global', 'Impayes', selectedImpayes, 'Contrats/placements en retard', 'danger'),
+      numberKpi('members_active', 'Membres actifs', membersActive, 'Membres du périmètre sélectionné', 'primary', routes.admin.memberships),
+      numberKpi('members_with_active_contracts', 'Membres avec contrats actifs', membersWithActiveContracts.length, 'Tous modules confondus', 'primary'),
       currencyKpi('benefits_estimated', 'Benefices estimes', financialBenefitsEstimated, 'Interets, commissions et penalites', 'success'),
       currencyKpi('penalties_total', 'Penalites (FCFA)', financialPenaltiesTotal, 'Caisse speciale + credits', 'warning'),
       currencyKpi('benefits_paid', 'Benefices encaisses', financialBenefitsPaid, 'Flux effectivement encaisses', 'success'),
@@ -1742,8 +1887,8 @@ function buildExecutivePayload(
       currencyKpi('rest_impact_credit', 'Impact repos credits', restImpactGlobal, 'Revenu decale sur mois de repos', 'warning'),
     ],
     distributions: [
-      createDistribution('pending_by_module', 'Demandes en attente par module detaille', moduleDistribution),
-      createDistribution('encours_by_module', 'Encours par sous-module', encoursDistribution, 'pie'),
+      createDistribution('pending_by_module', 'Demandes en attente par module détaillé', moduleDistribution, 'bar', 'demandes'),
+      createDistribution('encours_by_module', 'Encours par sous-module', encoursDistribution, 'pie', 'FCFA'),
     ],
     rankings: [
       createRanking(
@@ -1764,6 +1909,7 @@ function buildExecutivePayload(
           label: summary.label,
           value: summary.impayes,
           subLabel: `En attente ${summary.pending} | Encours ${Math.round(summary.encours).toLocaleString('fr-FR')} FCFA`,
+          href: summary.href,
         })),
         'alertes'
       ),
@@ -2070,6 +2216,7 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       placementDemandsRaw,
       placementsRaw,
       placementCommissionsRaw,
+      callPlansRaw,
     ] = await Promise.all([
       readCollectionDocs(firebaseCollectionNames.membershipRequests),
       readCollectionDocs(firebaseCollectionNames.caisseSpecialeDemands),
@@ -2084,6 +2231,7 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       readCollectionDocs(firebaseCollectionNames.placementDemands),
       readCollectionDocs(firebaseCollectionNames.placements),
       readCollectionGroupDocs('commissions'),
+      readCollectionDocs(firebaseCollectionNames.callPlans),
     ])
 
     const creditPayments = filterRecordsByDate(creditPaymentsRaw, dateRange, ['paymentDate', 'createdAt'])
@@ -2141,6 +2289,12 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       (record) => getMemberIdFrom(record, ['benefactorId'])
     )
 
+    const callPlans = filterRecordsByMemberScope(
+      callPlansRaw,
+      memberScope,
+      (record) => getMemberIdFrom(record, ['memberId'])
+    )
+
     snapshot = buildExecutivePayload(
       memberScope,
       membershipRequests,
@@ -2156,6 +2310,7 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       placementDemands,
       placements,
       placementCommissions,
+      callPlans,
       filters
     )
   } else if (activeTab === 'caisse_speciale') {
@@ -2264,12 +2419,25 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
 
     snapshot = buildAdministrationPayload(adminsRaw, topActionCounts)
   } else if (activeTab === 'recouvrement') {
-    const [agentsRaw, paymentsRaw] = await Promise.all([
+    const [agentsRaw, paymentsRaw, callPlansRaw, callLogsRaw] = await Promise.all([
       readCollectionDocs(firebaseCollectionNames.agentsRecouvrement),
       readCollectionDocs(firebaseCollectionNames.payments),
+      readCollectionDocs(firebaseCollectionNames.callPlans),
+      readCollectionDocs(firebaseCollectionNames.callLogs),
     ])
 
-    snapshot = buildRecouvrementPayload(agentsRaw, paymentsRaw, dateRange)
+    const callPlans = filterRecordsByMemberScope(
+      callPlansRaw,
+      memberScope,
+      (record) => getMemberIdFrom(record, ['memberId'])
+    )
+    const callLogs = filterRecordsByMemberScope(
+      callLogsRaw,
+      memberScope,
+      (record) => getMemberIdFrom(record, ['memberId'])
+    )
+
+    snapshot = buildRecouvrementPayload(agentsRaw, paymentsRaw, callPlans, callLogs, dateRange)
   } else if (activeTab === 'groupes') {
     const [groupsRaw] = await Promise.all([readCollectionDocs(firebaseCollectionNames.groups)])
     snapshot = buildGroupesPayload(groupsRaw, memberScope)
