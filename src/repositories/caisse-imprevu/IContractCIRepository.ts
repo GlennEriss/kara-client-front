@@ -1,5 +1,6 @@
 import { ContractCI, ContractCIStatus, CaisseImprevuePaymentFrequency } from "@/types/types";
 import { IRepository } from "../IRepository";
+import type { EarlyWithdrawalFilter } from '@/domains/financial/refunds/earlyWithdrawalFilter'
 
 export interface ContractsCIFilters {
     search?: string;
@@ -11,6 +12,7 @@ export interface ContractsCIFilters {
     nextDueAtFrom?: Date;
     nextDueAtTo?: Date;
     overdueOnly?: boolean; // Nouveau : filtrer uniquement les contrats en retard
+    earlyWithdrawal?: EarlyWithdrawalFilter;
     monthlyAmountMin?: number;
     monthlyAmountMax?: number;
     contractAmountMin?: number;

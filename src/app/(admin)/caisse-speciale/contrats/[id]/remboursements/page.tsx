@@ -34,6 +34,7 @@ import CancelFinalRefundButton from '@/components/contract/CancelFinalRefundButt
 import { useQueryClient } from '@tanstack/react-query'
 import MarkAsPaidRefundCSModal from '@/components/caisse-speciale/MarkAsPaidRefundCSModal'
 import ValidateDeclaredVersementCSModal from '@/components/caisse-speciale/ValidateDeclaredVersementCSModal'
+import { RefundPayoutCountdown } from '@/components/refunds/RefundPayoutCountdown'
 
 function formatAmount(value: number): string {
   return new Intl.NumberFormat('fr-FR').format(value) + ' FCFA'
@@ -255,7 +256,7 @@ export default function ContractCSRefundsPage() {
                                   onClick={() => setMarkPaidRefund(refund)}
                                 >
                                   <Banknote className="h-3.5 w-3.5" />
-                                  Marquer payé
+                                  {refund.type === 'EARLY' ? 'Finaliser la remise' : 'Confirmer la remise'}
                                 </Button>
                               )}
                               {isApproved && refund.type === 'FINAL' && (
@@ -295,6 +296,8 @@ export default function ContractCSRefundsPage() {
                               )}
                             </div>
                           </div>
+
+                          <RefundPayoutCountdown refund={refund} />
 
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg text-sm">
                             <div>
@@ -533,6 +536,9 @@ export default function ContractCSRefundsPage() {
           contractId={contractId}
           refundId={markPaidRefund.id}
           refundLabel={`${REFUND_TYPE_LABELS[markPaidRefund.type] ?? markPaidRefund.type} — ${markPaidRefund.withdrawalAmount ? formatAmount(markPaidRefund.withdrawalAmount) : ''}`}
+          refundType={markPaidRefund.type}
+          approvedAt={markPaidRefund.approvedAt}
+          payoutDueAt={markPaidRefund.payoutDueAt}
           userId={user.uid}
           onSuccess={() => setMarkPaidRefund(null)}
         />

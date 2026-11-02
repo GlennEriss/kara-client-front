@@ -61,8 +61,10 @@ export const caisseSpecialeHelp: HelpTopic = {
           type: 'steps',
           title: 'Rendre l’épargne',
           items: [
-            'Remboursement final : quand toutes les échéances sont payées, demandez le remboursement final, faites-le valider, puis marquez-le payé avec la preuve.',
-            'Retrait anticipé : avant la fin, le retrait est traité immédiatement. Le contrat est clos et le membre reçoit son épargne et le bonus acquis.',
+            'Remboursement final : quand toutes les échéances sont payées, demandez le remboursement final, faites-le valider, puis confirmez la remise avec sa date, son moyen et sa preuve.',
+            'Retrait anticipé : après validation, un délai maximal de 30 jours commence. Le compte à rebours reste visible tant que l’argent n’a pas été remis.',
+            'À l’échéance, un admin peut confirmer la remise. Le superadmin peut la confirmer avant la fin des 30 jours. Le contrat n’est clôturé qu’après saisie de la remise effective et téléversement de la preuve.',
+            'Dans la liste des contrats, le filtre « Retrait anticipé » distingue les dossiers en cours (argent non remis) des retraits finalisés (remise effectuée).',
             'Cliquez sur « Générer le procès-verbal de liquidation » : l’aperçu PDF s’ouvre immédiatement. Complétez les informations manquantes, contrôlez le montant, puis téléchargez le document pour signature.',
             'Une demande de remboursement en attente ou approuvée peut être annulée, avec un motif.',
           ],
@@ -81,7 +83,7 @@ export const caisseSpecialeHelp: HelpTopic = {
             },
             {
               term: 'Bonus',
-              text: 'À partir du 4e mois, selon le barème des paramètres du type de caisse. Le bonus porte sur les mois réellement payés, et il est figé au dernier mois payé à l’heure si un mois reste impayé.',
+              text: 'À partir de 4 mois complets, le taux retenu selon le barème actif s’applique au total versé. Il dépend des mois complets écoulés et réellement payés, et reste figé au dernier mois payé à l’heure après un impayé. Le bonus est calculé globalement pour le contrat : les anciens bonus mensuels enregistrés ne doivent pas être additionnés pour déterminer la remise. La fiche, les versements et le calendrier utilisent ce même calcul.',
             },
             { term: 'Pénalités et bonus', text: 'Les pénalités sont retirées du bonus, jamais de l’épargne elle-même.' },
             { term: 'Remboursement final', text: 'Possible seulement quand toutes les échéances prévues sont payées ; une seule demande à la fois.' },

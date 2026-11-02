@@ -4,8 +4,10 @@ import dynamic from 'next/dynamic'
 import { StatStrip } from '@/components/ui/stat-strip'
 import { contractBonusSummary, formatContractPeriod } from '@/services/caisse/contractLabels'
 import { formatPaymentMode } from '@/utils/payment-mode'
+import { isCaisseSpecialeContractLocked } from '@/utils/contract-lock'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
+import { RefundPayoutCountdown } from '@/components/refunds/RefundPayoutCountdown'
 import { useDeleteContractPayment } from '@/domains/financial/caisse-speciale/contrats/hooks'
 import { backOr } from '@/lib/backNavigation'
 import { Badge, Badge as BadgeShadcn } from "@/components/ui/badge"
@@ -211,7 +213,7 @@ export default function StandardContract({ id }: Props) {
     )
   if (!data) return <div className="p-6">Contrat introuvable</div>
 
-  const isClosed = data.status === "CLOSED" || data.status === "RESCINDED"
+  const isClosed = isCaisseSpecialeContractLocked(data.status)
   const headerStatusConfig = getContractStatusConfig(data.status)
   const HeaderStatusIcon = headerStatusConfig.icon
   const headerBadges = (
@@ -887,17 +889,11 @@ export default function StandardContract({ id }: Props) {
                       refunds.map((r: any) => {
                         const isEarlyRefund = r.type === 'EARLY'
                         const getRefundStatusConfig = (status: string) => {
-                          if (isEarlyRefund) {
-                            if (status === 'ARCHIVED') {
-                              return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: X, label: 'Archivé' }
-                            }
-                            return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle2, label: 'Enregistré' }
-                          }
                           switch (status) {
                             case 'PENDING':
                               return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock, label: 'En attente' }
                             case 'APPROVED':
-                              return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle2, label: 'Approuvé' }
+                              return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle2, label: isEarlyRefund ? 'Approuvé · remise en attente' : 'Approuvé' }
                             case 'PAID':
                               return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle2, label: 'Payé' }
                             default:
@@ -1087,6 +1083,10 @@ export default function StandardContract({ id }: Props) {
                               </div>
                             )}
 
+                            {r.status === "APPROVED" && isEarlyRefund && (
+                              <RefundPayoutCountdown refund={r} compact />
+                            )}
+
                             {r.status === "APPROVED" && !isEarlyRefund && (
                               <div className="space-y-4">
                                 {/* Affichage de la cause (non modifiable) */}
@@ -1210,6 +1210,7 @@ export default function StandardContract({ id }: Props) {
       </div>
       {/* Modales */}
       <EarlyWithdrawalRequestModal
+        approvalOnly
         isOpen={showEarlyRefundModal}
         onClose={() => setShowEarlyRefundModal(false)}
         isSubmitting={isRefunding}

@@ -17,7 +17,6 @@ import { ICaisseImprevueDemandRepository } from "@/repositories/caisse-imprevue/
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
 import { RepositoryFactory } from "@/factories/RepositoryFactory";
-import { getContractEndDate } from '@/utils/caisse-imprevue-utils'
 
 export class CaisseImprevueService implements ICaisseImprevueService {
     readonly name = "CaisseImprevueService"
@@ -902,19 +901,18 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             }
 
             // 9. Créer la demande de retrait anticipé
-            const withdrawalDate = new Date(data.withdrawalDate)
-            const withdrawalRecordedAt = new Date(`${data.withdrawalDate}T${data.withdrawalTime}:00`)
-            // La remise finale est due au terme du contrat, pas 45 jours après
-            // sa création. Le repli conserve une date exploitable pour les
-            // anciens contrats dont les données de durée seraient incomplètes.
-            const deadlineAt = getContractEndDate(contract) ?? withdrawalDate
+            const requestedWithdrawalDate = new Date(data.withdrawalDate)
+            const approvedAt = new Date()
+            const payoutDueAt = new Date(approvedAt.getTime() + 30 * 24 * 60 * 60 * 1000)
 
             const earlyRefundData: Omit<EarlyRefundCI, 'id' | 'createdAt' | 'updatedAt'> = {
                 contractId,
                 type: 'EARLY',
                 reason: data.reason,
-                withdrawalDate,
-                withdrawalTime: data.withdrawalTime,
+                // Ces deux champs décrivent la demande enregistrée. Les champs
+                // withdrawalDate/withdrawalTime sont réservés à la remise réelle.
+                requestedWithdrawalDate,
+                requestedWithdrawalTime: data.withdrawalTime,
                 withdrawalAmount: data.withdrawalAmount,
                 withdrawalMode: data.withdrawalMode,
                 ...(data.withdrawalMode === 'airtel_money' || data.withdrawalMode === 'mobicash'
@@ -928,23 +926,22 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 documentId: document.id,
                 amountNominal: totalAmountPaid,
                 amountBonus,
-                status: 'PAID',
-                deadlineAt,
+                status: 'APPROVED',
+                approvedAt,
+                approvedBy: data.userId,
+                approvedByName: adminName,
+                payoutDueAt,
+                deadlineAt: payoutDueAt,
                 createdBy: data.userId,
                 updatedBy: data.userId,
                 createdByName: adminName,
                 updatedByName: adminName,
-                paidBy: data.userId,
-                paidByName: adminName,
-                paidAt: Number.isNaN(withdrawalRecordedAt.getTime()) ? withdrawalDate : withdrawalRecordedAt,
-                paidAtTime: data.withdrawalTime,
-                paymentProofUrl: proofUrl,
-                paymentProofPath: proofPath,
             }
 
             const earlyRefund = await this.earlyRefundCIRepository.createEarlyRefund(contractId, earlyRefundData)
 
-            // 10. Mettre à jour le contrat pour référencer le document et résilier le contrat
+            // 10. L'approbation arrête les versements. Le remboursement reste
+            // non payé jusqu'à la confirmation séparée de la remise d'argent.
             const updatedContract = await this.contractCIRepository.updateContract(contractId, {
                 earlyRefundDocumentId: document.id,
                 status: 'CANCELED', // Résilier le contrat lors d'un retrait anticipé

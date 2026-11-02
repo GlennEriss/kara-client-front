@@ -4,7 +4,7 @@
  */
 
 import { resolveContractEndAt } from './contractDates'
-import { computeContractBonus, countOnTimeMonthsBeforeFirstUnpaid, sumContractPenalties } from './bonus'
+import { computeContractBonus, computeContractBonusFromPayments, countOnTimeMonthsBeforeFirstUnpaid } from './bonus'
 
 /** Premier mois ouvrant droit au bonus (cf. `computeBonus` : index 3). */
 export const BONUS_FIRST_MONTH = 4
@@ -50,11 +50,11 @@ export function formatBonusPeriod(contract: ContractLike, payments?: Parameters<
   const onTimeMonthsCount = payments ? countOnTimeMonthsBeforeFirstUnpaid(payments) : undefined
   const { monthCount } = computeContractBonus({
     contractStartAt: start,
-    paidMonthsCount: contract?.currentMonthIndex ?? 0,
+    paidMonthsCount: payments ? payments.filter((payment) => payment.status === 'PAID').length : contract?.currentMonthIndex ?? 0,
     totalPaid: 0,
     onTimeMonthsCount,
   })
-  const paidCount = contract?.currentMonthIndex ?? 0
+  const paidCount = payments ? payments.filter((payment) => payment.status === 'PAID').length : contract?.currentMonthIndex ?? 0
   const frozen = onTimeMonthsCount !== undefined && onTimeMonthsCount < paidCount
 
   const since = start ? ` depuis le ${start.toLocaleDateString('fr-FR')}` : ''
@@ -80,15 +80,8 @@ export function contractBonusSummary(
   settings?: Parameters<typeof computeContractBonus>[0]['settings'],
   payments?: Parameters<typeof countOnTimeMonthsBeforeFirstUnpaid>[0],
 ): { amount: number; subtitle?: string } {
-  const start = toDate(contract?.contractStartAt ?? contract?.firstPaymentDate)
-  const { amount, ratePercent, rateLabel, grossAmount, penaltiesDeducted } = computeContractBonus({
-    contractStartAt: start,
-    paidMonthsCount: contract?.currentMonthIndex ?? 0,
-    totalPaid: contract?.nominalPaid ?? 0,
-    settings,
-    onTimeMonthsCount: payments ? countOnTimeMonthsBeforeFirstUnpaid(payments) : undefined,
-    penaltiesTotal: payments ? sumContractPenalties(payments as never) : 0,
-  })
+  const { amount, ratePercent, rateLabel, grossAmount, penaltiesDeducted } =
+    computeContractBonusFromPayments(contract, payments, settings)
   const period = formatBonusPeriod(contract, payments)
   const rate = ratePercent > 0 && rateLabel && period ? `${period} : ${ratePercent} %` : period
   const subtitle =

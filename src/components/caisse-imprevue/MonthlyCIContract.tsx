@@ -48,6 +48,7 @@ import EarlyRefundCIModal from './EarlyRefundCIModal'
 import EditContractCategoryCIModal from './EditContractCategoryCIModal'
 import FinalRefundCIModal from './FinalRefundCIModal'
 import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
+import { RefundPayoutCountdown } from '@/components/refunds/RefundPayoutCountdown'
 import ValidateRefundCIModal from './ValidateRefundCIModal'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 const PaymentReceiptCIModal = dynamic(() => import('./PaymentReceiptCIModal'), {
@@ -245,7 +246,13 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
   const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
   const [editCategoryOpen, setEditCategoryOpen] = useState(false)
   const [confirmApproveRefundId, setConfirmApproveRefundId] = useState<string | null>(null)
-  const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{ id: string; label: string } | null>(null)
+  const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{
+    id: string
+    label: string
+    type: string
+    approvedAt?: unknown
+    payoutDueAt?: unknown
+  } | null>(null)
   const [refundToValidate, setRefundToValidate] = useState<any | null>(null)
   const [editVersement, setEditVersement] = useState<{ payment: PaymentCI; versement: VersementCI } | null>(null)
 
@@ -1202,6 +1209,8 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                         )}
                       </div>
 
+                      <RefundPayoutCountdown refund={r} compact />
+
                       {canShowActions && (
                         <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
                           {r.status === 'PENDING' && (
@@ -1239,10 +1248,16 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                                 variant="outline"
                                 size="sm"
                                 className="border-green-300 text-green-600 hover:bg-green-50"
-                                onClick={() => setRefundToMarkAsPaid({ id: r.id, label: r.type === 'FINAL' ? 'Remboursement Final' : 'Retrait Anticipé' })}
+                                onClick={() => setRefundToMarkAsPaid({
+                                  id: r.id,
+                                  label: r.type === 'FINAL' ? 'Remboursement Final' : 'Retrait Anticipé',
+                                  type: r.type,
+                                  approvedAt: r.approvedAt,
+                                  payoutDueAt: r.payoutDueAt,
+                                })}
                               >
                                 <CheckCircle className="h-4 w-4 mr-1" />
-                                Marquer comme payé
+                                {r.type === 'EARLY' ? 'Finaliser la remise' : 'Confirmer la remise'}
                               </Button>
                             </>
                           )}
@@ -1413,6 +1428,9 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
             contractId={contract.id}
             refundId={refundToMarkAsPaid.id}
             refundLabel={refundToMarkAsPaid.label}
+            refundType={refundToMarkAsPaid.type}
+            approvedAt={refundToMarkAsPaid.approvedAt}
+            payoutDueAt={refundToMarkAsPaid.payoutDueAt}
             onSuccess={reloadRefunds}
             userId={user.uid}
           />

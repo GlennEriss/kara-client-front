@@ -3,14 +3,17 @@ import { assertContractUnlocked, isCaisseSpecialeContractLocked } from '@/utils/
 import { addPayment, listPayments, updatePayment } from '@/db/caisse/payments.db'
 import { addRefund, listRefunds, updateRefund, deleteRefund } from '@/db/caisse/refunds.db'
 import { getActiveSettings } from '@/db/caisse/settings.db'
-import { computeDueWindow, computePenalty, computeBonus, computeNextDueAt } from './engine'
-import { computeContractBonus, countOnTimeMonthsBeforeFirstUnpaid, sumContractPenalties } from './bonus'
-import { addContractMonths, computeContractEndAt, computeDueAt, PERIOD_DAYS_JOURNALIER } from './contractDates'
+import { computeDueWindow, computePenalty, computeNextDueAt } from './engine'
+import { computeContractBonusFromPayments, sumContractNominalPaid, sumContractPenalties } from './bonus'
+import { computeContractEndAt, computeDueAt } from './contractDates'
 import { createFile } from '@/db/upload-image.db'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { auth } from '@/firebase/auth'
 import { resolveIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { logAdminAction } from '@/services/audit/auditLog'
+import { finalizeRefundHandover } from '@/services/refunds/finalizeRefundHandover'
+import { addDays } from 'date-fns'
+import { EARLY_REFUND_PAYOUT_DAYS } from '@/utils/refund-payout'
 
 /** Retire les clés à valeur `undefined` (Firestore rejette `undefined`). */
 function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
@@ -58,45 +61,6 @@ function generateContributionId(memberId: string, paidAt: Date): string {
   }).replace(/:/g, '')
   
   return `MK_CS_P_${memberId}_${date}_${time}`
-}
-
-// Fonction utilitaire pour convertir n'importe quel type de date en chaîne ISO
-function normalizeDateToISOString(dateValue: any): string | null {
-  if (!dateValue) return null
-  
-  try {
-    let date: Date
-    
-    // Si c'est un objet Firestore Timestamp
-    if (dateValue && typeof dateValue.toDate === 'function') {
-      date = dateValue.toDate()
-    }
-    // Si c'est déjà un objet Date
-    else if (dateValue instanceof Date) {
-      date = dateValue
-    }
-    // Si c'est une chaîne de caractères
-    else if (typeof dateValue === 'string') {
-      date = new Date(dateValue)
-    }
-    // Si c'est un timestamp numérique
-    else if (typeof dateValue === 'number') {
-      date = new Date(dateValue)
-    }
-    // Sinon, essayer de créer une Date
-    else {
-      date = new Date(dateValue)
-    }
-    
-    // Vérifier que la date est valide
-    if (isNaN(date.getTime())) {
-      return null
-    }
-    
-    return date.toISOString().split('T')[0]
-  } catch {
-    return null
-  }
 }
 
 export async function subscribe(input: { 
@@ -240,8 +204,6 @@ export async function subscribe(input: {
   }
   
   // Pré-générer les paiements DUE avec dueAt calculé (startDate déjà calculé ci-dessus)
-  const isDailyType = input.caisseType === 'JOURNALIERE' || input.caisseType === 'JOURNALIERE_CHARITABLE'
-
   for (let i = 0; i < input.monthsPlanned; i++) {
     // Journalier : dueAt = dernier jour de la période de 30 jours (période 0 =
     // startDate..startDate+29). Sinon : i mois après le début.
@@ -282,7 +244,6 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     listPayments(input.contractId),
   ])
   let payment = payments.find((p: any) => Number(p.dueMonthIndex) === Number(input.dueMonthIndex))
-  const isDailyType = (contract as any).caisseType === 'JOURNALIERE' || (contract as any).caisseType === 'JOURNALIERE_CHARITABLE'
 
   // Les contrats importés ou créés avant la pré-génération de l'échéancier
   // n'ont un document que pour les mois déjà payés. Les écrans reconstituent
@@ -388,24 +349,6 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     penalty = computePenalty(penaltyBase, delayDays, settings as any)
   }
 
-  // Bonus
-  // Pour LIBRE, utiliser le montant accumulé AVANT ce paiement (le montant du mois précédent)
-  // Pour STANDARD et JOURNALIERE, utiliser le montant mensuel
-  const baseForBonus = type === 'STANDARD' || type === 'STANDARD_CHARITABLE'
-    ? contract.monthlyAmount
-    : isDailyType
-      ? Math.min(newAccumulated, contract.monthlyAmount)
-      : /* LIBRE */ (payment.accumulatedAmount || 0) // Utiliser le montant accumulé AVANT ce paiement
-  // Utiliser le taux du mois précédent (pour le mois 5, utiliser le taux du mois 4)
-  // Pour le mois 4 (index 3), on utilise déjà le taux du mois 4 (M4)
-  // Pour le mois 5 (index 4), on veut utiliser le taux du mois 4 (M4), donc monthIndex - 1
-  const bonusMonthIndex = payment.dueMonthIndex >= 3 ? Math.max(3, payment.dueMonthIndex - 1) : payment.dueMonthIndex
-  const bonusRate = computeBonus(bonusMonthIndex, settings as any)
-  // bonusRate est un pourcentage (ex: 5 pour 5%), donc diviser par 100
-  // Pour LIBRE, baseForBonus = accumulatedAmount (montant accumulé jusqu'au mois précédent)
-  // Pour STANDARD et JOURNALIERE, baseForBonus = monthlyAmount ou min(accumulated, monthlyAmount)
-  const bonus = (bonusRate || 0) / 100 * baseForBonus
-
   // Construire updates du paiement
   const paymentUpdates: any = {
     penaltyApplied: penalty || 0,
@@ -470,8 +413,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   if (reached) {
     paymentUpdates.status = 'PAID'
     paymentUpdates.paidAt = now
-    // Stocker le bonus appliqué dans le paiement
-    paymentUpdates.bonusApplied = bonus || 0
+    // Le bonus est global au contrat ; aucun bonus mensuel n'est ajouté ici.
     // Pour les contrats individuels, stocker l'agent au niveau du paiement pour l'affichage
     if (input.agentRecouvrementId) {
       paymentUpdates.agentRecouvrementId = input.agentRecouvrementId
@@ -494,21 +436,20 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
       await updatePayment(input.contractId, payments[i].id, { dueAt: due })
     }
   }
-  // LIBRE / JOURNALIÈRE : versements variables → le « Total versé » (nominalPaid)
-  // compte CHAQUE versement dès son enregistrement (y compris acomptes et
-  // excédents). STANDARD : mensualité fixe créditée à la complétion du mois.
-  const isVariableAmountType = type !== 'STANDARD' && type !== 'STANDARD_CHARITABLE'
-  const incrementNominal = isVariableAmountType
-    ? (typeof input.amount === 'number' && input.amount > 0 ? input.amount : 0)
-    : (reached ? contract.monthlyAmount : 0)
+  // Repartir des versements réels : les acomptes sont inclus et un ancien
+  // cumul de contrat ne se propage pas dans le bonus recalculé.
+  const currentPayments = await listPayments(input.contractId)
   const updated = {
-    nominalPaid: (contract.nominalPaid || 0) + Math.max(0, incrementNominal),
-    penaltiesTotal: (contract.penaltiesTotal || 0) + (penalty || 0),
-    bonusAccrued: (contract.bonusAccrued || 0) + (reached ? (bonus || 0) : 0),
+    nominalPaid: sumContractNominalPaid(currentPayments),
+    penaltiesTotal: sumContractPenalties(currentPayments),
     contractStartAt,
     updatedAt: new Date(),
     updatedBy: (auth?.currentUser?.uid) || input.memberId,
   } as any
+
+  updated.bonusAccrued = computeContractBonusFromPayments(
+    { ...contract, ...updated }, currentPayments, settings as any,
+  ).amount
 
   // Si on connaît le start, (re)calculer la fin
   const recomputedEndAt = computeContractEndAt(contractStartAt, contract.monthsPlanned, type)
@@ -541,7 +482,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     `Enregistrement d'un versement de caisse spéciale${typeof input.amount === 'number' ? ` de ${input.amount.toLocaleString('fr-FR')} FCFA` : ''}`,
   )
 
-  return { status, penalty, bonus, nextDueAt }
+  return { status, penalty, bonus: updated.bonusAccrued, nextDueAt }
 }
 
 export async function requestFinalRefund(contractId: string, reason?: string) {
@@ -561,22 +502,14 @@ export async function requestFinalRefund(contractId: string, reason?: string) {
     throw new Error('Un remboursement final est déjà en cours ou a été traité pour ce contrat')
   }
   await updateContract(contractId, { status: 'FINAL_REFUND_PENDING' })
-  const amountNominal = c.nominalPaid || 0
+  const amountNominal = sumContractNominalPaid(payments)
   const settings = await getActiveSettings((c as any).caisseType)
   // Même règle que le retrait anticipé : le taux vient de min(mois écoulés,
   // mois soldés), et non de la durée planifiée. Un contrat soldé en avance ne
   // donne donc pas le taux de son dernier mois.
-  const paidMonthsCount = payments.filter((p: any) => p.status === 'PAID').length
-  const amountBonus = computeContractBonus({
-    contractStartAt: c.contractStartAt,
-    paidMonthsCount,
-    totalPaid: amountNominal,
-    settings: settings as any,
-    // Après un impayé, figé au dernier mois payé à l'heure.
-    onTimeMonthsCount: countOnTimeMonthsBeforeFirstUnpaid(payments as any[]),
-    // Pénalités retirées du bonus, pas du nominal.
-    penaltiesTotal: sumContractPenalties(payments as any[]),
-  }).amount
+  const amountBonus = computeContractBonusFromPayments(
+    { ...c, nominalPaid: amountNominal }, payments, settings as any,
+  ).amount
   // La remise finale est exigible dès le terme du contrat. Les anciens dossiers
   // sans `contractEndAt` sont recalculés avec la même règle que l'échéancier.
   const deadlineAt =
@@ -619,42 +552,17 @@ export async function requestEarlyRefund(contractId: string, input?: {
   if (hasEarly || c.status === 'EARLY_REFUND_PENDING') {
     throw new Error('Une demande de retrait anticipé est déjà en cours pour ce contrat')
   }
-  // Nouveau flow: soumission du retrait anticipé = traitement final immédiat
-  await updateContract(contractId, { status: 'CLOSED' })
-  const amountNominal = c.nominalPaid || 0
-  // Bonus du mois précédent, à partir de M4. Le numéro de mois est compté de la
-  // date de début du contrat jusqu'à aujourd'hui (voir calcul ci-dessous).
+  const amountNominal = sumContractNominalPaid(payments)
+  // Même bonus global que sur la fiche et dans le calendrier : taux du mois
+  // complet retenu, plafonné par les versements et les impayés.
   const settings = await getActiveSettings((c as any).caisseType)
-  // Montant global versé (toutes contributions)
-  let totalPaid = 0
-  const type = (c as any).caisseType || 'STANDARD'
-  if (type === 'STANDARD' || type === 'STANDARD_CHARITABLE') {
-    totalPaid = paidCount * (c.monthlyAmount || 0)
-  } else {
-    for (const p of payments) {
-      if (Array.isArray((p as any).contribs)) {
-        totalPaid += (p as any).contribs.reduce((sum: number, it: any) => sum + (Number(it.amount) || 0), 0)
-      } else if (typeof (p as any).accumulatedAmount === 'number') {
-        totalPaid += Number((p as any).accumulatedAmount) || 0
-      } else if (p.status === 'PAID' && (type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE')) {
-        totalPaid += c.monthlyAmount || 0
-      }
-    }
-  }
   // Règle partagée `computeContractBonus` : min(mois écoulés, mois soldés).
-  const amountBonus = computeContractBonus({
-    contractStartAt: c.contractStartAt,
-    paidMonthsCount: paidCount,
-    totalPaid,
-    settings: settings as any,
-    // Après un impayé, figé au dernier mois payé à l'heure.
-    onTimeMonthsCount: countOnTimeMonthsBeforeFirstUnpaid(payments as any[]),
-    // Pénalités retirées du bonus, pas du nominal.
-    penaltiesTotal: sumContractPenalties(payments as any[]),
-  }).amount
-  const deadlineAt = new Date(Date.now() + 45*86400000)
-
-  const withdrawalDate = input?.withdrawalDate ? new Date(input.withdrawalDate) : new Date()
+  const amountBonus = computeContractBonusFromPayments(
+    { ...c, nominalPaid: amountNominal }, payments, settings as any,
+  ).amount
+  const approvedAt = new Date()
+  const payoutDueAt = addDays(approvedAt, EARLY_REFUND_PAYOUT_DAYS)
+  const requestedWithdrawalDate = input?.withdrawalDate ? new Date(input.withdrawalDate) : approvedAt
   const withdrawalTime =
     input?.withdrawalTime ||
     `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`
@@ -728,8 +636,12 @@ export async function requestEarlyRefund(contractId: string, input?: {
     type: 'EARLY', 
     amountNominal, 
     amountBonus, 
-    deadlineAt, 
-    status: 'PAID',
+    deadlineAt: payoutDueAt,
+    payoutDueAt,
+    approvedAt,
+    approvedBy: processedBy,
+    approvedByName: processedByName,
+    status: 'APPROVED',
     reason: input?.reason?.trim() || '',
     withdrawalAmount,
     withdrawalMode: input?.withdrawalMode,
@@ -739,8 +651,8 @@ export async function requestEarlyRefund(contractId: string, input?: {
     ...(input?.withdrawalMode === 'other' && input.paymentMethodOther?.trim()
       ? { paymentMethodOther: input.paymentMethodOther.trim() }
       : {}),
-    withdrawalDate,
-    withdrawalTime,
+    requestedWithdrawalDate,
+    requestedWithdrawalTime: withdrawalTime,
     withdrawalProofUrl,
     withdrawalProofPath,
     document,
@@ -750,11 +662,24 @@ export async function requestEarlyRefund(contractId: string, input?: {
     processedByName,
     processedTime,
   })
+  // L'approbation met fin aux versements, mais la remise d'argent reste à
+  // confirmer séparément. Le contrat ne sera CLOSED qu'à la remise effective.
+  await updateContract(contractId, { status: 'EARLY_REFUND_PENDING' })
   return true
 }
 
 export async function approveRefund(contractId: string, refundId: string) {
-  await updateRefund(contractId, refundId, { status: 'APPROVED' })
+  const refunds = await listRefunds(contractId)
+  const refund = refunds.find((item: any) => item.id === refundId)
+  if (!refund) throw new Error('Demande introuvable')
+  const approvedAt = new Date()
+  await updateRefund(contractId, refundId, {
+    status: 'APPROVED',
+    approvedAt,
+    ...(refund.type === 'EARLY'
+      ? { payoutDueAt: addDays(approvedAt, EARLY_REFUND_PAYOUT_DAYS) }
+      : {}),
+  })
   return true
 }
 
@@ -763,61 +688,25 @@ export async function markRefundPaid(contractId: string, refundId: string, proof
   withdrawalDate?: string
   withdrawalTime?: string
 }) {
-  let proofUrl: string | undefined
-  if (proof) {
-    const uploaded = await createFile(proof, contractId, `caisse/${contractId}/refunds/${refundId}`)
-    proofUrl = uploaded.url
-  }
-  
-  // Construire les mises à jour
+  if (!proof) throw new Error('La preuve de remise est obligatoire')
+  const refunds = await listRefunds(contractId)
+  const refund = refunds.find((item: any) => item.id === refundId)
+  if (!refund) throw new Error('Demande introuvable')
   const now = new Date()
   const processedBy = auth.currentUser?.uid || 'system'
-  let processedByName: string | undefined
-  try {
-    const admin = await getAdminById(processedBy)
-    if (admin) {
-      const fullName = `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
-      processedByName = fullName || processedBy
-    }
-  } catch {
-    // Ne pas bloquer la mise à jour si le profil admin est introuvable
-  }
-
-  const updates: any = {
-    status: 'PAID',
-    processedAt: now,
-    processedBy,
-    processedByName: processedByName || processedBy,
-    processedTime: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`,
-  }
-  
-  // Ajouter la preuve si fournie
-  if (proofUrl) {
-    updates.proofUrl = proofUrl
-  }
-  
-  // Ajouter les détails du retrait si fournis
-  if (refundDetails?.reason !== undefined) {
-    updates.reason = refundDetails.reason
-  }
-  if (refundDetails?.withdrawalDate !== undefined) {
-    const normalizedDate = normalizeDateToISOString(refundDetails.withdrawalDate)
-    if (normalizedDate) {
-      updates.withdrawalDate = new Date(normalizedDate)
-    }
-  }
-  if (refundDetails?.withdrawalTime !== undefined) {
-    updates.withdrawalTime = refundDetails.withdrawalTime
-  }
-  
-  await updateRefund(contractId, refundId, updates)
-  
-  // Si final → fermer le contrat
-  const refunds = await listRefunds(contractId)
-  const r = refunds.find((x: any) => x.id === refundId)
-  if (r && (r.type === 'FINAL' || r.type === 'EARLY' || r.type === 'DEFAULT')) {
-    await updateContract(contractId, { status: 'CLOSED' })
-  }
+  const uploaded = await createFile(proof, contractId, `caisse/${contractId}/refunds/${refundId}`)
+  await finalizeRefundHandover({
+    fund: 'CS',
+    contractId,
+    refundId,
+    adminId: processedBy,
+    handoverDate: refundDetails?.withdrawalDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+    handoverTime: refundDetails?.withdrawalTime || `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`,
+    paymentMode: refund.withdrawalMode || 'cash',
+    paymentMethodOther: refund.paymentMethodOther,
+    proofUrl: uploaded.url,
+    proofPath: uploaded.path,
+  })
   return true
 }
 
@@ -1060,16 +949,18 @@ export async function updatePaymentContribution(input: {
   // Mettre à jour le contrat si nécessaire (recalculer les totaux)
   const contract = await getContract(contractId)
   if (contract) {
-    const allPayments = await listPayments(contractId)
-    const totalNominalPaid = allPayments.reduce((sum: number, p: any) => {
-      if (p.status === 'PAID') {
-        return sum + (p.accumulatedAmount || 0)
-      }
-      return sum
-    }, 0)
+    const [allPayments, settings] = await Promise.all([
+      listPayments(contractId),
+      getActiveSettings(contract.caisseType),
+    ])
+    const totalNominalPaid = sumContractNominalPaid(allPayments)
     
     await updateContract(contractId, {
       nominalPaid: totalNominalPaid,
+      bonusAccrued: computeContractBonusFromPayments(
+        { ...contract, nominalPaid: totalNominalPaid }, allPayments, settings as any,
+      ).amount,
+      penaltiesTotal: sumContractPenalties(allPayments),
       updatedAt: new Date(),
       updatedBy: auth?.currentUser?.uid || contractId
     })
@@ -1347,15 +1238,14 @@ export async function payGroup(input: {
 
   // Calculer les totaux du contrat
   const allPayments = await listPayments(input.contractId)
-  const totalNominalPaid = allPayments.reduce((sum: number, p: any) => {
-    if (p.status === 'PAID') {
-      return sum + (p.accumulatedAmount || 0)
-    }
-    return sum
-  }, 0)
+  const totalNominalPaid = sumContractNominalPaid(allPayments)
 
   await updateContract(input.contractId, {
     nominalPaid: totalNominalPaid,
+    bonusAccrued: computeContractBonusFromPayments(
+      { ...contract, nominalPaid: totalNominalPaid, contractStartAt }, allPayments, settings as any,
+    ).amount,
+    penaltiesTotal: sumContractPenalties(allPayments),
     contractStartAt,
     updatedAt: new Date(),
     updatedBy: input.memberId

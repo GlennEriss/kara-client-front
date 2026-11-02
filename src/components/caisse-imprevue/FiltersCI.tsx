@@ -18,6 +18,10 @@ import type { CaisseImprevuePaymentFrequency } from '@/types/types'
 import { CONTRACT_CI_STATUS_LABELS, ContractCIStatus } from '@/types/types'
 import { ChevronDown, Filter, RefreshCw, Search } from 'lucide-react'
 import { useState } from 'react'
+import {
+  EARLY_WITHDRAWAL_FILTER_LABELS,
+  type EarlyWithdrawalFilter,
+} from '@/domains/financial/refunds/earlyWithdrawalFilter'
 
 interface FiltersCIProps {
   filters: ContractsCIFilters
@@ -54,6 +58,7 @@ export default function FiltersCI({
   const safeFilters: ContractsCIFilters = {
     search: filters.search ?? '',
     status: filters.status ?? 'all',
+    earlyWithdrawal: filters.earlyWithdrawal ?? 'all',
     paymentFrequency: filters.paymentFrequency ?? 'all',
     subscriptionCIID: filters.subscriptionCIID,
     createdAtFrom: filters.createdAtFrom,
@@ -102,12 +107,16 @@ export default function FiltersCI({
   const statusLabel = statusValue !== 'all'
     ? `Statut: ${(statusValue as string) === 'CLOTURE' ? 'Clôturé' : (STATUS_LABELS[statusValue] || statusValue)}`
     : null
+  const earlyWithdrawalLabel = safeFilters.earlyWithdrawal !== 'all'
+    ? EARLY_WITHDRAWAL_FILTER_LABELS[safeFilters.earlyWithdrawal as EarlyWithdrawalFilter]
+    : null
 
   const activeFilterLabels = [
     searchLabel,
     paymentFrequencyLabel,
     categoryLabel,
     statusLabel,
+    earlyWithdrawalLabel,
     isCreatedAtRangeActive ? 'Période de création' : null,
     isNextDueRangeActive ? 'Prochaine échéance' : null,
     !isOverdueTab && safeFilters.overdueOnly ? 'Retard uniquement' : null,
@@ -144,6 +153,7 @@ export default function FiltersCI({
       label !== (paymentFrequencyLabel || '') &&
       label !== (categoryLabel || '') &&
       label !== (statusLabel || '')
+      && label !== (earlyWithdrawalLabel || '')
   ).length
   const controlClassName =
     'h-11 rounded-xl border-2 border-slate-200 bg-white focus:ring-0 focus-visible:ring-0 focus-visible:border-[#234D65]'
@@ -200,7 +210,7 @@ export default function FiltersCI({
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
-          <div className="space-y-1.5 xl:col-span-5">
+          <div className="space-y-1.5 xl:col-span-4">
             <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recherche</Label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -238,7 +248,7 @@ export default function FiltersCI({
             </div>
           )}
 
-          <div className={cn('space-y-1.5', showPaymentFrequencyFilter ? 'xl:col-span-3' : 'xl:col-span-4')}>
+          <div className={cn('space-y-1.5', showPaymentFrequencyFilter ? 'xl:col-span-2' : 'xl:col-span-3')}>
             <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Catégorie</Label>
             <Select
               value={safeFilters.subscriptionCIID || 'all'}
@@ -278,6 +288,26 @@ export default function FiltersCI({
                 <SelectItem value="CLOTURE">Clôturé</SelectItem>
                 <SelectItem value="FINISHED">{STATUS_LABELS.FINISHED}</SelectItem>
                 <SelectItem value="CANCELED">{STATUS_LABELS.CANCELED}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5 xl:col-span-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Retrait anticipé</Label>
+            <Select
+              value={safeFilters.earlyWithdrawal || 'all'}
+              onValueChange={(value) => onFiltersChange({
+                ...safeFilters,
+                earlyWithdrawal: value as EarlyWithdrawalFilter,
+              })}
+            >
+              <SelectTrigger className={controlClassName}>
+                <SelectValue placeholder="Tous les contrats" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les contrats</SelectItem>
+                <SelectItem value="IN_PROGRESS">En cours (argent non remis)</SelectItem>
+                <SelectItem value="FINALIZED">Finalisé (remise effectuée)</SelectItem>
               </SelectContent>
             </Select>
           </div>

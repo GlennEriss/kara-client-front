@@ -118,6 +118,56 @@ type PaymentLike = {
   contribs?: Array<{ paidAt?: unknown }>
 }
 
+export interface ContractBonusSource {
+  contractStartAt?: Date | string | null
+  firstPaymentDate?: Date | string | null
+  nominalPaid?: number | null
+  currentMonthIndex?: number | null
+}
+
+/** Nominal réellement versé, acomptes compris, sans compter deux fois les contributions. */
+export function sumContractNominalPaid(payments: Array<{
+  status?: string
+  amount?: number
+  accumulatedAmount?: number
+  contribs?: Array<{ amount?: number }>
+  groupContributions?: Array<{ amount?: number }>
+}>): number {
+  return payments.reduce((total, payment) => {
+    const accumulated = Number(payment.accumulatedAmount)
+    if (Number.isFinite(accumulated) && accumulated > 0) return total + accumulated
+    const contributions = [...(payment.contribs || []), ...(payment.groupContributions || [])]
+    if (contributions.length > 0) {
+      return total + contributions.reduce((sum, contribution) => sum + (Number(contribution.amount) || 0), 0)
+    }
+    return total + (payment.status === 'PAID' ? Number(payment.amount) || 0 : 0)
+  }, 0)
+}
+
+/**
+ * Même assiette et mêmes plafonds pour la fiche, les remises et les écritures.
+ * Avec un échéancier, le nombre de mois payés vient des paiements réels :
+ * currentMonthIndex n'est qu'un index de navigation, pas un nombre de mois soldés.
+ */
+export function computeContractBonusFromPayments(
+  contract: ContractBonusSource,
+  payments: Array<PaymentLike & { penaltyApplied?: number; contribs?: Array<{ paidAt?: unknown; penalty?: number }> }> | undefined,
+  settings?: CaisseSettings | null,
+  now: Date = new Date(),
+): BonusResult {
+  return computeContractBonus({
+    contractStartAt: contract.contractStartAt ?? contract.firstPaymentDate,
+    paidMonthsCount: payments
+      ? payments.filter((payment) => payment.status === 'PAID').length
+      : contract.currentMonthIndex ?? 0,
+    totalPaid: contract.nominalPaid ?? 0,
+    settings,
+    onTimeMonthsCount: payments ? countOnTimeMonthsBeforeFirstUnpaid(payments) : undefined,
+    penaltiesTotal: payments ? sumContractPenalties(payments) : 0,
+    now,
+  })
+}
+
 const toDay = (value: unknown): Date | null => {
   if (!value) return null
   const date =

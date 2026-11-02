@@ -63,6 +63,8 @@ interface EarlyWithdrawalRequestModalProps {
   title?: string
   description?: string
   submitLabel?: string
+  /** Mode approbation : la remise réelle sera confirmée dans une seconde étape. */
+  approvalOnly?: boolean
 }
 
 export default function EarlyWithdrawalRequestModal({
@@ -80,6 +82,7 @@ export default function EarlyWithdrawalRequestModal({
   title = 'Demande de retrait anticipé',
   description = 'Remplissez tous les champs ci-dessous pour effectuer votre demande de retrait anticipé',
   submitLabel = 'Soumettre la demande',
+  approvalOnly = false,
 }: EarlyWithdrawalRequestModalProps) {
   const normalizedMaxAmount = Math.max(0, roundFcfa(maxAmount))
   const {
@@ -184,7 +187,7 @@ export default function EarlyWithdrawalRequestModal({
 
   const handleFormSubmit = async (data: EarlyRefundCIFormData) => {
     if (!withdrawalProofFile) {
-      toast.error('Veuillez téléverser la preuve du retrait')
+      toast.error(approvalOnly ? 'Veuillez téléverser le justificatif de la demande' : 'Veuillez téléverser la preuve du retrait')
       return
     }
     if (!documentPdfFile) {
@@ -256,7 +259,7 @@ export default function EarlyWithdrawalRequestModal({
           <div className="space-y-4 border-b pb-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Informations du retrait
+              {approvalOnly ? 'Informations de la demande' : 'Informations du retrait'}
             </h3>
 
             <div>
@@ -279,7 +282,7 @@ export default function EarlyWithdrawalRequestModal({
               <div>
                 <Label htmlFor="withdrawalDate" className="flex items-center gap-2 mb-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  Date de retrait *
+                  {approvalOnly ? 'Date de la demande' : 'Date de retrait'} *
                 </Label>
                 <Input
                   id="withdrawalDate"
@@ -295,7 +298,7 @@ export default function EarlyWithdrawalRequestModal({
               <div>
                 <Label htmlFor="withdrawalTime" className="flex items-center gap-2 mb-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  Heure de retrait * (HH:mm)
+                  {approvalOnly ? 'Heure de la demande' : 'Heure de retrait'} * (HH:mm)
                 </Label>
                 <Input
                   id="withdrawalTime"
@@ -312,7 +315,7 @@ export default function EarlyWithdrawalRequestModal({
               <div>
                 <Label htmlFor="withdrawalAmount" className="flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  Montant retiré (FCFA) *
+                  {approvalOnly ? 'Montant prévu' : 'Montant retiré'} (FCFA) *
                 </Label>
                 <Input
                   id="withdrawalAmount"
@@ -426,7 +429,7 @@ export default function EarlyWithdrawalRequestModal({
             <div>
               <Label htmlFor="withdrawalProof" className="flex items-center gap-2 mb-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                Preuve du retrait * (Image uniquement, max 20MB)
+                {approvalOnly ? 'Justificatif de la demande' : 'Preuve du retrait'} * (Image uniquement, max 20MB)
               </Label>
               <div className="space-y-2">
                 <Input
@@ -448,7 +451,9 @@ export default function EarlyWithdrawalRequestModal({
                 {errors.withdrawalProof ? <p className="text-xs text-red-500 mt-1">{errors.withdrawalProof.message}</p> : null}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Téléversez une photo de la preuve du retrait (JPEG, PNG, WebP, max 20MB)
+                {approvalOnly
+                  ? 'Téléversez une pièce justifiant la demande (JPEG, PNG, WebP, max 20MB)'
+                  : 'Téléversez une photo de la preuve du retrait (JPEG, PNG, WebP, max 20MB)'}
               </p>
             </div>
 
@@ -492,7 +497,7 @@ export default function EarlyWithdrawalRequestModal({
                 </div>
                 {withdrawalAmount && withdrawalAmount > 0 ? (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">{lockAmount ? 'Montant à verser' : 'Montant retiré'} :</span>
+                    <span className="text-gray-600">{lockAmount ? 'Montant à verser' : approvalOnly ? 'Montant prévu' : 'Montant retiré'} :</span>
                     <span className="font-semibold text-blue-600">{withdrawalAmount.toLocaleString('fr-FR')} FCFA</span>
                   </div>
                 ) : null}
@@ -509,7 +514,10 @@ export default function EarlyWithdrawalRequestModal({
           <Alert className="border-orange-200 bg-orange-50">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-700">
-              <strong>Important :</strong> Le retrait anticipé sera traité dans un délai de 45 jours.
+              <strong>Important :</strong>{' '}
+              {approvalOnly
+                ? "Cette validation démarre le délai de 30 jours. La remise d'argent devra ensuite être confirmée séparément."
+                : 'Le retrait anticipé sera traité dans un délai de 45 jours.'}{' '}
               Assurez-vous que tous les documents sont correctement remplis et signés.
             </AlertDescription>
           </Alert>

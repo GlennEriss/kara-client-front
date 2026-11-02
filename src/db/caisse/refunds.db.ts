@@ -28,6 +28,7 @@ export async function listRefundsCI(contractId: string) {
       createdAt: toDate(data.createdAt),
       updatedAt: toDate(data.updatedAt),
       approvedAt: toDate(data.approvedAt),
+      payoutDueAt: toDate(data.payoutDueAt),
       paidAt: toDate(data.paidAt),
       paymentProofUrl: data.paymentProofUrl,
       paymentProofPath: data.paymentProofPath,
@@ -61,6 +62,9 @@ export async function listRefunds(contractId: string) {
       deadlineAt: (typeof data.deadlineAt?.toDate === 'function') ? data.deadlineAt.toDate() : (data.deadlineAt ? new Date(data.deadlineAt) : undefined),
       createdAt: (typeof data.createdAt?.toDate === 'function') ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined),
       processedAt: (typeof data.processedAt?.toDate === 'function') ? data.processedAt.toDate() : (data.processedAt ? new Date(data.processedAt) : undefined),
+      approvedAt: (typeof data.approvedAt?.toDate === 'function') ? data.approvedAt.toDate() : (data.approvedAt ? new Date(data.approvedAt) : undefined),
+      payoutDueAt: (typeof data.payoutDueAt?.toDate === 'function') ? data.payoutDueAt.toDate() : (data.payoutDueAt ? new Date(data.payoutDueAt) : undefined),
+      paidAt: (typeof data.paidAt?.toDate === 'function') ? data.paidAt.toDate() : (data.paidAt ? new Date(data.paidAt) : undefined),
     }
   })
 }

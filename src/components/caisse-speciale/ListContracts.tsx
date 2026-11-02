@@ -70,6 +70,10 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import React, { useEffect, useRef, useState } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
+import {
+  EARLY_WITHDRAWAL_FILTER_LABELS,
+  type EarlyWithdrawalFilter,
+} from '@/domains/financial/refunds/earlyWithdrawalFilter'
 const CaisseSpecialePDFModal = dynamic(() => import('./CaisseSpecialePDFModal'), {
   ssr: false,
 })
@@ -336,6 +340,7 @@ const ContractFilters = ({
   const safeFilters = {
     search: '',
     status: 'all',
+    earlyWithdrawal: 'all',
     contractType: 'all',
     caisseType: 'all',
     createdAtFrom: undefined,
@@ -402,6 +407,9 @@ const ContractFilters = ({
   const activeFilterLabels = [
     safeFilters.search?.trim() ? `Recherche: ${safeFilters.search.trim()}` : null,
     hasCustomStatus ? `Statut: ${statusLabels[statusValue] || statusValue}` : null,
+    safeFilters.earlyWithdrawal !== 'all'
+      ? EARLY_WITHDRAWAL_FILTER_LABELS[safeFilters.earlyWithdrawal as EarlyWithdrawalFilter]
+      : null,
     safeFilters.contractType !== 'all'
       ? `Contrat: ${contractTypeLabels[safeFilters.contractType] || safeFilters.contractType}`
       : null,
@@ -439,6 +447,9 @@ const ContractFilters = ({
     (label) =>
       label !== (safeFilters.search?.trim() ? `Recherche: ${safeFilters.search.trim()}` : '') &&
       label !== (hasCustomStatus ? `Statut: ${statusLabels[statusValue] || statusValue}` : '') &&
+      label !== (safeFilters.earlyWithdrawal !== 'all'
+        ? EARLY_WITHDRAWAL_FILTER_LABELS[safeFilters.earlyWithdrawal as EarlyWithdrawalFilter]
+        : '') &&
       label !== (!isCaisseTabLocked && caisseTypeValue !== 'all'
         ? `Caisse: ${caisseTypeLabels[caisseTypeValue] || caisseTypeValue}`
         : '') &&
@@ -499,7 +510,7 @@ const ContractFilters = ({
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
-          <div className="space-y-1.5 xl:col-span-5">
+          <div className="space-y-1.5 xl:col-span-4">
             <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recherche</Label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -534,7 +545,27 @@ const ContractFilters = ({
             </Select>
           </div>
 
-          <div className="space-y-1.5 xl:col-span-3">
+          <div className="space-y-1.5 xl:col-span-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Retrait anticipé</Label>
+            <Select
+              value={safeFilters.earlyWithdrawal || 'all'}
+              onValueChange={(value) => onFiltersChange({
+                ...safeFilters,
+                earlyWithdrawal: value as EarlyWithdrawalFilter,
+              })}
+            >
+              <SelectTrigger className={controlClassName}>
+                <SelectValue placeholder="Tous les contrats" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les contrats</SelectItem>
+                <SelectItem value="IN_PROGRESS">En cours (argent non remis)</SelectItem>
+                <SelectItem value="FINALIZED">Finalisé (remise effectuée)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5 xl:col-span-2">
             <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Type de caisse</Label>
             <Select
               value={caisseTypeValue}
@@ -1235,6 +1266,11 @@ const ListContracts = () => {
   const [filters, setFilters] = useState({
     search: searchParams.get('q') || '',
     status: 'all',
+    earlyWithdrawal: (
+      ['IN_PROGRESS', 'FINALIZED'].includes(searchParams.get('withdrawal') || '')
+        ? searchParams.get('withdrawal')
+        : 'all'
+    ) as EarlyWithdrawalFilter,
     contractType: 'all',
     caisseType: 'all',
     createdAtFrom: undefined as Date | undefined,
@@ -1268,6 +1304,7 @@ const ListContracts = () => {
     tab: activeTab !== 'all' ? activeTab : null,
     view: viewMode !== 'grid' ? viewMode : null,
     q: filters.search || null,
+    withdrawal: filters.earlyWithdrawal !== 'all' ? filters.earlyWithdrawal : null,
   })
   const [isExporting, setIsExporting] = useState(false)
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<any>(null)
@@ -1360,6 +1397,7 @@ const ListContracts = () => {
     return Boolean(
       filters.search.trim() ||
       filters.status !== 'all' ||
+      filters.earlyWithdrawal !== 'all' ||
       filters.contractType !== 'all' ||
       filters.caisseType !== 'all' ||
       filters.createdAtFrom ||
@@ -1443,7 +1481,13 @@ const ListContracts = () => {
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: any) => {
-    setFilters(newFilters)
+    const withdrawalChanged = newFilters.earlyWithdrawal !== filters.earlyWithdrawal
+    const hasWithdrawalFilter = newFilters.earlyWithdrawal && newFilters.earlyWithdrawal !== 'all'
+    const nextFilters = withdrawalChanged && hasWithdrawalFilter
+      ? { ...newFilters, status: 'all', overdueOnly: false }
+      : newFilters
+    setFilters(nextFilters)
+    if (withdrawalChanged && hasWithdrawalFilter) setActiveTab('all')
     setCurrentPage(1)
     setPageCursors({ 1: null })
   }
@@ -1452,6 +1496,7 @@ const ListContracts = () => {
     setFilters({
       search: '',
       status: 'all',
+      earlyWithdrawal: 'all',
       contractType: 'all',
       caisseType: 'all',
       createdAtFrom: undefined,

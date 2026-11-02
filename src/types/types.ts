@@ -918,8 +918,10 @@ export interface EarlyRefundCI {
 
   // Informations du retrait
   reason: string // Motif du retrait
-  withdrawalDate: Date // Date du retrait
-  withdrawalTime: string // Heure du retrait (HH:mm)
+  withdrawalDate?: Date // Date de remise réelle (renseignée au paiement)
+  withdrawalTime?: string // Heure de remise réelle (HH:mm)
+  requestedWithdrawalDate?: Date // Date saisie lors de l'enregistrement de la demande
+  requestedWithdrawalTime?: string // Heure saisie lors de l'enregistrement de la demande
   withdrawalAmount: number // Montant retiré
   withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other' // Mode de retrait
   withFees?: boolean // Airtel/Mobicash: true=avec frais, false=sans frais
@@ -939,7 +941,7 @@ export interface EarlyRefundCI {
   // Statut
   status: EarlyRefundCIStatus
 
-  // Échéance (45 jours après création)
+  // Échéance de remise (30 jours après approbation)
   deadlineAt: Date
 
   // Métadonnées
@@ -953,6 +955,7 @@ export interface EarlyRefundCI {
   // Approbation (optionnel)
   approvedBy?: string // ID de l'admin qui a approuvé
   approvedByName?: string // Nom lisible de l'admin qui a approuvé
+  payoutDueAt?: Date
   approvedAt?: Date // Date d'approbation
 
   // Paiement (optionnel)
