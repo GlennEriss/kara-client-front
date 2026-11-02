@@ -6,7 +6,8 @@ import type { CalendarPaymentItemCI, DayPaymentsCI } from "@/hooks/useCalendarCa
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, startOfMonth, startOfWeek, subMonths } from "date-fns"
 import { fr } from "date-fns/locale"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { calendarFocusKey } from "@/utils/calendar-payment-link"
 import { CalendarDayCI } from "./CalendarDayCI"
 import { DayPaymentsModalCI } from "./DayPaymentsModalCI"
 import { PaymentSidebarCI } from "./PaymentSidebarCI"
@@ -16,6 +17,7 @@ interface CalendarViewCIProps {
   onMonthChange: (month: Date) => void
   daysPayments: DayPaymentsCI[]
   isLoading: boolean
+  focusedPaymentKey?: string
 }
 
 export function CalendarViewCI({
@@ -23,10 +25,24 @@ export function CalendarViewCI({
   onMonthChange,
   daysPayments,
   isLoading,
+  focusedPaymentKey,
 }: CalendarViewCIProps) {
   const { canSeeAmounts } = useMyAccess()
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedPayment, setSelectedPayment] = useState<CalendarPaymentItemCI | null>(null)
+  const openedFocus = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!focusedPaymentKey || openedFocus.current === focusedPaymentKey) return
+    setSelectedDay(null)
+    setSelectedPayment(null)
+    if (isLoading) return
+    const payment = daysPayments.flatMap((day) => day.payments)
+      .find((item) => calendarFocusKey.caisseImprevue(item.contract.id, item.monthIndex) === focusedPaymentKey)
+    if (!payment) return
+    openedFocus.current = focusedPaymentKey
+    setSelectedPayment(payment)
+  }, [daysPayments, focusedPaymentKey, isLoading])
 
   const monthStart = startOfMonth(month)
   const monthEnd = endOfMonth(month)
@@ -233,6 +249,7 @@ export function CalendarViewCI({
       {/* Sidebar de détail d'un versement */}
       {selectedPayment && (
         <PaymentSidebarCI
+          key={calendarFocusKey.caisseImprevue(selectedPayment.contract.id, selectedPayment.monthIndex)}
           payment={selectedPayment}
           onClose={handleCloseSidebar}
         />

@@ -6,7 +6,8 @@ import type { CalendarPaymentItem, DayPayments } from "@/hooks/useCalendarCaisse
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, startOfMonth, startOfWeek, subMonths } from "date-fns"
 import { fr } from "date-fns/locale"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { calendarFocusKey } from "@/utils/calendar-payment-link"
 import { CalendarDay } from "./CalendarDay"
 import { DayPaymentsModal } from "./DayPaymentsModal"
 import { PaymentSidebar } from "./PaymentSidebar"
@@ -16,6 +17,7 @@ interface CalendarViewProps {
   onMonthChange: (month: Date) => void
   daysPayments: DayPayments[]
   isLoading: boolean
+  focusedPaymentKey?: string
 }
 
 export function CalendarView({
@@ -23,10 +25,24 @@ export function CalendarView({
   onMonthChange,
   daysPayments,
   isLoading,
+  focusedPaymentKey,
 }: CalendarViewProps) {
   const { canSeeAmounts } = useMyAccess()
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedPayment, setSelectedPayment] = useState<CalendarPaymentItem | null>(null)
+  const openedFocus = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!focusedPaymentKey || openedFocus.current === focusedPaymentKey) return
+    setSelectedDay(null)
+    setSelectedPayment(null)
+    if (isLoading) return
+    const payment = daysPayments.flatMap((day) => day.payments)
+      .find((item) => calendarFocusKey.caisseSpeciale(item.contract.id || '', item.id) === focusedPaymentKey)
+    if (!payment) return
+    openedFocus.current = focusedPaymentKey
+    setSelectedPayment(payment)
+  }, [daysPayments, focusedPaymentKey, isLoading])
 
   const monthStart = startOfMonth(month)
   const monthEnd = endOfMonth(month)
@@ -233,6 +249,7 @@ export function CalendarView({
       {/* Sidebar de détail d'un versement */}
       {selectedPayment && (
         <PaymentSidebar
+          key={calendarFocusKey.caisseSpeciale(selectedPayment.contract.id || '', selectedPayment.id)}
           payment={selectedPayment}
           onClose={handleCloseSidebar}
         />

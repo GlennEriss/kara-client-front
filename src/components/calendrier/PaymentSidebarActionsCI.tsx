@@ -86,7 +86,7 @@ export function PaymentSidebarActionsCI({
       ) : (
         // L'agent de recouvrement relance le membre ; l'encaissement reste aux administrateurs.
         <p className="rounded-xl border border-dashed border-gray-200 bg-white p-3 text-center text-xs text-gray-500">
-          Encaissement réservé aux administrateurs.
+          L’autorisation « Encaisser depuis le calendrier » est nécessaire.
         </p>
       )}
     </div>

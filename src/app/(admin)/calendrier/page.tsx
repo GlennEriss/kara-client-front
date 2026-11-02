@@ -7,6 +7,7 @@ import { CalendarViewCreditSpeciale } from "@/components/calendrier/CalendarView
 import { CalendarViewPlacement } from "@/components/calendrier/CalendarViewPlacement"
 import { OverdueCaissePaymentsList } from "@/components/calendrier/OverdueCaissePaymentsList"
 import { UpcomingPayoutsList } from "@/components/calendrier/UpcomingPayoutsList"
+import { UpcomingPaymentsList } from "@/components/calendrier/UpcomingPaymentsList"
 import { WeeklyCallPlan } from "@/components/calendrier/WeeklyCallPlan"
 import { PaymentFrequencyFilters } from "@/components/calendrier/PaymentFrequencyFilters"
 import { PayoutModeFilters } from "@/components/calendrier/PayoutModeFilters"
@@ -20,19 +21,35 @@ import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CaisseType } from "@/services/caisse/types"
 import type { CaisseImprevuePaymentFrequency, PayoutMode } from "@/types/types"
 import { Banknote, Calendar, PiggyBank, TrendingUp, Wallet } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 
-export default function CalendrierPage() {
+type CalendarTab =
+  | "caisse-speciale"
+  | "caisse-imprevue"
+  | "credit-speciale"
+  | "credit-fixe"
+  | "caisse-aide"
+  | "placement"
+
+const CALENDAR_TABS: CalendarTab[] = [
+  "caisse-speciale",
+  "caisse-imprevue",
+  "credit-speciale",
+  "credit-fixe",
+  "caisse-aide",
+  "placement",
+]
+
+const isCalendarTab = (value: string | null): value is CalendarTab =>
+  !!value && CALENDAR_TABS.includes(value as CalendarTab)
+
+function CalendrierPageContent() {
+  const searchParams = useSearchParams()
   const { canSeeAmounts } = useMyAccess()
   const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [activeTab, setActiveTab] = useState<
-    | "caisse-speciale"
-    | "caisse-imprevue"
-    | "credit-speciale"
-    | "credit-fixe"
-    | "caisse-aide"
-    | "placement"
-  >("caisse-speciale")
+  const [activeTab, setActiveTab] = useState<CalendarTab>("caisse-speciale")
+  const focusedPaymentKey = searchParams.get('focus') || undefined
   
   // Filtres Caisse Spéciale - Tous activés par défaut
   const [selectedTypes, setSelectedTypes] = useState<CaisseType[]>([
@@ -55,16 +72,15 @@ export default function CalendrierPage() {
 
   // Charger les préférences depuis localStorage
   useEffect(() => {
+    const queryTab = searchParams.get('tab')
     const savedTab = localStorage.getItem("calendar-active-tab")
-    if (
-      savedTab === "caisse-speciale" ||
-      savedTab === "caisse-imprevue" ||
-      savedTab === "credit-speciale" ||
-      savedTab === "credit-fixe" ||
-      savedTab === "caisse-aide" ||
-      savedTab === "placement"
-    ) {
-      setActiveTab(savedTab)
+    if (isCalendarTab(queryTab)) setActiveTab(queryTab)
+    else if (isCalendarTab(savedTab)) setActiveTab(savedTab)
+
+    const queryMonth = searchParams.get('month')
+    if (queryMonth && /^\d{4}-\d{2}$/.test(queryMonth)) {
+      const parsedMonth = new Date(`${queryMonth}-01T12:00:00`)
+      if (!Number.isNaN(parsedMonth.getTime())) setCurrentMonth(parsedMonth)
     }
     
     const savedTypes = localStorage.getItem("calendar-caisse-types")
@@ -102,7 +118,7 @@ export default function CalendrierPage() {
         console.error("Erreur lors du chargement des préférences:", error)
       }
     }
-  }, [])
+  }, [searchParams])
 
   // Sauvegarder les préférences dans localStorage
   useEffect(() => {
@@ -255,8 +271,10 @@ export default function CalendrierPage() {
                   onMonthChange={setCurrentMonth}
                   daysPayments={daysPaymentsCS}
                   isLoading={isLoadingCS}
+                  focusedPaymentKey={focusedPaymentKey}
                 />
                 <OverdueCaissePaymentsList product="Caisse Spéciale" />
+                <UpcomingPaymentsList product="Caisse Spéciale" />
               </TabsContent>
               
               <TabsContent value="caisse-imprevue" className="space-y-6 mt-0">
@@ -269,8 +287,10 @@ export default function CalendrierPage() {
                   onMonthChange={setCurrentMonth}
                   daysPayments={daysPaymentsCI}
                   isLoading={isLoadingCI}
+                  focusedPaymentKey={focusedPaymentKey}
                 />
                 <OverdueCaissePaymentsList product="Caisse Imprévue" />
+                <UpcomingPaymentsList product="Caisse Imprévue" />
               </TabsContent>
               
               <TabsContent value="placement" className="space-y-6 mt-0">
@@ -283,8 +303,10 @@ export default function CalendrierPage() {
                   onMonthChange={setCurrentMonth}
                   daysCommissions={daysCommissionsPlacement}
                   isLoading={isLoadingPlacement}
+                  focusedPaymentKey={focusedPaymentKey}
                 />
                 <OverdueCaissePaymentsList product="Placement" />
+                <UpcomingPaymentsList product="Placement" />
               </TabsContent>
 
               <TabsContent value="credit-speciale" className="space-y-6 mt-0">
@@ -293,8 +315,10 @@ export default function CalendrierPage() {
                   onMonthChange={setCurrentMonth}
                   daysPayments={daysPaymentsCreditSpeciale}
                   isLoading={isLoadingCreditSpeciale}
+                  focusedPaymentKey={focusedPaymentKey}
                 />
                 <OverdueCaissePaymentsList product="Crédit Spéciale" />
+                <UpcomingPaymentsList product="Crédit Spéciale" />
               </TabsContent>
 
               <TabsContent value="credit-fixe" className="space-y-6 mt-0">
@@ -303,8 +327,10 @@ export default function CalendrierPage() {
                   onMonthChange={setCurrentMonth}
                   daysPayments={daysPaymentsCreditFixe}
                   isLoading={isLoadingCreditFixe}
+                  focusedPaymentKey={focusedPaymentKey}
                 />
                 <OverdueCaissePaymentsList product="Crédit Fixe" />
+                <UpcomingPaymentsList product="Crédit Fixe" />
               </TabsContent>
 
               <TabsContent value="caisse-aide" className="space-y-6 mt-0">
@@ -313,8 +339,10 @@ export default function CalendrierPage() {
                   onMonthChange={setCurrentMonth}
                   daysPayments={daysPaymentsCreditAide}
                   isLoading={isLoadingCreditAide}
+                  focusedPaymentKey={focusedPaymentKey}
                 />
                 <OverdueCaissePaymentsList product="Crédit Aide" />
+                <UpcomingPaymentsList product="Crédit Aide" />
               </TabsContent>
             </div>
         </Tabs>
@@ -329,5 +357,20 @@ export default function CalendrierPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function CalendrierPage() {
+  return (
+    <Suspense
+      fallback={(
+        <div className="mx-auto max-w-7xl space-y-6 p-6">
+          <div className="h-32 animate-pulse rounded-2xl bg-gray-100" />
+          <div className="h-[520px] animate-pulse rounded-2xl bg-gray-100" />
+        </div>
+      )}
+    >
+      <CalendrierPageContent />
+    </Suspense>
   )
 }

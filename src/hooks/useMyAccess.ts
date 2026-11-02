@@ -171,22 +171,23 @@ export function useMyAccess(): MyAccess {
   // complet (comportement d'avant la fonctionnalité). L'enforcement démarre une fois
   // des permissions enregistrées (même un tableau vide = « aucun accès »).
   const permissionsDefined = data?.permissionsDefined ?? false
+  const accessResolved = !!data
   const permissions = useMemo(() => new Set(data?.permissions ?? []), [data?.permissions])
 
   return useMemo<MyAccess>(() => {
-    const can = (key: string) => isSuperAdmin || !permissionsDefined || permissions.has(key)
+    const can = (key: string) => accessResolved && (isSuperAdmin || !permissionsDefined || permissions.has(key))
     return {
       isLoading: !!user?.uid && isLoading,
       isSuperAdmin,
       isAgent,
       restrictedRole,
-      canRecordPayments: can('calendar.payment'),
+      canRecordPayments: can('calendar.view') && can('calendar.payment'),
       canDownloadDocuments: can('documents.download'),
-      canSeeAmounts: restrictedRole !== 'AgentRecouvrement',
+      canSeeAmounts: accessResolved && restrictedRole !== 'AgentRecouvrement',
       permissions,
       can,
-      canAny: (keys: string[]) => isSuperAdmin || !permissionsDefined || keys.some((k) => permissions.has(k)),
+      canAny: (keys: string[]) => keys.some(can),
       canModule: (moduleKey: string) => can(moduleViewKey(moduleKey)),
     }
-  }, [isSuperAdmin, isAgent, restrictedRole, permissionsDefined, permissions, isLoading, user?.uid])
+  }, [isSuperAdmin, isAgent, restrictedRole, permissionsDefined, accessResolved, permissions, isLoading, user?.uid])
 }

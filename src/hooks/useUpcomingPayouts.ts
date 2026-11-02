@@ -5,10 +5,10 @@
  *
  * Règle métier : la remise finale est due exactement à la fin du contrat ou
  * du placement. Seul un retrait anticipé conserve un délai de 30 jours après
- * la date de sa demande.
+ * son approbation par l'administration.
  *
- * Un contrat sort de la liste dès que sa remise est marquée payée (refund PAID)
- * ou que le contrat/placement est clôturé/résilié.
+ * Un contrat sort de la liste dès que sa remise est marquée payée (refund PAID).
+ * Un contrat arrêté après approbation reste donc visible jusqu'à la remise réelle.
  */
 
 import { useQuery } from '@tanstack/react-query'
@@ -16,6 +16,8 @@ import { addDays, addMonths, differenceInCalendarDays, startOfDay } from 'date-f
 import { getAllContracts } from '@/db/caisse/contracts.db'
 import { resolveContractEndAt } from '@/services/caisse/contractDates'
 import { listPayments } from '@/db/caisse/payments.db'
+import { getActiveSettings } from '@/db/caisse/settings.db'
+import { computeCaisseSpecialePayoutAmount, recordedCaisseSpecialeRefundAmount } from '@/services/caisse/payout'
 import { listRefunds, listRefundsCI } from '@/db/caisse/refunds.db'
 import { getUserById } from '@/db/user.db'
 import { getGroupById } from '@/db/group.db'
@@ -58,9 +60,9 @@ export interface UpcomingPayout {
   typeLabel: string
   /** Montant à remettre (montant demandé si connu, sinon cotisé + bonus). */
   amount: number
-  /** Fait générateur : fin du contrat/placement (FINAL) ou demande de retrait (EARLY). */
+  /** Fait générateur : fin du contrat/placement (FINAL) ou approbation du retrait (EARLY). */
   referenceAt: Date
-  /** Date à laquelle l'argent doit être remis (fin du contrat ou demande + 30 jours). */
+  /** Date à laquelle l'argent doit être remis (fin du contrat ou approbation + 30 jours). */
   dueAt: Date
   /** Jours restants (négatif = remise en retard). */
   daysUntil: number
@@ -136,6 +138,8 @@ function makeUserCache() {
 const CS_RUNNING_STATUSES = ['ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY']
 /** Statuts « remise déjà demandée » (retrait anticipé ou remboursement en attente). */
 const CS_PENDING_STATUSES = ['EARLY_WITHDRAW_REQUESTED', 'EARLY_REFUND_PENDING', 'FINAL_REFUND_PENDING']
+/** Anciens retraits approuvés dont le contrat avait déjà été clôturé. */
+const CS_LEGACY_APPROVED_STATUSES = ['CLOSED']
 
 /** Date du dernier versement d'un contrat CS (paidAt du paiement ou de ses contribs). */
 function lastPaidDateCS(payments: CaissePayment[]): Date | undefined {
@@ -152,7 +156,7 @@ function lastPaidDateCS(payments: CaissePayment[]): Date | undefined {
 
 async function fetchUpcomingCS(today: Date, horizonMonths: number): Promise<UpcomingPayout[]> {
   const contracts = (await getAllContracts({
-    statuses: [...CS_RUNNING_STATUSES, ...CS_PENDING_STATUSES],
+    statuses: [...CS_RUNNING_STATUSES, ...CS_PENDING_STATUSES, ...CS_LEGACY_APPROVED_STATUSES],
   })) as CaisseContract[]
 
   // Candidats : retrait/remboursement demandé, contrat entièrement cotisé, OU
@@ -161,6 +165,7 @@ async function fetchUpcomingCS(today: Date, horizonMonths: number): Promise<Upco
   const horizon = addMonths(today, horizonMonths)
   const candidates = contracts.filter((c) => {
     if (CS_PENDING_STATUSES.includes(c.status)) return true
+    if (CS_LEGACY_APPROVED_STATUSES.includes(c.status)) return true
     if ((c.monthsPlanned || 0) > 0 && (c.currentMonthIndex || 0) >= c.monthsPlanned) return true
 
     const hasPaid = (c.nominalPaid || 0) > 0 || (c.currentMonthIndex || 0) > 0
@@ -171,6 +176,11 @@ async function fetchUpcomingCS(today: Date, horizonMonths: number): Promise<Upco
   })
 
   const getUser = makeUserCache()
+  const settingsCache = new Map<CaisseType, ReturnType<typeof getActiveSettings>>()
+  const getSettings = (type: CaisseType) => {
+    if (!settingsCache.has(type)) settingsCache.set(type, getActiveSettings(type))
+    return settingsCache.get(type)!
+  }
 
   const results = await Promise.all(
     candidates.map(async (c): Promise<UpcomingPayout | null> => {
@@ -183,36 +193,50 @@ async function fetchUpcomingCS(today: Date, horizonMonths: number): Promise<Upco
           withdrawalAmount?: number
           amountNominal?: number
           amountBonus?: number
+          approvedAt?: Date
+          payoutDueAt?: Date
         }>
         // Remise déjà effectuée → plus rien à remettre.
         if (refunds.some((r) => r.status === 'PAID')) return null
 
         const pending = refunds.find((r) => r.status === 'PENDING' || r.status === 'APPROVED')
+        if (CS_LEGACY_APPROVED_STATUSES.includes(c.status) && !pending) return null
         const isEarly =
           pending?.type === 'EARLY' ||
           c.status === 'EARLY_WITHDRAW_REQUESTED' ||
           c.status === 'EARLY_REFUND_PENDING'
 
+        // Le délai de remise ne commence qu'après l'approbation.
+        if (isEarly && pending?.status !== 'APPROVED') return null
+
+        // Le cumul bonusAccrued historique ne représente pas le bonus global.
+        // Les anciens contrats sont recalculés sans devoir migrer leurs données.
+        const recordedAmount = recordedCaisseSpecialeRefundAmount(pending)
+        const [payments, settings] = await Promise.all([
+          listPayments(c.id || '') as Promise<CaissePayment[]>,
+          recordedAmount === null ? getSettings(c.caisseType) : Promise.resolve(null),
+        ])
+        if (recordedAmount === null && !settings) {
+          throw new Error(`Barème actif introuvable pour la caisse ${c.caisseType}`)
+        }
+
         let referenceAt: Date | undefined
         if (isEarly) {
-          // Retrait anticipé : les 30 jours courent depuis la demande.
-          referenceAt = toDate(pending?.createdAt) ?? toDate(pending?.withdrawalDate) ?? toDate(c.updatedAt)
+          referenceAt = toDate(pending?.approvedAt)
         } else {
-          // Contrat entièrement cotisé : les 30 jours courent depuis la DATE DE FIN
-          // du contrat (fin des versements planifiés), pas depuis le dernier versement.
+          // Remise finale : exigible à la fin du contrat, sans délai supplémentaire.
           const start = toDate(c.contractStartAt) ?? toDate(c.createdAt)
           referenceAt =
             toDate(c.contractEndAt) ??
             (start ? addMonths(start, c.monthsPlanned || 0) : undefined) ??
-            lastPaidDateCS((await listPayments(c.id || '')) as CaissePayment[])
+            lastPaidDateCS(payments)
         }
         if (!referenceAt) return null
 
-        const dueAt = getPayoutDueAt(referenceAt, isEarly ? 'EARLY' : 'FINAL')
-        const amount =
-          (pending?.withdrawalAmount && pending.withdrawalAmount > 0
-            ? pending.withdrawalAmount
-            : undefined) ?? (c.nominalPaid || 0) + (c.bonusAccrued || 0)
+        const dueAt = isEarly
+          ? (toDate(pending?.payoutDueAt) ?? getPayoutDueAt(referenceAt, 'EARLY'))
+          : getPayoutDueAt(referenceAt, 'FINAL')
+        const amount = computeCaisseSpecialePayoutAmount(c, payments, settings as any, pending, today)
         // Contrat pas encore soldé et sans demande : le montant continuera de
         // croître avec les versements restants.
         const isProjected =
@@ -258,7 +282,9 @@ async function fetchUpcomingCS(today: Date, horizonMonths: number): Promise<Upco
         }
       } catch (error) {
         console.error(`[payouts][CS] contrat ${c.id}:`, error)
-        return null
+        // Une erreur de calcul ne doit pas supprimer silencieusement un
+        // engagement de la synthèse ou afficher un nominal sans son bonus.
+        throw error
       }
     }),
   )
@@ -284,7 +310,13 @@ function lastPaidDateCI(payments: PaymentCI[]): Date | undefined {
 
 async function fetchUpcomingCI(today: Date, horizonMonths: number): Promise<UpcomingPayout[]> {
   const service = ServiceFactory.getCaisseImprevueService()
-  const contracts: ContractCI[] = await service.getContractsCIPaginated({ status: 'ACTIVE' })
+  const [activeContracts, canceledContracts] = await Promise.all([
+    service.getContractsCIPaginated({ status: 'ACTIVE' }),
+    // Un contrat CI est résilié dès l'approbation afin d'empêcher tout nouveau
+    // versement. Il reste toutefois à payer tant que son refund est APPROVED.
+    service.getContractsCIPaginated({ status: 'CANCELED' }),
+  ])
+  const contracts: ContractCI[] = [...activeContracts, ...canceledContracts]
 
   const getUser = makeUserCache()
 
@@ -308,16 +340,20 @@ async function fetchUpcomingCI(today: Date, horizonMonths: number): Promise<Upco
           createdAt?: Date
           withdrawalDate?: Date
           withdrawalAmount?: number
+          approvedAt?: Date
+          payoutDueAt?: Date
         }>
         if (refunds.some((r) => r.status === 'PAID')) return null
 
         const pending = refunds.find((r) => r.status === 'PENDING' || r.status === 'APPROVED')
+        if (c.status === 'CANCELED' && !pending) return null
         if (!pending && !fullyPaid && !endingSoon) return null
 
         const isEarly = pending ? pending.type !== 'FINAL' : false
+        if (isEarly && pending?.status !== 'APPROVED') return null
         let referenceAt: Date | undefined
         if (isEarly) {
-          referenceAt = toDate(pending?.createdAt) ?? toDate(pending?.withdrawalDate)
+          referenceAt = toDate(pending?.approvedAt)
         } else {
           // Contrat entièrement cotisé : remise à la DATE DE FIN du contrat
           // (début + durée du forfait), pas après le dernier versement.
@@ -332,7 +368,9 @@ async function fetchUpcomingCI(today: Date, horizonMonths: number): Promise<Upco
         }
         if (!referenceAt) return null
 
-        const dueAt = getPayoutDueAt(referenceAt, isEarly ? 'EARLY' : 'FINAL')
+        const dueAt = isEarly
+          ? (toDate(pending?.payoutDueAt) ?? getPayoutDueAt(referenceAt, 'EARLY'))
+          : getPayoutDueAt(referenceAt, 'FINAL')
         const amount =
           (pending?.withdrawalAmount && pending.withdrawalAmount > 0
             ? pending.withdrawalAmount

@@ -3,6 +3,7 @@
 import type { CalendarPaymentItem, DayPayments } from "@/hooks/useCalendarCaisseSpeciale"
 import { useMyAccess } from "@/hooks/useMyAccess"
 import { cn } from "@/lib/utils"
+import { calendarFocusKey } from "@/utils/calendar-payment-link"
 import type { CaisseType } from "@/services/caisse/types"
 import { Calendar, Users, Wallet, XCircle } from "lucide-react"
 import { DAY_ITEM_COLORS, DayDetailsModal, DayItemCard, DayItemGroup, type DayGroupColor } from "./DayDetailsModal"
@@ -66,7 +67,7 @@ export function DayPaymentsModal({
             <DayItemGroup key={type} label={config.label} icon={config.icon} color={config.color} count={groupedByType[type].length}>
               {groupedByType[type].map((payment) => (
                 <DayItemCard
-                  key={payment.id}
+                  key={calendarFocusKey.caisseSpeciale(payment.contract.id, payment.id)}
                   color={payment.color}
                   icon={payment.color === "gray" ? XCircle : undefined}
                   title={payment.memberDisplayName || payment.groupDisplayName || "Membre inconnu"}

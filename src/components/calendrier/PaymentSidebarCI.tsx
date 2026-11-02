@@ -3,6 +3,7 @@
 import PaymentCIModal, { PaymentFormData } from "@/components/caisse-imprevue/PaymentCIModal"
 import { ServiceFactory } from "@/factories/ServiceFactory"
 import { useAuth } from "@/hooks/useAuth"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
 import { usePaymentReceiptCI } from "@/hooks/usePaymentReceiptCI"
 import { useQueryClient } from "@tanstack/react-query"
@@ -13,6 +14,7 @@ import { toast } from "sonner"
 import { PaymentSidebarActionsCI } from "./PaymentSidebarActionsCI"
 import { PaymentSidebarContentCI } from "./PaymentSidebarContentCI"
 import { PaymentSidebarHeaderCI } from "./PaymentSidebarHeaderCI"
+import { CalendarContractLink } from "./CalendarContractLink"
 
 interface PaymentSidebarCIProps {
   payment: CalendarPaymentItemCI
@@ -26,12 +28,15 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
     usePaymentReceiptCI(payment)
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { canRecordPayments } = useMyAccess()
 
   const handleRecordPayment = () => {
+    if (!canRecordPayments) return
     setShowPaymentModal(true)
   }
 
   const handlePaymentSubmit = async (data: PaymentFormData) => {
+    if (!canRecordPayments) throw new Error("Vous n’avez pas l’autorisation d’encaisser depuis le calendrier")
     if (!user?.uid) {
       toast.error("Vous devez être connecté pour enregistrer un paiement")
       return
@@ -126,6 +131,9 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
 
         {/* Actions fixes en bas */}
         <div className="flex-shrink-0 border-t border-gray-100">
+          <div className="px-5 pt-3">
+            <CalendarContractLink product="Caisse Imprévue" contractId={payment.contract.id} className="w-full" />
+          </div>
           <PaymentSidebarActionsCI
             payment={payment}
             onRecordPayment={handleRecordPayment}
@@ -144,7 +152,7 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
 
       {/* Modal de paiement */}
       <PaymentCIModal
-        isOpen={showPaymentModal}
+        isOpen={showPaymentModal && canRecordPayments}
         onClose={() => setShowPaymentModal(false)}
         onSubmit={handlePaymentSubmit}
         title={`Versement pour le mois ${payment.monthIndex + 1}`}

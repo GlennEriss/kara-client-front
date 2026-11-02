@@ -18,6 +18,7 @@ import { ServiceFactory } from '@/factories/ServiceFactory'
 import type { CaisseContract, CaissePayment, CaisseType } from '@/services/caisse/types'
 import type { ContractCI, CreditContract, CreditInstallment, CreditType, PaymentCI, Placement } from '@/types/types'
 import { computeCreditInstallments } from '@/utils/credit-installments'
+import { calendarFocusKey, calendarPaymentHref } from '@/utils/calendar-payment-link'
 
 export type OverdueProduct =
   | 'Caisse Spéciale'
@@ -30,6 +31,7 @@ export type OverdueProduct =
 export interface OverduePayment {
   key: string
   product: OverdueProduct
+  contractId: string
   /**
    * Identifiant stable du membre (ou du groupe). Sert à rattacher les comptes
    * rendus d'appel : le matricule peut manquer et le nom n'est pas fiable
@@ -47,6 +49,8 @@ export interface OverduePayment {
   amount: number
   dueAt: Date
   daysOverdue: number
+  /** Lien profond qui ouvre cette échéance dans le calendrier. */
+  paymentHref: string
 }
 
 const CAISSE_TYPE_LABELS: Record<CaisseType, string> = {
@@ -133,8 +137,10 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
 
         return overdue.map((p: CaissePayment) => {
           const due = p.dueAt instanceof Date ? p.dueAt : new Date(p.dueAt)
+          const focusKey = calendarFocusKey.caisseSpeciale(contract.id || '', p.id)
           return {
             key: `cs-${contract.id}-${p.id}`,
+            contractId: contract.id,
             product: 'Caisse Spéciale' as const,
             memberId,
             groupId,
@@ -147,6 +153,7 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
             amount: p.amount,
             dueAt: due,
             daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+            paymentHref: calendarPaymentHref('Caisse Spéciale', due, focusKey),
           }
         })
       } catch (error) {
@@ -215,6 +222,7 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
 
         return overdueMonths.map(({ monthIndex, due, remaining }) => ({
           key: `ci-${contract.id}-${monthIndex}`,
+          contractId: contract.id,
           product: 'Caisse Imprévue' as const,
           memberId: contract.memberId || undefined,
           matricule,
@@ -226,6 +234,11 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
           amount: remaining,
           dueAt: due,
           daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+          paymentHref: calendarPaymentHref(
+            'Caisse Imprévue',
+            due,
+            calendarFocusKey.caisseImprevue(contract.id, monthIndex),
+          ),
         }))
       } catch (error) {
         console.error(`[overdue][CI] contrat ${contract.id}:`, error)
@@ -295,6 +308,7 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
           )
           return {
             key: `credit-${contract.id}-${inst.dueDate}`,
+            contractId: contract.id,
             product,
             memberId: contract.clientId || undefined,
             matricule,
@@ -306,6 +320,11 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
             amount: remaining,
             dueAt: due,
             daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+            paymentHref: calendarPaymentHref(
+              product,
+              due,
+              calendarFocusKey.credit(contract.id, inst.installmentNumber),
+            ),
           }
         })
       } catch (error) {
@@ -375,6 +394,7 @@ export async function fetchOverduePlacement(today: Date): Promise<OverduePayment
           const alreadyPaid = c.status === 'Partial' ? Math.round(c.paidAmount || 0) : 0
           return {
             key: `pl-${pl.id}-${c.id}`,
+            contractId: pl.id,
             product: 'Placement' as const,
             ...identity,
             isGroup: false,
@@ -382,12 +402,18 @@ export async function fetchOverduePlacement(today: Date): Promise<OverduePayment
             amount: Math.max(0, dueAmount - alreadyPaid),
             dueAt: due,
             daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+            paymentHref: calendarPaymentHref(
+              'Placement',
+              due,
+              calendarFocusKey.placement(pl.id, c.id),
+            ),
           }
         })
 
         if (isCapitalOverdue && capitalDue) {
           overdueItems.push({
             key: `pl-${pl.id}-capital`,
+            contractId: pl.id,
             product: 'Placement' as const,
             ...identity,
             isGroup: false,
@@ -395,6 +421,11 @@ export async function fetchOverduePlacement(today: Date): Promise<OverduePayment
             amount: pl.amount || 0,
             dueAt: capitalDue,
             daysOverdue: differenceInCalendarDays(today, startOfDay(capitalDue)),
+            paymentHref: calendarPaymentHref(
+              'Placement',
+              capitalDue,
+              calendarFocusKey.placement(pl.id, `capital-restitution-${pl.id}`),
+            ),
           })
         }
 

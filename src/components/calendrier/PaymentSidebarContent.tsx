@@ -4,6 +4,8 @@ import { useMyAccess } from "@/hooks/useMyAccess"
 import { pdfPreviewUrl } from "@/utils/documentPreview"
 import type { CalendarPaymentItem } from "@/hooks/useCalendarCaisseSpeciale"
 import { useContractPayments } from "@/hooks/useContractPayments"
+import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
+import { contractBonusSummary } from "@/services/caisse/contractLabels"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -48,6 +50,8 @@ export function PaymentSidebarContent({
   const { payments: allPayments, isLoading } = useContractPayments(
     payment.contract.id || ""
   )
+  const { data: settings, isLoading: isLoadingSettings } = useActiveCaisseSettingsByType(payment.contract.caisseType)
+  const bonus = contractBonusSummary(payment.contract, settings as any, allPayments)
 
   // Filtrer les versements précédents et suivants
   const previousPayments = allPayments
@@ -192,7 +196,7 @@ export function PaymentSidebarContent({
           <div className="text-center p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
             <div className="text-xs text-blue-600 mb-1">Bonus</div>
             <div className="text-sm font-bold text-blue-900">
-              {shownAmount(payment.contract.bonusAccrued)}
+              {isLoading || isLoadingSettings ? '…' : shownAmount(bonus.amount)}
             </div>
           </div>
           <div className="text-center p-3 bg-gradient-to-br from-red-50 to-rose-50 rounded-xl">
