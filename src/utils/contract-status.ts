@@ -1,5 +1,19 @@
 import { CheckCircle, Clock, AlertTriangle, XCircle } from 'lucide-react'
 
+/** État présenté dans l'en-tête, distinct du verrouillage des versements. */
+export function getCaisseContractDisplayStatus(
+  status: string,
+  refunds: Array<{ type?: string; status?: string }> = [],
+): string {
+  // Les anciens contrats peuvent déjà être CLOSED/CANCELED alors que la
+  // remise a été reclassée APPROVED : afficher l'étape restant à accomplir.
+  const pending = refunds.find((refund) => refund.status === 'APPROVED')
+    ?? refunds.find((refund) => refund.status === 'PENDING')
+  if (!pending) return status
+  if (pending.type === 'FINAL') return 'FINAL_REFUND_PENDING'
+  return pending.status === 'APPROVED' ? 'EARLY_REFUND_PENDING' : 'EARLY_WITHDRAW_REQUESTED'
+}
+
 // Traduction des statuts de contrat (Caisse Spéciale et Caisse Imprévue)
 export const translateContractStatus = (status: string): string => {
   const statusMap: Record<string, string> = {

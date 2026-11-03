@@ -5,8 +5,8 @@ export type RefundFund = 'CS' | 'CI'
 
 export const EARLY_WITHDRAWAL_FILTER_LABELS: Record<EarlyWithdrawalFilter, string> = {
   all: 'Tous les contrats',
-  IN_PROGRESS: 'Retrait anticipé en cours',
-  FINALIZED: 'Retrait anticipé finalisé',
+  IN_PROGRESS: 'Retrait anticipé non payé',
+  FINALIZED: 'Retrait anticipé payé',
 }
 
 export function matchesEarlyWithdrawalFilter(

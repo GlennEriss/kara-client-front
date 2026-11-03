@@ -3,6 +3,7 @@ import { isPlacementLocked } from '@/utils/contract-lock'
 import dynamic from 'next/dynamic'
 
 import { backOr } from '@/lib/backNavigation'
+import { ContractDetailHeader } from '@/components/contract/ContractDetailHeader'
 import CommissionReceiptModal from '@/components/placement/CommissionReceiptModal'
 import PayCommissionModal, { CommissionPaymentFormData } from '@/components/placement/PayCommissionModal'
 import PlacementDocumentUploadModal from '@/components/placement/PlacementDocumentUploadModal'
@@ -334,62 +335,51 @@ const handleGenerateGlobalFacture = async () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* Barre d'actions + badges — gabarit commun aux fiches contrat */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              variant="outline"
-              onClick={() => backOr(router, routes.admin.placements)}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Retour
-            </Button>
-
-            {hasContract && (
-              <Button
-                variant="outline"
-                onClick={() => setIsViewOpen(true)}
-                className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
-              >
-                <FileText className="h-4 w-4" />
-                Voir le contrat
-              </Button>
-            )}
-
-            {!hasContract && !isPlacementLocked(placement.status) && (
-              <Button
-                variant="outline"
-                onClick={() => setIsUploadOpen(true)}
-                disabled={!user?.uid}
-                className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
-              >
-                <Upload className="h-4 w-4" />
-                Téléverser le contrat
-              </Button>
-            )}
-
-            {placement.urgentContact && (
-              <Button
-                variant="outline"
-                onClick={() => setShowUrgentModal(true)}
-                className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
-              >
-                <AlertCircle className="h-4 w-4" />
-                Contact urgent
-              </Button>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Badge className={cn('border px-3 py-1 text-sm font-semibold', statusColor)}>
-              {statusLabel}
-            </Badge>
-            <Badge variant="outline" className="border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700">
+        <ContractDetailHeader
+          contractLabel="Placement"
+          statusLabel={statusLabel}
+          statusClassName={statusColor}
+          onBack={() => backOr(router, routes.admin.placements)}
+          extraBadges={payoutLabel ? (
+            <Badge variant="outline" className="max-w-full whitespace-normal rounded-lg border-slate-300 bg-white px-3 py-1.5 text-left text-xs leading-5 text-slate-700 sm:text-sm">
               {payoutLabel}
             </Badge>
-          </div>
-        </div>
+          ) : undefined}
+        >
+          {hasContract && (
+            <Button
+              variant="outline"
+              onClick={() => setIsViewOpen(true)}
+              className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              <FileText className="h-4 w-4" />
+              Voir le contrat
+            </Button>
+          )}
+
+          {!hasContract && !isPlacementLocked(placement.status) && (
+            <Button
+              variant="outline"
+              onClick={() => setIsUploadOpen(true)}
+              disabled={!user?.uid}
+              className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <Upload className="h-4 w-4" />
+              Téléverser le contrat
+            </Button>
+          )}
+
+          {placement.urgentContact && (
+            <Button
+              variant="outline"
+              onClick={() => setShowUrgentModal(true)}
+              className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+            >
+              <AlertCircle className="h-4 w-4" />
+              Contact urgent
+            </Button>
+          )}
+        </ContractDetailHeader>
 
         {/* Titre principal */}
         <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">

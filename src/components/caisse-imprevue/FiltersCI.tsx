@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { EarlyWithdrawalFilterControl } from '@/components/shared/EarlyWithdrawalFilterControl'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -156,7 +157,7 @@ export default function FiltersCI({
       && label !== (earlyWithdrawalLabel || '')
   ).length
   const controlClassName =
-    'h-11 rounded-xl border-2 border-slate-200 bg-white focus:ring-0 focus-visible:ring-0 focus-visible:border-[#234D65]'
+    'h-11 w-full min-w-0 rounded-xl border-2 border-slate-200 bg-white focus:ring-0 focus-visible:ring-0 focus-visible:border-[#234D65] [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate'
   const miniInputClassName =
     'h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]'
 
@@ -209,8 +210,8 @@ export default function FiltersCI({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
-          <div className="space-y-1.5 xl:col-span-4">
+        <div className={cn('grid grid-cols-1 gap-3 sm:grid-cols-2 [&>div]:min-w-0', showPaymentFrequencyFilter ? 'xl:grid-cols-4' : 'xl:grid-cols-3')}>
+          <div className={cn('space-y-1.5', !showPaymentFrequencyFilter && 'sm:col-span-2 xl:col-span-1')}>
             <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recherche</Label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -225,7 +226,7 @@ export default function FiltersCI({
           </div>
 
           {showPaymentFrequencyFilter && (
-            <div className="space-y-1.5 xl:col-span-2">
+            <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Type de contrat</Label>
               <Select
                 value={paymentFrequencyValue}
@@ -248,7 +249,7 @@ export default function FiltersCI({
             </div>
           )}
 
-          <div className={cn('space-y-1.5', showPaymentFrequencyFilter ? 'xl:col-span-2' : 'xl:col-span-3')}>
+          <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Catégorie</Label>
             <Select
               value={safeFilters.subscriptionCIID || 'all'}
@@ -273,7 +274,7 @@ export default function FiltersCI({
             </Select>
           </div>
 
-          <div className={cn('space-y-1.5', showPaymentFrequencyFilter ? 'xl:col-span-2' : 'xl:col-span-3')}>
+          <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Statut</Label>
             <Select
               value={statusValue}
@@ -291,27 +292,12 @@ export default function FiltersCI({
               </SelectContent>
             </Select>
           </div>
-
-          <div className="space-y-1.5 xl:col-span-2">
-            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Retrait anticipé</Label>
-            <Select
-              value={safeFilters.earlyWithdrawal || 'all'}
-              onValueChange={(value) => onFiltersChange({
-                ...safeFilters,
-                earlyWithdrawal: value as EarlyWithdrawalFilter,
-              })}
-            >
-              <SelectTrigger className={controlClassName}>
-                <SelectValue placeholder="Tous les contrats" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les contrats</SelectItem>
-                <SelectItem value="IN_PROGRESS">En cours (argent non remis)</SelectItem>
-                <SelectItem value="FINALIZED">Finalisé (remise effectuée)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
+
+        <EarlyWithdrawalFilterControl
+          value={safeFilters.earlyWithdrawal || 'all'}
+          onChange={(value) => onFiltersChange({ ...safeFilters, earlyWithdrawal: value })}
+        />
 
         {isFiltersExpanded && (
           <>
@@ -682,7 +668,7 @@ export default function FiltersCI({
                     <Badge
                       key={label}
                       variant="outline"
-                      className="border-[#234D65]/25 bg-[#234D65]/5 px-2.5 py-1 text-xs font-medium text-[#234D65]"
+                      className="max-w-full whitespace-normal break-words border-[#234D65]/25 bg-[#234D65]/5 px-2.5 py-1 text-left text-xs font-medium text-[#234D65]"
                     >
                       {label}
                     </Badge>
