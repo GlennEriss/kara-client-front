@@ -9,6 +9,7 @@ import { CaisseContract, CaissePayment } from '@/services/caisse/types'
 import { getUserById } from '@/db/user.db'
 import { getGroupById } from '@/db/group.db'
 import type { CaisseType } from '@/services/caisse/types'
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 
 export interface CalendarPaymentItem extends CaissePayment {
   contract: CaisseContract
@@ -122,7 +123,7 @@ export function useCalendarCaisseSpeciale(
       const today = new Date()
 
       // 1. Récupérer tous les contrats actifs
-      const allContracts = await getAllContracts()
+      const allContracts = await getAllContracts({ statuses: ['ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY'] })
       const activeContracts = allContracts.filter(
         (c: any) =>
           c.status === 'ACTIVE' ||
@@ -141,8 +142,8 @@ export function useCalendarCaisseSpeciale(
         []
 
       // Chargement des versements en parallèle (au lieu d'un await séquentiel par contrat).
-      const paymentChunks = await Promise.all(
-        filteredContracts.map(async (contract) => {
+      const paymentChunks = await mapWithConcurrency(
+        filteredContracts, 6, async (contract) => {
           try {
             const contractPayments = await listPayments(contract.id || '')
             const paymentsInMonth = contractPayments.filter((p: CaissePayment) => {
@@ -159,7 +160,7 @@ export function useCalendarCaisseSpeciale(
             )
             return []
           }
-        })
+        }
       )
       allPayments.push(...paymentChunks.flat())
 

@@ -9,10 +9,10 @@ import {
 } from '@/utils/contract-lock'
 
 describe('verrouillage des contrats terminés ou résiliés', () => {
-  it('caisse spéciale : clôturé ou résilié', () => {
-    expect(isCaisseSpecialeContractLocked('CLOSED')).toBe(true)
-    expect(isCaisseSpecialeContractLocked('RESCINDED')).toBe(true)
-    expect(isCaisseSpecialeContractLocked('FINAL_REFUND_PENDING')).toBe(false)
+  it('caisse spéciale : clôturé, résilié ou en attente de remise d’argent', () => {
+    for (const status of ['CLOSED', 'RESCINDED', 'EARLY_WITHDRAW_REQUESTED', 'EARLY_REFUND_PENDING', 'FINAL_REFUND_PENDING']) {
+      expect(isCaisseSpecialeContractLocked(status)).toBe(true)
+    }
     expect(isCaisseSpecialeContractLocked('ACTIVE')).toBe(false)
   })
 

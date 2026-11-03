@@ -1,5 +1,7 @@
 "use client"
 
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
+
 /**
  * Hook : liste des REMISES D'ARGENT à venir (Caisse Spéciale + Caisse Imprévue + Placement).
  *
@@ -182,8 +184,7 @@ async function fetchUpcomingCS(today: Date, horizonMonths: number): Promise<Upco
     return settingsCache.get(type)!
   }
 
-  const results = await Promise.all(
-    candidates.map(async (c): Promise<UpcomingPayout | null> => {
+  const results = await mapWithConcurrency(candidates, 6, async (c): Promise<UpcomingPayout | null> => {
       try {
         const refunds = (await listRefunds(c.id || '')) as Array<{
           type?: string
@@ -286,8 +287,7 @@ async function fetchUpcomingCS(today: Date, horizonMonths: number): Promise<Upco
         // engagement de la synthèse ou afficher un nominal sans son bonus.
         throw error
       }
-    }),
-  )
+    })
 
   return results.filter(Boolean) as UpcomingPayout[]
 }
@@ -320,8 +320,7 @@ async function fetchUpcomingCI(today: Date, horizonMonths: number): Promise<Upco
 
   const getUser = makeUserCache()
 
-  const results = await Promise.all(
-    contracts.map(async (c): Promise<UpcomingPayout | null> => {
+  const results = await mapWithConcurrency(contracts, 6, async (c): Promise<UpcomingPayout | null> => {
       try {
         const fullyPaid =
           (c.subscriptionCIDuration || 0) > 0 && (c.totalMonthsPaid || 0) >= c.subscriptionCIDuration
@@ -408,8 +407,7 @@ async function fetchUpcomingCI(today: Date, horizonMonths: number): Promise<Upco
         console.error(`[payouts][CI] contrat ${c.id}:`, error)
         return null
       }
-    }),
-  )
+    })
 
   return results.filter(Boolean) as UpcomingPayout[]
 }
@@ -429,8 +427,7 @@ async function fetchUpcomingPlacement(today: Date): Promise<UpcomingPayout[]> {
 
   const getUser = makeUserCache()
 
-  const results = await Promise.all(
-    candidates.map(async (p): Promise<UpcomingPayout | null> => {
+  const results = await mapWithConcurrency(candidates, 6, async (p): Promise<UpcomingPayout | null> => {
       try {
         const isEarly = p.status === 'EarlyExit'
         let referenceAt: Date | undefined
@@ -495,8 +492,7 @@ async function fetchUpcomingPlacement(today: Date): Promise<UpcomingPayout[]> {
         console.error(`[payouts][Placement] ${p.id}:`, error)
         return null
       }
-    }),
-  )
+    })
 
   return results.filter(Boolean) as UpcomingPayout[]
 }

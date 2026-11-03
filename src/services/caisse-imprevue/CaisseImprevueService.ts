@@ -218,8 +218,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
     // ================== MÉTHODES DE PAIEMENT ==================
 
-    async getPaymentsByContractId(contractId: string): Promise<PaymentCI[]> {
-        return await this.paymentCIRepository.getPaymentsByContractId(contractId)
+    async getPaymentsByContractId(contractId: string, monthIndexes?: number[]): Promise<PaymentCI[]> {
+        return await this.paymentCIRepository.getPaymentsByContractId(contractId, monthIndexes)
     }
 
     async createVersement(

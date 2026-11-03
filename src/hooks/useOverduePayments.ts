@@ -1,5 +1,7 @@
 "use client"
 
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
+
 /**
  * Hook : liste de TOUS les versements en retard (statut dû avec échéance passée),
  * toutes périodes confondues, pour la Caisse Spéciale ET la Caisse Imprévue.
@@ -96,8 +98,7 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
 
   const getUser = makeUserCache()
 
-  const perContract = await Promise.all(
-    contracts.map(async (contract): Promise<OverduePayment[]> => {
+  const perContract = await mapWithConcurrency(contracts, 6, async (contract): Promise<OverduePayment[]> => {
       try {
         const payments = await listPayments(contract.id || '')
         const overdue = payments.filter((p: CaissePayment) => {
@@ -160,8 +161,7 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
         console.error(`[overdue][CS] contrat ${contract.id}:`, error)
         return []
       }
-    }),
-  )
+    })
 
   return perContract.flat()
 }
@@ -179,8 +179,7 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
 
   const getUser = makeUserCache()
 
-  const perContract = await Promise.all(
-    contracts.map(async (contract): Promise<OverduePayment[]> => {
+  const perContract = await mapWithConcurrency(contracts, 6, async (contract): Promise<OverduePayment[]> => {
       try {
         const duration = contract.subscriptionCIDuration || 0
         const amountPerMonth = contract.subscriptionCIAmountPerMonth || 0
@@ -244,8 +243,7 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
         console.error(`[overdue][CI] contrat ${contract.id}:`, error)
         return []
       }
-    }),
-  )
+    })
 
   return perContract.flat()
 }
@@ -275,8 +273,7 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
 
   const getUser = makeUserCache()
 
-  const perContract = await Promise.all(
-    contracts.map(async (contract): Promise<OverduePayment[]> => {
+  const perContract = await mapWithConcurrency(contracts, 6, async (contract): Promise<OverduePayment[]> => {
       try {
         // Échéances calculées comme sur la fiche du contrat (aucune n'est enregistrée en base).
         const payments = await service.getPaymentsByCreditId(contract.id)
@@ -331,8 +328,7 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
         console.error(`[overdue][${product}] contrat ${contract.id}:`, error)
         return []
       }
-    }),
-  )
+    })
 
   return perContract.flat()
 }
@@ -346,8 +342,7 @@ export async function fetchOverduePlacement(today: Date): Promise<OverduePayment
 
   const getUser = makeUserCache()
 
-  const perPlacement = await Promise.all(
-    placements.map(async (pl): Promise<OverduePayment[]> => {
+  const perPlacement = await mapWithConcurrency(placements, 6, async (pl): Promise<OverduePayment[]> => {
       try {
         const commissions = await service.listCommissions(pl.id)
         const overdue = commissions.filter((c) => {
@@ -434,8 +429,7 @@ export async function fetchOverduePlacement(today: Date): Promise<OverduePayment
         console.error(`[overdue][Placement] ${pl.id}:`, error)
         return []
       }
-    }),
-  )
+    })
 
   return perPlacement.flat()
 }

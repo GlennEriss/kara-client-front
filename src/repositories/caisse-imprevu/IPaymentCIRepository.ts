@@ -10,7 +10,7 @@ export interface IPaymentCIRepository extends IRepository {
     /**
      * Récupère tous les paiements d'un contrat
      */
-    getPaymentsByContractId(contractId: string): Promise<PaymentCI[]>;
+    getPaymentsByContractId(contractId: string, monthIndexes?: number[]): Promise<PaymentCI[]>;
     
     /**
      * Crée un nouveau paiement (document mois)

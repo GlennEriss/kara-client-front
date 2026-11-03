@@ -10,6 +10,7 @@ import type {
   CreditType,
 } from "@/types/types"
 import { computeCreditInstallments } from "@/utils/credit-installments"
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 
 export interface CalendarPaymentItemCredit {
   contract: CreditContract
@@ -103,7 +104,7 @@ export function useCalendarCreditSpeciale(month: Date, creditType: CreditType, e
       const monthStart = startOfMonth(month)
       const monthEnd = endOfMonth(month)
 
-      const contracts = await service.getContractsWithFilters()
+      const contracts = await service.getContractsWithFilters({ creditType })
       const activeContracts = contracts.filter(
         (contract) =>
           ACTIVE_CONTRACT_STATUSES.includes(contract.status) &&
@@ -113,8 +114,8 @@ export function useCalendarCreditSpeciale(month: Date, creditType: CreditType, e
       const allItems: CalendarPaymentItemCredit[] = []
 
       // Chargement des échéances en parallèle (au lieu d'un await séquentiel par contrat).
-      const itemChunks = await Promise.all(
-        activeContracts.map(async (contract): Promise<CalendarPaymentItemCredit[]> => {
+      const itemChunks = await mapWithConcurrency(
+        activeContracts, 6, async (contract): Promise<CalendarPaymentItemCredit[]> => {
           try {
             const payments = await service.getPaymentsByCreditId(contract.id)
             const installments = computeCreditInstallments(contract, payments, today)
@@ -147,7 +148,7 @@ export function useCalendarCreditSpeciale(month: Date, creditType: CreditType, e
             )
             return []
           }
-        })
+        }
       )
       allItems.push(...itemChunks.flat())
 
