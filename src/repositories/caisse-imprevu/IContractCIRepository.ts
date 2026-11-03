@@ -32,6 +32,7 @@ export interface ContractsCIFilters {
 }
 
 export interface ContractsCIStats {
+    paymentFrequencyCounts?: { DAILY: number; MONTHLY: number };
     total: number;
     active: number;
     finished: number;
@@ -47,7 +48,7 @@ export interface IContractCIRepository extends IRepository {
     getContractById(id: string): Promise<ContractCI | null>;
     getAllContracts(): Promise<ContractCI[]>;
     getContractsByMemberId(memberId: string): Promise<ContractCI[]>;
-    getContractsWithFilters(filters?: ContractsCIFilters): Promise<ContractCI[]>;
+    getContractsWithFilters(filters?: ContractsCIFilters, options?: { throwOnError?: boolean }): Promise<ContractCI[]>;
     getContractsStats(filters?: ContractsCIFilters): Promise<ContractsCIStats>;
     updateContract(id: string, data: Partial<Omit<ContractCI, 'id' | 'createdAt'>>): Promise<ContractCI | null>;
     deleteContract(id: string): Promise<void>;

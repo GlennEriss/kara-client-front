@@ -24,7 +24,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import ContractsFiltersV2 from '@/domains/financial/caisse-imprevue/components/contracts/filters/ContractsFiltersV2'
-import { useContractsCI, type ContractCIFilters } from '@/domains/financial/caisse-imprevue/hooks/useContractsCI'
+import type { ContractCIFilters } from '@/domains/financial/caisse-imprevue/hooks/useContractsCI'
+import { useContractsCIPage } from '@/domains/financial/caisse-imprevue/hooks/useContractsCIPage'
+import { getContractsCIForExport } from '@/domains/financial/caisse-imprevue/services/getContractsCIForExport'
+import type { ContractListScope } from '@/domains/financial/caisse-imprevue/utils/contract-pagination'
 import { useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useRefundsCI } from '@/hooks/caisse-imprevue/useRefundsCI'
 import { EarlyWithdrawalCardSummary } from '@/components/refunds/EarlyWithdrawalCardSummary'
@@ -57,7 +60,7 @@ import {
 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useListUrlSync } from '@/hooks/useListUrlSync'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import DeleteContractCIModal from './DeleteContractCIModal'
 import ReplaceContractCIModal from './ReplaceContractCIModal'
@@ -523,7 +526,7 @@ export default function ListContractsCISection() {
     paymentCountMin: undefined,
     paymentCountMax: undefined,
   })
-  const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
+  const [currentPage, setCurrentPage] = useState(Math.max(1, Math.floor(Number(searchParams.get('page'))) || 1))
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
   const [isExporting, setIsExporting] = useState(false)
   const itemsPerPage = 14
@@ -586,20 +589,10 @@ export default function ListContractsCISection() {
     return nextFilters
   }, [filters, activeTab])
 
-  // Hook pour récupérer les contrats
-  const { data: contracts, isLoading, error, refetch } = useContractsCI(effectiveFilters)
-  
-  // Onglet « Clos » = contrats terminés (CANCELED + FINISHED).
-  // « Actifs » ne montre que les contrats en cours ; « Tous » n'exclut rien.
-  // Les onglets par fréquence conservent l'ancien comportement : les contrats
-  // terminés y sont masqués, ils ont leur propre onglet.
-  const filteredContracts = useMemo(() => {
-    const base = contracts || []
-    const isTerminated = (status: string) => status === 'CANCELED' || status === 'FINISHED'
-    if (activeTab === 'rescinded') return base.filter((c) => isTerminated(c.status))
-    if (activeTab === 'all') return base
-    return base.filter((c) => !isTerminated(c.status))
-  }, [contracts, activeTab])
+  const listScope: ContractListScope = activeTab === 'all' ? 'all' : activeTab === 'rescinded' ? 'closed' : 'open'
+  const { data: contractsPage, isLoading, error, refetch } = useContractsCIPage(effectiveFilters, listScope, currentPage, itemsPerPage)
+  const currentContracts = useMemo(() => contractsPage?.items ?? [], [contractsPage])
+  const totalContracts = contractsPage?.total ?? 0
 
   const subscriptionOptions = useMemo(
     () =>
@@ -611,10 +604,20 @@ export default function ListContractsCISection() {
     [subscriptions]
   )
 
-  // Reset page when filters change
+  // Conserver la page d'une arrivée directe par URL ; réinitialiser seulement après un changement de filtre.
+  const previousFilters = useRef({ filters, activeTab })
   useEffect(() => {
-    setCurrentPage(1)
+    if (previousFilters.current.filters !== filters || previousFilters.current.activeTab !== activeTab) {
+      previousFilters.current = { filters, activeTab }
+      setCurrentPage(1)
+    }
   }, [filters, activeTab])
+
+  useEffect(() => {
+    if (contractsPage && currentPage > Math.max(1, Math.ceil(contractsPage.total / itemsPerPage))) {
+      setCurrentPage(Math.max(1, Math.ceil(contractsPage.total / itemsPerPage)))
+    }
+  }, [contractsPage, currentPage])
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: ContractCIFilters) => {
@@ -753,8 +756,9 @@ export default function ListContractsCISection() {
     return 'Tous'
   }
 
-  const buildExportRows = () => {
-    const contractsToExport = filteredContracts || contracts || []
+  const buildExportRows = async () => {
+    // Un export porte toujours sur tous les résultats filtrés, pas sur les 14 lignes de la page.
+    const contractsToExport = await getContractsCIForExport(effectiveFilters, listScope)
     if (!contractsToExport || contractsToExport.length === 0) return []
     
     return contractsToExport.map((contract) => {
@@ -782,7 +786,7 @@ export default function ListContractsCISection() {
   }
 
   const exportToExcel = async () => {
-    if (!contracts || contracts.length === 0) {
+    if (totalContracts === 0) {
       toast.error('Aucun contrat à exporter')
       return
     }
@@ -790,7 +794,8 @@ export default function ListContractsCISection() {
     setIsExporting(true)
     try {
       const XLSX = await import('xlsx')
-      const rows = buildExportRows()
+      const rows = await buildExportRows()
+      if (rows.length === 0) { toast.info('Aucun contrat à exporter avec ces filtres'); return }
       
       const headers = [
         'ID',
@@ -842,7 +847,7 @@ export default function ListContractsCISection() {
   }
 
   const exportToPDF = async () => {
-    if (!contracts || contracts.length === 0) {
+    if (totalContracts === 0) {
       toast.error('Aucun contrat à exporter')
       return
     }
@@ -854,7 +859,8 @@ export default function ListContractsCISection() {
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
 
       const typeLabel = getExportTypeLabel()
-      const rows = buildExportRows()
+      const rows = await buildExportRows()
+      if (rows.length === 0) { toast.info('Aucun contrat à exporter avec ces filtres'); return }
       const headers = [
         'ID Contrat',
         'Type',
@@ -954,13 +960,9 @@ export default function ListContractsCISection() {
   }
 
   // Pagination
-  const totalPages = Math.ceil((filteredContracts?.length || 0) / itemsPerPage)
+  const totalPages = Math.ceil(totalContracts / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentContracts = useMemo(
-    () => filteredContracts.slice(startIndex, endIndex),
-    [filteredContracts, startIndex, endIndex]
-  )
   const currentMemberIds = useMemo(
     () => Array.from(new Set(currentContracts.map((c) => c.memberId).filter(Boolean))),
     [currentContracts]
@@ -1011,8 +1013,8 @@ export default function ListContractsCISection() {
             onNext={() => handlePageChange(currentPage + 1)}
             summary={
               <>
-                Affichage {startIndex + 1}-{Math.min(endIndex, filteredContracts?.length || 0)} sur{' '}
-                {filteredContracts?.length || 0} contrats
+                Affichage {startIndex + 1}-{Math.min(endIndex, totalContracts)} sur{' '}
+                {totalContracts} contrats
               </>
             }
           />
@@ -1071,7 +1073,7 @@ export default function ListContractsCISection() {
                   Liste des Contrats
                 </h2>
                 <p className="font-medium text-gray-600">
-                  {(filteredContracts?.length || 0).toLocaleString()} contrat{(filteredContracts?.length || 0) !== 1 ? 's' : ''} • Page {currentPage}
+                  {totalContracts.toLocaleString()} contrat{totalContracts !== 1 ? 's' : ''} • Page {currentPage}
                 </p>
               </div>
             </div>
@@ -1120,7 +1122,7 @@ export default function ListContractsCISection() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={isExporting || filteredContracts.length === 0}
+                    disabled={isExporting || isLoading || totalContracts === 0}
                     className="h-10 w-full cursor-pointer rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50 sm:w-auto"
                   >
                     {isExporting ? (

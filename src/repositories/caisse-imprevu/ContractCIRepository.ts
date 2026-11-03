@@ -424,7 +424,7 @@ export class ContractCIRepository implements IContractCIRepository {
      * @param {ContractsCIFilters} filters - Filtres à appliquer
      * @returns {Promise<ContractCI[]>} - Liste des contrats filtrés
      */
-    async getContractsWithFilters(filters?: ContractsCIFilters): Promise<ContractCI[]> {
+    async getContractsWithFilters(filters?: ContractsCIFilters, options?: { throwOnError?: boolean }): Promise<ContractCI[]> {
         try {
             const { collection, db, getDocs, query, orderBy, where } = await getFirestore();
             const normalizedFilters = this.normalizeDateRanges(filters);
@@ -522,6 +522,7 @@ export class ContractCIRepository implements IContractCIRepository {
 
         } catch (error) {
             console.error("Erreur lors de la récupération des contrats CI avec filtres:", error);
+            if (options?.throwOnError) throw error;
             return [];
         }
     }
@@ -573,9 +574,11 @@ export class ContractCIRepository implements IContractCIRepository {
             const querySnapshot = await getDocs(q);
 
             const contracts: ContractCI[] = [];
+            const orderedContractIds = new Set<string>();
 
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
+                if (data.createdAt !== undefined) orderedContractIds.add(data.id ?? doc.id);
                 contracts.push({
                     id: doc.id,
                     ...(data as any),
@@ -600,6 +603,10 @@ export class ContractCIRepository implements IContractCIRepository {
             }
 
             const total = filteredContracts.length;
+            const paymentFrequencyCounts = {
+                DAILY: filteredContracts.filter(c => orderedContractIds.has(c.id) && c.paymentFrequency === 'DAILY').length,
+                MONTHLY: filteredContracts.filter(c => orderedContractIds.has(c.id) && c.paymentFrequency === 'MONTHLY').length,
+            };
             const active = filteredContracts.filter(c => c.status === 'ACTIVE').length;
             const finished = filteredContracts.filter(c => c.status === 'FINISHED').length;
             const canceled = filteredContracts.filter(c => c.status === 'CANCELED').length;
@@ -612,6 +619,7 @@ export class ContractCIRepository implements IContractCIRepository {
             );
 
             return {
+                paymentFrequencyCounts,
                 total,
                 active,
                 finished,

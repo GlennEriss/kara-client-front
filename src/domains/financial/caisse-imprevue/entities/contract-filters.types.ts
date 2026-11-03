@@ -31,6 +31,7 @@ export interface ContractCIFilters {
 }
 
 export interface ContractCIStats {
+  paymentFrequencyCounts?: { DAILY: number; MONTHLY: number }
   total: number
   active: number
   finished: number

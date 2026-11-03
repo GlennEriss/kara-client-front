@@ -12,18 +12,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import dynamic from 'next/dynamic';
+import { DeferredRender } from '@/components/ui/deferred-render';
+
+const DistributionChart = dynamic(() => import('./DashboardDistributionChart'), {
+  ssr: false,
+  loading: () => <div className="h-56 animate-pulse rounded-lg bg-gray-50" aria-label="Chargement du graphique" />,
+});
 import type {
   DashboardDistributionBlock,
   DashboardTabPayload,
@@ -588,75 +583,18 @@ export function DashboardTabContent({
                 ) : (
                   <>
                     <div className="mt-3 h-56 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        {distribution.chartType === "pie" ? (
-                          <PieChart>
-                            <Pie
-                              data={chartData}
-                              dataKey="value"
-                              nameKey="label"
-                              innerRadius={55}
-                              outerRadius={90}
-                              paddingAngle={3}
-                            >
-                              {chartData.map((entry, index) => (
-                                <Cell
-                                  key={`${distribution.key}-${entry.label}-${index}`}
-                                  fill={entry.fill}
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              formatter={(value: number) =>
-                                formatDistributionValue(value, distribution)
-                              }
-                              labelFormatter={(label: string) =>
-                                shortModuleLabel(label)
-                              }
-                            />
-                          </PieChart>
-                        ) : (
-                          <BarChart
-                            data={chartData}
-                            margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis
-                              dataKey="label"
-                              tick={{ fontSize: isMobile ? 10 : 11 }}
-                              interval={0}
-                              minTickGap={isMobile ? 14 : 8}
-                              tickMargin={isMobile ? 10 : 8}
-                              angle={isMobile ? -18 : 0}
-                              textAnchor={isMobile ? "end" : "middle"}
-                              height={isMobile ? 58 : 34}
-                              tickFormatter={(value: string) => {
-                                if (isExecutive) return shortModuleLabel(value);
-                                if (isMobile)
-                                  return shortDistributionLabel(value);
-                                return value;
-                              }}
-                            />
-                            <YAxis tick={{ fontSize: 11 }} />
-                            <Tooltip
-                              formatter={(value: number) =>
-                                formatDistributionValue(value, distribution)
-                              }
-                              labelFormatter={(label: string) =>
-                                shortModuleLabel(label)
-                              }
-                            />
-                            <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                              {chartData.map((entry, index) => (
-                                <Cell
-                                  key={`${distribution.key}-bar-${entry.label}-${index}`}
-                                  fill={entry.fill}
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        )}
-                      </ResponsiveContainer>
+                      <DeferredRender fallback={<div className="h-56 rounded-lg bg-gray-50" />}>
+                        <div className="h-56 w-full">
+                          <DistributionChart
+                            distribution={distribution}
+                            chartData={chartData}
+                            isMobile={isMobile}
+                            formatValue={(value) => formatDistributionValue(value, distribution)}
+                            shortLabel={shortModuleLabel}
+                            tickFormatter={(value) => isExecutive ? shortModuleLabel(value) : isMobile ? shortDistributionLabel(value) : value}
+                          />
+                        </div>
+                      </DeferredRender>
                     </div>
 
                     <div className="mt-3 grid gap-2">
