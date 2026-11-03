@@ -17,13 +17,13 @@ vi.mock('@/constantes/routes', () => ({
   },
 }))
 
-// Mock de ServiceFactory
+// Mock de la factory d'authentification
 const mockLogoutService = {
   logout: vi.fn(),
 }
 
-vi.mock('@/factories/ServiceFactory', () => ({
-  ServiceFactory: {
+vi.mock('@/domains/auth/services/AuthServiceFactory', () => ({
+  AuthServiceFactory: {
     getLogoutService: vi.fn(() => mockLogoutService),
   },
 }))

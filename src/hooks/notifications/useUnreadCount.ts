@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { ServiceFactory } from '@/factories/ServiceFactory'
+import { getNotificationService } from '@/services/notifications/getNotificationService'
 
 /**
  * Hook pour récupérer le nombre de notifications non lues
  */
 export function useUnreadCount() {
-  const notificationService = ServiceFactory.getNotificationService()
+  const notificationService = getNotificationService()
 
   return useQuery({
     queryKey: ['notifications', 'unreadCount'],

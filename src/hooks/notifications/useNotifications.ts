@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { ServiceFactory } from '@/factories/ServiceFactory'
+import { getNotificationService } from '@/services/notifications/getNotificationService'
 import { NotificationFilters } from '@/types/types'
 
 /**
  * Hook pour récupérer les notifications avec filtres
  */
 export function useNotifications(filters?: NotificationFilters) {
-  const notificationService = ServiceFactory.getNotificationService()
+  const notificationService = getNotificationService()
 
   return useQuery({
     queryKey: ['notifications', filters],

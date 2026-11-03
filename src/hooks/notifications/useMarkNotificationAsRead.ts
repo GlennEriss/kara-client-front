@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ServiceFactory } from '@/factories/ServiceFactory'
+import { getNotificationService } from '@/services/notifications/getNotificationService'
 
 /**
  * Hook pour marquer une notification comme lue
  */
 export function useMarkNotificationAsRead() {
-  const notificationService = ServiceFactory.getNotificationService()
+  const notificationService = getNotificationService()
   const queryClient = useQueryClient()
 
   return useMutation({

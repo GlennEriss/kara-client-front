@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "analyze:bundle": "node scripts/analyze-client-bundles.mjs",
     "start": "next start",
     "emulator": "firebase emulators:start --import=./firebase-data --export-on-exit=./firebase-data",
     "emulator:clean": "npm run kill-firebase && firebase emulators:start --import=./firebase-data --export-on-exit=./firebase-data",

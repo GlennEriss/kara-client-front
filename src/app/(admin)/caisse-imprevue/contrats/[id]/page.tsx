@@ -220,11 +220,11 @@ export default function ContractCIDetailsPage() {
           </Card>
         </div>
 
-        <DownloadContractCIModal
+        {pdfModalOpen && <DownloadContractCIModal
           isOpen={pdfModalOpen}
           onClose={() => setPdfModalOpen(false)}
           contract={contract}
-        />
+        />}
         <UploadContractCIModal
           isOpen={uploadModalOpen}
           onClose={() => setUploadModalOpen(false)}

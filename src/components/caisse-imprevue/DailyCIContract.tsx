@@ -50,7 +50,9 @@ import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
 import { EarlyRefundHandover } from '@/components/refunds/EarlyRefundHandover'
 import ValidateRefundCIModal from './ValidateRefundCIModal'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
-import PaymentReceiptCIModal from './PaymentReceiptCIModal'
+const PaymentReceiptCIModal = dynamic(() => import('./PaymentReceiptCIModal'), {
+  ssr: false,
+})
 const LiquidationContratPDFModal = dynamic(() => import('./RemboursementCIPDFModal'), {
   ssr: false,
 })
@@ -1318,7 +1320,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
         />
 
         {/* Modal de reçu */}
-        {getSelectedPaymentWithVersement() && (
+        {showReceiptModal && getSelectedPaymentWithVersement() && (
           <PaymentReceiptCIModal
             isOpen={showReceiptModal}
             onClose={() => {
@@ -1778,12 +1780,12 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
         <SupportHistorySection contractId={contract.id} />
 
         {/* Procès-verbal de liquidation du contrat de Caisse Imprévue */}
-        <LiquidationContratPDFModal
+        {showLiquidationQuittance && <LiquidationContratPDFModal
           isOpen={showLiquidationQuittance}
           onClose={() => setShowLiquidationQuittance(false)}
           contractId={contract.id}
           contractData={contract}
-        />
+        />}
 
         {/* Modal de demande de retrait anticipé */}
         <EarlyRefundCIModal

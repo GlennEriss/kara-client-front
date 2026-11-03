@@ -1,5 +1,5 @@
 import routes from '@/constantes/routes'
-import { ServiceFactory } from '@/factories/ServiceFactory'
+import { AuthServiceFactory } from '../services/AuthServiceFactory'
 import { useCallback, useState } from 'react'
 
 /**
@@ -16,7 +16,7 @@ export function useLogout() {
     setError(null)
 
     try {
-      const logoutService = ServiceFactory.getLogoutService()
+      const logoutService = AuthServiceFactory.getLogoutService()
       await logoutService.logout()
       
       // Redirection vers la page de connexion avec rechargement complet

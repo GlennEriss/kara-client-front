@@ -4,7 +4,7 @@
  * Ces tests vérifient l'intégration entre LogoutService, useLogout et les composants
  */
 
-import { ServiceFactory } from '@/factories/ServiceFactory'
+import { AuthServiceFactory } from '@/domains/auth/services/AuthServiceFactory'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { signOut } from 'firebase/auth'
@@ -67,7 +67,7 @@ describe('Logout Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(signOut).mockClear()
-    ServiceFactory.clearAllServices()
+    AuthServiceFactory.clearAllServices()
 
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as any))
   })
@@ -140,11 +140,10 @@ describe('Logout Integration', () => {
       })
     })
 
-    it('devrait utiliser le service depuis ServiceFactory', async () => {
+    it('devrait utiliser le service depuis AuthServiceFactory', async () => {
       vi.mocked(signOut).mockResolvedValue(undefined)
 
-      // Vérifier que le service est bien récupéré depuis ServiceFactory
-      const logoutService = ServiceFactory.getLogoutService()
+      const logoutService = AuthServiceFactory.getLogoutService()
       expect(logoutService).toBeInstanceOf(LogoutService)
 
       const { result } = renderHook(() => useLogout(), {

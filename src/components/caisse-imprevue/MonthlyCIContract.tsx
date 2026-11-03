@@ -965,7 +965,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
         />
 
         {/* Modal de reçu */}
-        {getSelectedPayment() && (
+        {showReceiptModal && getSelectedPayment() && (
           <PaymentReceiptCIModal
             isOpen={showReceiptModal}
             onClose={() => {
@@ -1385,12 +1385,12 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
         )}
 
         {/* Procès-verbal de liquidation du contrat de Caisse Imprévue */}
-        <LiquidationContratPDFModal
+        {showLiquidationQuittance && <LiquidationContratPDFModal
           isOpen={showLiquidationQuittance}
           onClose={() => setShowLiquidationQuittance(false)}
           contractId={contract.id}
           contractData={contract}
-        />
+        />}
 
         {/* Modal de demande de retrait anticipé */}
         <EarlyRefundCIModal
