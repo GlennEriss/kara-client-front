@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useContractsCI, useContractsCIStats } from '@/hooks/caisse-imprevue/useContractsCI'
+import { useContractsCIStats } from '@/hooks/caisse-imprevue/useContractsCI'
 import { ContractsCIFilters } from '@/repositories/caisse-imprevu/IContractCIRepository'
 import { CaisseImprevuePaymentFrequency } from '@/types/types'
 import {
@@ -14,7 +14,13 @@ import {
     XCircle
 } from 'lucide-react'
 import React, { useMemo } from 'react'
-import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
+import dynamic from 'next/dynamic'
+import { DeferredRender } from '@/components/ui/deferred-render'
+
+const ContractFrequencyChart = dynamic(() => import('./ContractFrequencyChart'), {
+  ssr: false,
+  loading: () => <div className="h-60 animate-pulse rounded-lg bg-gray-50" aria-label="Chargement du graphique" />,
+})
 
 // Carte stat horizontale compacte
 const StatsCard = ({
@@ -67,8 +73,8 @@ export default function StatisticsCI({ paymentFrequency }: StatisticsCIProps = {
     : undefined
   
   const { data: stats, isLoading } = useContractsCIStats(filters)
-  // Récupérer tous les contrats pour calculer la répartition par type
-  const { data: allContracts } = useContractsCI()
+  // La lecture globale déjà nécessaire aux statistiques fournit aussi la répartition.
+  const { data: globalStats } = useContractsCIStats()
 
   // Préparer les données de stats (même si vide pour éviter les erreurs)
   const statsData = stats ? [
@@ -106,10 +112,8 @@ export default function StatisticsCI({ paymentFrequency }: StatisticsCIProps = {
 
   // Calculer la répartition par type de paiement (AVANT les retours conditionnels)
   const byPaymentFrequency = useMemo(() => {
-    if (!allContracts || allContracts.length === 0) return []
-    
-    const daily = allContracts.filter(c => c.paymentFrequency === 'DAILY').length
-    const monthly = allContracts.filter(c => c.paymentFrequency === 'MONTHLY').length
+    const daily = globalStats?.paymentFrequencyCounts?.DAILY ?? 0
+    const monthly = globalStats?.paymentFrequencyCounts?.MONTHLY ?? 0
     
     const result = []
     if (daily > 0) {
@@ -120,7 +124,7 @@ export default function StatisticsCI({ paymentFrequency }: StatisticsCIProps = {
     }
     
     return result
-  }, [allContracts])
+  }, [globalStats?.paymentFrequencyCounts])
 
   // Retours anticipés APRÈS tous les hooks
   if (isLoading) {
@@ -160,23 +164,11 @@ export default function StatisticsCI({ paymentFrequency }: StatisticsCIProps = {
               </CardHeader>
               <CardContent className="flex flex-col lg:flex-row lg:items-center gap-4">
                 <div className="h-60 flex-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie 
-                        data={byPaymentFrequency} 
-                        dataKey="count" 
-                        nameKey="label" 
-                        cx="50%" 
-                        cy="50%" 
-                        outerRadius={isMobile ? 70 : 90}
-                        label={!isMobile}
-                      >
-                        {byPaymentFrequency.map((entry, index) => (
-                          <Cell key={`frequency-${entry.type}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <DeferredRender fallback={<div className="h-60 rounded-lg bg-gray-50" />}>
+                    <div className="h-60 w-full">
+                      <ContractFrequencyChart data={byPaymentFrequency} colors={COLORS} isMobile={isMobile} />
+                    </div>
+                  </DeferredRender>
                 </div>
                 <div className="space-y-2 flex-1">
                   {byPaymentFrequency.map((entry, _index) => (

@@ -58,8 +58,8 @@ export class ContractCIRepository implements IContractCIRepository {
     }
   }
 
-  async getContractsWithFilters(filters?: ContractCIFilters): Promise<ContractCI[]> {
-    return this.legacyRepository.getContractsWithFilters(this.toLegacyFilters(filters))
+  async getContractsWithFilters(filters?: ContractCIFilters, options?: { throwOnError?: boolean }): Promise<ContractCI[]> {
+    return this.legacyRepository.getContractsWithFilters(this.toLegacyFilters(filters), options)
   }
 
   async getContractsStats(filters?: ContractCIFilters): Promise<ContractCIStats> {

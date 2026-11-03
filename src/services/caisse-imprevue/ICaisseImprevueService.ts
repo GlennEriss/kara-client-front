@@ -36,7 +36,7 @@ export interface ICaisseImprevueService extends IService{
     getDocumentById(documentId: string): Promise<Document | null>
     
     // Méthodes de paiement
-    getPaymentsByContractId(contractId: string): Promise<PaymentCI[]>
+    getPaymentsByContractId(contractId: string, monthIndexes?: number[]): Promise<PaymentCI[]>
     createVersement(contractId: string, monthIndex: number, versementData: VersementFormData, proofFile: File, userId: string): Promise<PaymentCI>
     updateVersement(contractId: string, monthIndex: number, versementId: string, versementData: VersementFormData, proofFile: File | undefined, modificationReason: string, userId: string): Promise<PaymentCI>
     deleteVersement(contractId: string, monthIndex: number, versementId: string, userId: string): Promise<PaymentCI>

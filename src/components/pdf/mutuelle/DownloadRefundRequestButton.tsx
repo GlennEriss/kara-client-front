@@ -1,12 +1,11 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { pdf } from '@react-pdf/renderer'
 import { FileDown, Loader2 } from 'lucide-react'
 import React, { useState } from 'react'
 import { toast } from 'sonner'
 
-import DemandeRemboursementPDF, { type RefundRequestPdfData } from './DemandeRemboursementPDF'
+import type { RefundRequestPdfData } from './DemandeRemboursementPDF'
 
 /** Télécharge la demande de remboursement à faire signer, avant de la joindre à la demande. */
 export function DownloadRefundRequestButton({ data, fileName }: { data: RefundRequestPdfData; fileName: string }) {
@@ -15,6 +14,10 @@ export function DownloadRefundRequestButton({ data, fileName }: { data: RefundRe
   const handleDownload = async () => {
     setIsGenerating(true)
     try {
+      const [{ pdf }, { default: DemandeRemboursementPDF }] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('./DemandeRemboursementPDF'),
+      ])
       const blob = await pdf(<DemandeRemboursementPDF data={data} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -35,7 +38,7 @@ export function DownloadRefundRequestButton({ data, fileName }: { data: RefundRe
   return (
     <Button type="button" variant="outline" size="sm" onClick={handleDownload} disabled={isGenerating}>
       {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-      Télécharger la demande à faire signer
+      {isGenerating ? 'Préparation du document…' : 'Télécharger la demande à faire signer'}
     </Button>
   )
 }

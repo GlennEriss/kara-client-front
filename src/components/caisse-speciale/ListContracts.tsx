@@ -1449,27 +1449,30 @@ const ListContracts = () => {
       
       const refundsMap: Record<string, ContractRefundDocuments> = {}
       
-      for (const contract of contractsData) {
-        if (!contract.id) continue
-        try {
-          const refunds = await listRefunds(contract.id)
-          const finalRefundWithDoc = refunds.find(
-            (r: any) => r.type === 'FINAL' && r.document?.url
-          )
-          const earlyRefundWithDoc = refunds.find(
-            (r: any) => r.type === 'EARLY' && r.document?.url
-          )
-          const earlyWithdrawal = findCardEarlyWithdrawal(refunds)
-          if (finalRefundWithDoc || earlyRefundWithDoc || earlyWithdrawal) {
-            refundsMap[contract.id] = {
-              FINAL: finalRefundWithDoc,
-              EARLY: earlyRefundWithDoc,
-              earlyWithdrawal,
+      // Quatre lectures simultanées au maximum, sans attendre chaque contrat l'un après l'autre.
+      for (let offset = 0; offset < contractsData.length && !cancelled; offset += 4) {
+        await Promise.all(contractsData.slice(offset, offset + 4).map(async (contract) => {
+          if (!contract.id) return
+          try {
+            const refunds = await listRefunds(contract.id)
+            const finalRefundWithDoc = refunds.find(
+              (r: any) => r.type === 'FINAL' && r.document?.url
+            )
+            const earlyRefundWithDoc = refunds.find(
+              (r: any) => r.type === 'EARLY' && r.document?.url
+            )
+            const earlyWithdrawal = findCardEarlyWithdrawal(refunds)
+            if (finalRefundWithDoc || earlyRefundWithDoc || earlyWithdrawal) {
+              refundsMap[contract.id] = {
+                FINAL: finalRefundWithDoc,
+                EARLY: earlyRefundWithDoc,
+                earlyWithdrawal,
+              }
             }
+          } catch (error) {
+            console.error(`Erreur lors du chargement des refunds pour ${contract.id}:`, error)
           }
-        } catch (error) {
-          console.error(`Erreur lors du chargement des refunds pour ${contract.id}:`, error)
-        }
+        }))
       }
       
       if (!cancelled) setContractRefunds(refundsMap)

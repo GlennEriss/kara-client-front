@@ -18,6 +18,7 @@ import { buildFinancialReport } from '@/domains/financial/reports/builders/build
 import type { FinancialReport, FinancialReportModuleKey } from '@/domains/financial/reports/entities/financial-report.types'
 import type { FinancialReportSources } from '@/domains/financial/reports/entities/financial-report-sources.types'
 import { loadFinancialReportSources } from '@/domains/financial/reports/services/loadFinancialReportSources'
+import { FirestoreReadScope } from '@/domains/financial/reports/services/FirestoreReadScope'
 import { currentMonthKey } from '@/domains/financial/reports/utils/report-months'
 
 type FirestoreRecord = Record<string, unknown> & { id: string }
@@ -190,7 +191,11 @@ function resolveDateRange(filters: DashboardFilters): DateRange | null {
   return null
 }
 
-async function readCollectionDocs(collectionName: string): Promise<FirestoreRecord[]> {
+async function readCollectionDocs(collectionName: string, reader?: FirestoreReadScope): Promise<FirestoreRecord[]> {
+  if (reader) {
+    const snap = await reader.collection(collectionName)
+    return snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+  }
   // Côté serveur/API, privilégier Admin SDK pour éviter les refus de règles Firestore.
   if (typeof window === 'undefined') {
     const { adminFirestore } = await import('@/firebase/adminFirestore')
@@ -212,7 +217,11 @@ async function readCollectionDocs(collectionName: string): Promise<FirestoreReco
   }))
 }
 
-async function readCollectionGroupDocs(groupName: string): Promise<FirestoreRecord[]> {
+async function readCollectionGroupDocs(groupName: string, reader?: FirestoreReadScope): Promise<FirestoreRecord[]> {
+  if (reader) {
+    const snap = await reader.collectionGroup(groupName)
+    return snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+  }
   if (typeof window === 'undefined') {
     const { adminFirestore } = await import('@/firebase/adminFirestore')
     if (adminFirestore) {
@@ -622,8 +631,8 @@ function createRanking(key: string, title: string, items: DashboardRankingBlock[
   }
 }
 
-async function getMemberScope(filters: DashboardFilters): Promise<MemberScopeContext> {
-  const rawUsers = await readCollectionDocs(firebaseCollectionNames.users)
+async function getMemberScope(filters: DashboardFilters, reader?: FirestoreReadScope): Promise<MemberScopeContext> {
+  const rawUsers = await readCollectionDocs(firebaseCollectionNames.users, reader)
   const allMembers = rawUsers.map(toMemberRecord).filter((user): user is DashboardMemberRecord => user !== null)
 
   const scopedMembers = allMembers.filter((member) => matchesMemberFilter(member, filters))
@@ -2337,8 +2346,12 @@ function mergeCounters(...counters: Map<string, number>[]): Map<string, number> 
 }
 
 export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: DashboardFilters): Promise<DashboardSnapshot> {
+  const adminDb = typeof window === 'undefined' ? (await import('@/firebase/adminFirestore')).adminFirestore : null
+  const reader = adminDb ? new FirestoreReadScope(adminDb) : undefined
+  const readCollection = (name: string) => readCollectionDocs(name, reader)
+  const readGroup = (name: string) => readCollectionGroupDocs(name, reader)
   const dateRange = resolveDateRange(filters)
-  const memberScope = await getMemberScope(filters)
+  const memberScope = await getMemberScope(filters, reader)
 
   let snapshot: DashboardTabPayload
 
@@ -2355,13 +2368,13 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       placementDemandsRaw,
       callPlansRaw,
     ] = await Promise.all([
-      loadFinancialReportSources(adminFirestore),
-      readCollectionDocs(firebaseCollectionNames.membershipRequests),
-      readCollectionDocs(firebaseCollectionNames.caisseSpecialeDemands),
-      readCollectionDocs(firebaseCollectionNames.caisseImprevueDemands),
-      readCollectionDocs(firebaseCollectionNames.creditDemands),
-      readCollectionDocs(firebaseCollectionNames.placementDemands),
-      readCollectionDocs(firebaseCollectionNames.callPlans),
+      loadFinancialReportSources(adminFirestore, reader),
+      readCollection(firebaseCollectionNames.membershipRequests),
+      readCollection(firebaseCollectionNames.caisseSpecialeDemands),
+      readCollection(firebaseCollectionNames.caisseImprevueDemands),
+      readCollection(firebaseCollectionNames.creditDemands),
+      readCollection(firebaseCollectionNames.placementDemands),
+      readCollection(firebaseCollectionNames.callPlans),
     ])
 
     const financialSources = scopeFinancialSources(financialSourcesRaw, memberScope)
@@ -2421,9 +2434,9 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     )
   } else if (activeTab === 'caisse_speciale') {
     const [demandsRaw, contractsRaw, paymentsRaw] = await Promise.all([
-      readCollectionDocs(firebaseCollectionNames.caisseSpecialeDemands),
-      readCollectionDocs(firebaseCollectionNames.caisseContracts),
-      readCollectionGroupDocs('payments'),
+      readCollection(firebaseCollectionNames.caisseSpecialeDemands),
+      readCollection(firebaseCollectionNames.caisseContracts),
+      readGroup('payments'),
     ])
 
     const demands = filterRecordsByMemberScope(
@@ -2442,9 +2455,9 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     snapshot = buildCaisseSpecialePayload(demands, contracts, payments)
   } else if (activeTab === 'caisse_imprevue') {
     const [demandsRaw, contractsRaw, paymentsRaw] = await Promise.all([
-      readCollectionDocs(firebaseCollectionNames.caisseImprevueDemands),
-      readCollectionDocs(firebaseCollectionNames.contractsCI),
-      readCollectionGroupDocs('payments'),
+      readCollection(firebaseCollectionNames.caisseImprevueDemands),
+      readCollection(firebaseCollectionNames.contractsCI),
+      readGroup('payments'),
     ])
 
     const demands = filterRecordsByMemberScope(
@@ -2463,10 +2476,10 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     snapshot = buildCaisseImprevuePayload(demands, contracts, payments)
   } else if (activeTab === 'credit_speciale' || activeTab === 'credit_fixe' || activeTab === 'caisse_aide') {
     const [demandsRaw, contractsRaw, penaltiesRaw, creditPaymentsRaw] = await Promise.all([
-      readCollectionDocs(firebaseCollectionNames.creditDemands),
-      readCollectionDocs(firebaseCollectionNames.creditContracts),
-      readCollectionDocs(firebaseCollectionNames.creditPenalties),
-      readCollectionDocs(firebaseCollectionNames.creditPayments),
+      readCollection(firebaseCollectionNames.creditDemands),
+      readCollection(firebaseCollectionNames.creditContracts),
+      readCollection(firebaseCollectionNames.creditPenalties),
+      readCollection(firebaseCollectionNames.creditPayments),
     ])
 
     const demands = filterRecordsByMemberScope(
@@ -2486,9 +2499,9 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     snapshot = buildCreditPayload(creditType, demands, contracts, penaltiesRaw, creditPayments)
   } else if (activeTab === 'placements') {
     const [demandsRaw, placementsRaw, commissionsRaw] = await Promise.all([
-      readCollectionDocs(firebaseCollectionNames.placementDemands),
-      readCollectionDocs(firebaseCollectionNames.placements),
-      readCollectionGroupDocs('commissions'),
+      readCollection(firebaseCollectionNames.placementDemands),
+      readCollection(firebaseCollectionNames.placements),
+      readGroup('commissions'),
     ])
 
     const demands = filterRecordsByMemberScope(
@@ -2507,12 +2520,12 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     snapshot = buildPlacementsPayload(demands, placements, commissions)
   } else if (activeTab === 'administration') {
     const [adminsRaw, membershipRequestsRaw, csDemandsRaw, ciDemandsRaw, creditDemandsRaw, placementDemandsRaw] = await Promise.all([
-      readCollectionDocs(firebaseCollectionNames.admins),
-      readCollectionDocs(firebaseCollectionNames.membershipRequests),
-      readCollectionDocs(firebaseCollectionNames.caisseSpecialeDemands),
-      readCollectionDocs(firebaseCollectionNames.caisseImprevueDemands),
-      readCollectionDocs(firebaseCollectionNames.creditDemands),
-      readCollectionDocs(firebaseCollectionNames.placementDemands),
+      readCollection(firebaseCollectionNames.admins),
+      readCollection(firebaseCollectionNames.membershipRequests),
+      readCollection(firebaseCollectionNames.caisseSpecialeDemands),
+      readCollection(firebaseCollectionNames.caisseImprevueDemands),
+      readCollection(firebaseCollectionNames.creditDemands),
+      readCollection(firebaseCollectionNames.placementDemands),
     ])
 
     const topActionCounts = mergeCounters(
@@ -2526,10 +2539,10 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     snapshot = buildAdministrationPayload(adminsRaw, topActionCounts)
   } else if (activeTab === 'recouvrement') {
     const [agentsRaw, paymentsRaw, callPlansRaw, callLogsRaw] = await Promise.all([
-      readCollectionDocs(firebaseCollectionNames.agentsRecouvrement),
-      readCollectionDocs(firebaseCollectionNames.payments),
-      readCollectionDocs(firebaseCollectionNames.callPlans),
-      readCollectionDocs(firebaseCollectionNames.callLogs),
+      readCollection(firebaseCollectionNames.agentsRecouvrement),
+      readCollection(firebaseCollectionNames.payments),
+      readCollection(firebaseCollectionNames.callPlans),
+      readCollection(firebaseCollectionNames.callLogs),
     ])
 
     const callPlans = filterRecordsByMemberScope(
@@ -2545,10 +2558,10 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
 
     snapshot = buildRecouvrementPayload(agentsRaw, paymentsRaw, callPlans, callLogs, dateRange)
   } else if (activeTab === 'groupes') {
-    const [groupsRaw] = await Promise.all([readCollectionDocs(firebaseCollectionNames.groups)])
+    const [groupsRaw] = await Promise.all([readCollection(firebaseCollectionNames.groups)])
     snapshot = buildGroupesPayload(groupsRaw, memberScope)
   } else if (activeTab === 'metiers') {
-    const [professionsRaw] = await Promise.all([readCollectionDocs(firebaseCollectionNames.professions)])
+    const [professionsRaw] = await Promise.all([readCollection(firebaseCollectionNames.professions)])
     snapshot = buildMetiersPayload(professionsRaw, memberScope)
   } else {
     snapshot = buildGeographiePayload(memberScope)
@@ -2566,7 +2579,7 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
   if (financialModule) {
     const { adminFirestore } = await import('@/firebase/adminFirestore')
     if (!adminFirestore) throw new Error('Firestore admin indisponible pour le calcul financier')
-    const sources = scopeFinancialSources(await loadFinancialReportSources(adminFirestore), memberScope)
+    const sources = scopeFinancialSources(await loadFinancialReportSources(adminFirestore, reader), memberScope)
     snapshot = applyAuthoritativeModuleFinancials(snapshot, buildCurrentFinancialReport(sources), financialModule)
   }
 

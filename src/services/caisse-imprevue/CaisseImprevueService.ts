@@ -218,8 +218,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
     // ================== MÉTHODES DE PAIEMENT ==================
 
-    async getPaymentsByContractId(contractId: string): Promise<PaymentCI[]> {
-        return await this.paymentCIRepository.getPaymentsByContractId(contractId)
+    async getPaymentsByContractId(contractId: string, monthIndexes?: number[]): Promise<PaymentCI[]> {
+        return await this.paymentCIRepository.getPaymentsByContractId(contractId, monthIndexes)
     }
 
     async createVersement(
@@ -774,17 +774,19 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
     /**
      * Calcule les statistiques de paiement d'un contrat
-     * - totalAmountPaid: somme des targetAmount des paiements (montant total versé)
+     * - totalAmountPaid: somme des accumulatedAmount des paiements (montant total versé)
      * - paymentCount: nombre de documents dans la collection payments
      * - supportCount: nombre total d'aides reçues
      */
     async getContractPaymentStats(contractId: string): Promise<{ totalAmountPaid: number; paymentCount: number; paidMonthsCount: number; supportCount: number }> {
         try {
-            const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
+            const [payments, supports] = await Promise.all([
+                this.paymentCIRepository.getPaymentsByContractId(contractId),
+                this.getSupportHistory(contractId),
+            ])
             const totalAmountPaid = payments.reduce((sum, payment) => sum + (payment.accumulatedAmount || 0), 0)
             const paymentCount = payments.length
             const paidMonthsCount = payments.filter(p => p.status === 'PAID').length
-            const supports = await this.getSupportHistory(contractId)
             const supportCount = supports.length
 
             return { totalAmountPaid, paymentCount, paidMonthsCount, supportCount }

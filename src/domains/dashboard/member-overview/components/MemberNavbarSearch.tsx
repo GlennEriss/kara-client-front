@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, X } from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, Search, UserRound, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useMemberGlobalSearch } from "../hooks/useMemberGlobalSearch";
-import { MemberOverviewPanel } from "./MemberOverviewPanel";
+import { Dialog } from "@/components/ui/dialog";
+import { ModalBody, ModalContent, ModalHeader } from "@/components/ui/modal";
+
+const MemberOverviewPanel = lazy(() =>
+  import("./MemberOverviewPanel").then((module) => ({ default: module.MemberOverviewPanel })),
+);
 
 export function MemberNavbarSearch() {
   const [query, setQuery] = useState("");
@@ -132,11 +137,25 @@ export function MemberNavbarSearch() {
         ) : null}
       </div>
 
-      <MemberOverviewPanel
-        memberId={selectedMemberId}
-        open={panelOpen}
-        onOpenChange={setPanelOpen}
-      />
+      {selectedMemberId && (
+        <Suspense fallback={
+          <Dialog open={panelOpen} onOpenChange={setPanelOpen}>
+            <ModalContent size="4xl" className="max-h-[88vh] w-[94vw]">
+              <ModalHeader title="Dossier membre" description="Chargement des informations du membre…" icon={UserRound} />
+              <ModalBody role="status" className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Chargement en cours…
+              </ModalBody>
+            </ModalContent>
+          </Dialog>
+        }>
+          <MemberOverviewPanel
+            memberId={selectedMemberId}
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+          />
+        </Suspense>
+      )}
     </>
   );
 }

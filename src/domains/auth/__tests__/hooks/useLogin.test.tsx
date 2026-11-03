@@ -4,7 +4,7 @@
  * @see https://vitest.dev/
  */
 
-import { ServiceFactory } from '@/factories/ServiceFactory';
+import { AuthServiceFactory } from '@/domains/auth/services/AuthServiceFactory';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
@@ -56,9 +56,9 @@ vi.mock('@/constantes/routes', () => ({
   },
 }));
 
-// Mock de ServiceFactory
-vi.mock('@/factories/ServiceFactory', () => ({
-  ServiceFactory: {
+// Mock de la factory d'authentification
+vi.mock('@/domains/auth/services/AuthServiceFactory', () => ({
+  AuthServiceFactory: {
     getLoginService: vi.fn(),
   },
 }));
@@ -109,7 +109,7 @@ describe('useLogin', () => {
       signIn: vi.fn(),
     };
 
-    vi.mocked(ServiceFactory.getLoginService).mockReturnValue(mockLoginService);
+    vi.mocked(AuthServiceFactory.getLoginService).mockReturnValue(mockLoginService);
   });
 
   it('devrait initialiser le hook avec un formulaire', () => {

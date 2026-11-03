@@ -18,8 +18,8 @@ export class CaisseImprevueContractsService {
     return CaisseImprevueContractsService.instance
   }
 
-  async getContractsWithFilters(filters?: ContractCIFilters): Promise<ContractCI[]> {
-    return this.contractRepository.getContractsWithFilters(filters)
+  async getContractsWithFilters(filters?: ContractCIFilters, options?: { throwOnError?: boolean }): Promise<ContractCI[]> {
+    return this.contractRepository.getContractsWithFilters(filters, options)
   }
 
   async getContractsStats(filters?: ContractCIFilters): Promise<ContractCIStats> {

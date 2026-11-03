@@ -5,7 +5,8 @@ import { useMemo } from 'react'
 import { startOfMonth, endOfMonth, startOfDay, format } from 'date-fns'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { ContractCI, PaymentCI, CaisseImprevuePaymentFrequency } from '@/types/types'
-import { getPaymentDueDate } from '@/utils/caisse-imprevue-utils'
+import { getCalendarPeriodsCI } from '@/domains/financial/caisse-imprevue/utils/calendar-periods'
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 
 export interface CalendarPaymentItemCI extends PaymentCI {
   contract: ContractCI
@@ -27,11 +28,6 @@ export interface DayPaymentsCI {
 }
 
 const IMMINENT_DAYS = 2 // Configurable
-
-// Fonction pour calculer la date d'échéance
-function calculateDueDate(contract: ContractCI, payment: PaymentCI): Date {
-  return getPaymentDueDate(contract, payment.monthIndex) ?? new Date(contract.firstPaymentDate)
-}
 
 // Fonction pour calculer la couleur d'un versement individuel
 function getPaymentColor(
@@ -154,18 +150,19 @@ export function useCalendarCaisseImprevue(
       const allPayments: Array<PaymentCI & { contract: ContractCI; dueDate: Date }> = []
 
       // Chargement des versements en parallèle (au lieu d'un await séquentiel par contrat).
-      const paymentChunks = await Promise.all(
-        filteredContracts.map(async (contract) => {
+      const paymentChunks = await mapWithConcurrency(
+        filteredContracts, 6, async (contract) => {
           try {
-            const contractPayments = await service.getPaymentsByContractId(contract.id)
+            const periods = getCalendarPeriodsCI(contract, month)
+            if (periods.length === 0) return []
+            const contractPayments = await service.getPaymentsByContractId(contract.id, periods.map((period) => period.monthIndex))
 
             // Les échéances CI ne sont pas toujours pré-créées en base. On
             // reconstitue donc tout l'échéancier pour afficher et ouvrir aussi
             // une échéance encore sans versement.
             const byIndex = new Map(contractPayments.map((payment) => [payment.monthIndex, payment]))
-            const duration = contract.subscriptionCIDuration || 0
             const now = new Date()
-            const paymentsWithDueDate = Array.from({ length: duration }, (_, monthIndex) => {
+            const paymentsWithDueDate = periods.map(({ monthIndex, dueDate }) => {
               const existing = byIndex.get(monthIndex)
               const payment: PaymentCI = existing ?? {
                 id: `month-${monthIndex}`,
@@ -183,7 +180,7 @@ export function useCalendarCaisseImprevue(
               return {
                 ...payment,
                 contract,
-                dueDate: calculateDueDate(contract, payment),
+                dueDate,
               }
             })
 
@@ -199,7 +196,7 @@ export function useCalendarCaisseImprevue(
             )
             return []
           }
-        })
+        }
       )
       allPayments.push(...paymentChunks.flat())
 

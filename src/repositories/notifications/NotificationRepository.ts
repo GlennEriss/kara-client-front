@@ -37,37 +37,6 @@ export class NotificationRepository implements INotificationRepository {
   }
 
   /**
-   * Convertit une entité Notification en document Firestore
-   */
-  private mapEntityToDoc(notification: Omit<Notification, 'id'>): any {
-    const { Timestamp } = require('firebase/firestore')
-    return {
-      ...notification,
-      createdAt: notification.createdAt
-        ? Timestamp.fromDate(
-            notification.createdAt instanceof Date
-              ? notification.createdAt
-              : new Date(notification.createdAt)
-          )
-        : Timestamp.now(),
-      scheduledAt: notification.scheduledAt
-        ? Timestamp.fromDate(
-            notification.scheduledAt instanceof Date
-              ? notification.scheduledAt
-              : new Date(notification.scheduledAt)
-          )
-        : null,
-      sentAt: notification.sentAt
-        ? Timestamp.fromDate(
-            notification.sentAt instanceof Date
-              ? notification.sentAt
-              : new Date(notification.sentAt)
-          )
-        : null,
-    }
-  }
-
-  /**
    * Crée une nouvelle notification
    */
   async create(notification: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification> {

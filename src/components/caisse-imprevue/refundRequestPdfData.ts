@@ -1,4 +1,5 @@
-import { PAYMENT_MODE_LABELS, type RefundRequestPdfData } from '@/components/pdf/mutuelle/DemandeRemboursementPDF'
+import type { RefundRequestPdfData } from '@/components/pdf/mutuelle/DemandeRemboursementPDF'
+import { PAYMENT_MODE_LABELS } from '@/constantes/membership-requests'
 import type { ContractCI, User } from '@/types/types'
 import { getContractEndDate } from '@/utils/caisse-imprevue-utils'
 

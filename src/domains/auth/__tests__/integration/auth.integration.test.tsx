@@ -4,8 +4,7 @@
  * @see https://vitest.dev/
  */
 
-import { RepositoryFactory } from '@/factories/RepositoryFactory';
-import { ServiceFactory } from '@/factories/ServiceFactory';
+import { AuthServiceFactory } from '@/domains/auth/services/AuthServiceFactory';
 import type { User } from '@/types/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
@@ -88,9 +87,7 @@ describe('Intégration: Auth Module (Repository → Service → Hook)', () => {
     // Créer le service avec le repository mocké
     loginService = new LoginService(mockUserRepository);
 
-    // Mock du ServiceFactory
-    vi.spyOn(ServiceFactory, 'getLoginService').mockReturnValue(loginService);
-    vi.spyOn(RepositoryFactory, 'getUserRepository').mockReturnValue(mockUserRepository);
+    vi.spyOn(AuthServiceFactory, 'getLoginService').mockReturnValue(loginService);
   });
 
   describe('Flux complet : Connexion utilisateur', () => {

@@ -36,13 +36,6 @@ import {
  * shared/pdf/DemandeRemboursementPDF.tsx).
  */
 
-export const PAYMENT_MODE_LABELS: Record<string, string> = {
-  airtel_money: 'Airtel Money',
-  mobicash: 'Mobicash',
-  cash: 'Espèces',
-  bank_transfer: 'Virement bancaire',
-}
-
 export interface RefundRequestPdfData {
   /** « Caisse Imprévue », « Caisse Spéciale »… */
   productLabel: string

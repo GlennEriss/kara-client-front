@@ -57,9 +57,10 @@ export class PaymentCIRepository implements IPaymentCIRepository {
     /**
      * Récupère tous les paiements d'un contrat
      */
-    async getPaymentsByContractId(contractId: string): Promise<PaymentCI[]> {
+    async getPaymentsByContractId(contractId: string, monthIndexes?: number[]): Promise<PaymentCI[]> {
+        if (monthIndexes?.length === 0) return [];
         try {
-            const { collection, getDocs, db } = await getFirestore();
+            const { collection, getDocs, db, query, where } = await getFirestore();
             
             const paymentsCollectionRef = collection(
                 db, 
@@ -68,7 +69,14 @@ export class PaymentCIRepository implements IPaymentCIRepository {
                 "payments"
             );
             
-            const snapshot = await getDocs(paymentsCollectionRef);
+            // Une plage numérique reste valable au-delà de la limite des requêtes « in ».
+            // Les périodes intermédiaires éventuelles sont ignorées par le calendrier.
+            const source = monthIndexes
+                ? query(paymentsCollectionRef,
+                    where('monthIndex', '>=', Math.min(...monthIndexes)),
+                    where('monthIndex', '<=', Math.max(...monthIndexes)))
+                : paymentsCollectionRef;
+            const snapshot = await getDocs(source);
             
             return snapshot.docs.map(doc => {
                 const data = doc.data();

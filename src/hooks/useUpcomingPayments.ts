@@ -1,5 +1,7 @@
 'use client'
 
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
+
 import { useQuery } from '@tanstack/react-query'
 import { addDays, differenceInCalendarDays, endOfDay, startOfDay } from 'date-fns'
 import { getAllContracts } from '@/db/caisse/contracts.db'
@@ -78,7 +80,7 @@ async function fetchUpcomingCaisseSpeciale(today: Date, until: Date): Promise<Up
   })) as CaisseContract[]
   const getUser = makeUserCache()
 
-  const chunks = await Promise.all(contracts.map(async (contract): Promise<UpcomingPayment[]> => {
+  const chunks = await mapWithConcurrency(contracts, 6, async (contract): Promise<UpcomingPayment[]> => {
     try {
       const payments = (await listPayments(contract.id || '')) as CaissePayment[]
       const upcoming = payments.filter((payment: CaissePayment) => {
@@ -137,7 +139,7 @@ async function fetchUpcomingCaisseSpeciale(today: Date, until: Date): Promise<Up
       console.error(`[upcoming][CS] contrat ${contract.id}:`, error)
       return []
     }
-  }))
+  })
   return chunks.flat()
 }
 
@@ -146,7 +148,7 @@ async function fetchUpcomingCaisseImprevue(today: Date, until: Date): Promise<Up
   const contracts: ContractCI[] = await service.getContractsCIPaginated({ status: 'ACTIVE' })
   const getUser = makeUserCache()
 
-  const chunks = await Promise.all(contracts.map(async (contract): Promise<UpcomingPayment[]> => {
+  const chunks = await mapWithConcurrency(contracts, 6, async (contract): Promise<UpcomingPayment[]> => {
     try {
       const duration = contract.subscriptionCIDuration || 0
       const amountPerMonth = contract.subscriptionCIAmountPerMonth || 0
@@ -189,7 +191,7 @@ async function fetchUpcomingCaisseImprevue(today: Date, until: Date): Promise<Up
       console.error(`[upcoming][CI] contrat ${contract.id}:`, error)
       return []
     }
-  }))
+  })
   return chunks.flat()
 }
 
@@ -206,7 +208,7 @@ async function fetchUpcomingCredit(
   )
   const getUser = makeUserCache()
 
-  const chunks = await Promise.all(contracts.map(async (contract): Promise<UpcomingPayment[]> => {
+  const chunks = await mapWithConcurrency(contracts, 6, async (contract): Promise<UpcomingPayment[]> => {
     try {
       const payments = await service.getPaymentsByCreditId(contract.id)
       const installments: CreditInstallment[] = computeCreditInstallments(contract, payments, today)
@@ -239,7 +241,7 @@ async function fetchUpcomingCredit(
       console.error(`[upcoming][${product}] contrat ${contract.id}:`, error)
       return []
     }
-  }))
+  })
   return chunks.flat()
 }
 
@@ -248,7 +250,7 @@ async function fetchUpcomingPlacement(today: Date, until: Date): Promise<Upcomin
   const placements: Placement[] = await service.listPlacements({ statuses: ['Active'] })
   const getUser = makeUserCache()
 
-  const chunks = await Promise.all(placements.map(async (placement): Promise<UpcomingPayment[]> => {
+  const chunks = await mapWithConcurrency(placements, 6, async (placement): Promise<UpcomingPayment[]> => {
     try {
       const commissions = await service.listCommissions(placement.id)
       const member = await getUser(placement.benefactorId)
@@ -303,7 +305,7 @@ async function fetchUpcomingPlacement(today: Date, until: Date): Promise<Upcomin
       console.error(`[upcoming][Placement] ${placement.id}:`, error)
       return []
     }
-  }))
+  })
   return chunks.flat()
 }
 

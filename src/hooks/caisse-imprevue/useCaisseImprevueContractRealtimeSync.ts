@@ -3,88 +3,64 @@
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import { collection, db, doc, onSnapshot } from '@/firebase/firestore'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 
-/**
- * Synchronisation temps réel multi-admin pour la page
- * /caisse-imprevue/contrats/[id].
- */
+/** Synchronisation multi-admin : chaque source invalide seulement ses données dépendantes. */
 export function useCaisseImprevueContractRealtimeSync(contractId?: string, enabled = true) {
   const queryClient = useQueryClient()
-  const initialSnapshotsSeen = useRef(0)
-  const invalidateTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!enabled || !contractId) return
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const pendingKeys = new Set<string>()
+    const globalKeys = new Set(['contractsCI', 'contractsCIStats'])
 
-    const scheduleInvalidation = () => {
-      if (invalidateTimer.current) {
-        clearTimeout(invalidateTimer.current)
+    const onChanges = (source: 'contract' | 'payments' | 'supports') => {
+      let initialized = false
+      return () => {
+        if (!active) return
+        // Chaque abonnement a son propre premier événement, même après changement de contrat.
+        if (!initialized) { initialized = true; return }
+        for (const key of ['contractCI', 'contractsCI', 'contractsCIStats', 'support-ci-eligibility']) pendingKeys.add(key)
+        if (source === 'payments') {
+          pendingKeys.add('paymentsCI')
+          pendingKeys.add('contract-payment-stats')
+        }
+        if (source === 'supports') {
+          pendingKeys.add('support-ci-active')
+          pendingKeys.add('support-ci-history')
+          pendingKeys.add('contract-payment-stats')
+        }
+        if (timer) clearTimeout(timer)
+        timer = setTimeout(() => {
+          for (const key of pendingKeys) {
+            queryClient.invalidateQueries({ queryKey: globalKeys.has(key) ? [key] : [key, contractId] })
+          }
+          pendingKeys.clear()
+        }, 250)
       }
-
-      invalidateTimer.current = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['contractCI', contractId] })
-        queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
-        queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
-
-        queryClient.invalidateQueries({ queryKey: ['paymentsCI', contractId] })
-        queryClient.invalidateQueries({ queryKey: ['contract-payment-stats', contractId] })
-
-        queryClient.invalidateQueries({ queryKey: ['support-ci-active', contractId] })
-        queryClient.invalidateQueries({ queryKey: ['support-ci-history', contractId] })
-        queryClient.invalidateQueries({ queryKey: ['support-ci-eligibility', contractId] })
-
-        // Compatibilité avec des clés legacy présentes dans le module.
-        queryClient.invalidateQueries({ queryKey: ['support-ci-active', contractId] })
-        queryClient.invalidateQueries({ queryKey: ['support-ci-history', contractId] })
-        queryClient.invalidateQueries({ queryKey: ['support-ci-eligibility', contractId] })
-      }, 250)
-    }
-
-    const contractDocRef = doc(db, firebaseCollectionNames.contractsCI, contractId)
-    const paymentsCollectionRef = collection(db, firebaseCollectionNames.contractsCI, contractId, 'payments')
-    const supportsCollectionRef = collection(db, firebaseCollectionNames.contractsCI, contractId, 'supports')
-
-    const onAnySnapshot = () => {
-      if (initialSnapshotsSeen.current < 3) {
-        initialSnapshotsSeen.current += 1
-        return
-      }
-      scheduleInvalidation()
     }
 
     const unsubscribeContract = onSnapshot(
-      contractDocRef,
-      onAnySnapshot,
-      (error) => {
-        console.error('[useCaisseImprevueContractRealtimeSync] contract listener error:', error)
-      }
+      doc(db, firebaseCollectionNames.contractsCI, contractId), onChanges('contract'),
+      (error) => console.error('[useCaisseImprevueContractRealtimeSync] contract listener error:', error),
     )
-
     const unsubscribePayments = onSnapshot(
-      paymentsCollectionRef,
-      onAnySnapshot,
-      (error) => {
-        console.error('[useCaisseImprevueContractRealtimeSync] payments listener error:', error)
-      }
+      collection(db, firebaseCollectionNames.contractsCI, contractId, 'payments'), onChanges('payments'),
+      (error) => console.error('[useCaisseImprevueContractRealtimeSync] payments listener error:', error),
     )
-
     const unsubscribeSupports = onSnapshot(
-      supportsCollectionRef,
-      onAnySnapshot,
-      (error) => {
-        console.error('[useCaisseImprevueContractRealtimeSync] supports listener error:', error)
-      }
+      collection(db, firebaseCollectionNames.contractsCI, contractId, 'supports'), onChanges('supports'),
+      (error) => console.error('[useCaisseImprevueContractRealtimeSync] supports listener error:', error),
     )
 
     return () => {
+      active = false
       unsubscribeContract()
       unsubscribePayments()
       unsubscribeSupports()
-      if (invalidateTimer.current) {
-        clearTimeout(invalidateTimer.current)
-      }
+      if (timer) clearTimeout(timer)
     }
   }, [contractId, enabled, queryClient])
 }
-

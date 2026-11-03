@@ -1,4 +1,3 @@
-import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import { NotificationRepository } from '@/repositories/notifications/NotificationRepository'
 import {
   Notification,
@@ -9,7 +8,7 @@ import {
 
 export class NotificationService {
   constructor(
-    private readonly repository: NotificationRepository = RepositoryFactory.getNotificationRepository()
+    private readonly repository: NotificationRepository = new NotificationRepository()
   ) {}
 
   /**

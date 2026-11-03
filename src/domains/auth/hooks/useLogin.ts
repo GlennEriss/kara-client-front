@@ -1,6 +1,6 @@
 import routes from "@/constantes/routes";
 import { LoginMediatorFactory } from "@/factories/LoginMediatorFactory";
-import { ServiceFactory } from "@/factories/ServiceFactory";
+import { AuthServiceFactory } from "../services/AuthServiceFactory";
 import { auth } from '@/firebase/auth';
 import { MemberLoginFormData, memberLoginSchema } from "@/schemas/login.schema";
 import { ADMIN_ROLES } from '@/types/types';
@@ -44,7 +44,7 @@ export const useLogin = () => {
       return;
     }
 
-    const loginService = ServiceFactory.getLoginService();
+    const loginService = AuthServiceFactory.getLoginService();
     
     try {
       const idToken = await loginService.signIn(userData);

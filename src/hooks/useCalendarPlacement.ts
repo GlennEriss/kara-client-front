@@ -6,6 +6,7 @@ import { startOfMonth, endOfMonth, startOfDay, format } from 'date-fns'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { Placement, CommissionPaymentPlacement, PayoutMode } from '@/types/types'
 import { roundFcfa } from '@/utils/placementMoney'
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 
 /**
  * Une échéance de placement est soit une commission réelle (document Firestore),
@@ -251,16 +252,15 @@ export function useCalendarPlacement(
           : activePlacements
 
       // 2. Récupérer les commissions pour chaque placement
-      const allCommissions: Array<
-        CommissionPaymentPlacement & { placement: Placement; kind: PlacementScheduleKind }
-      > = []
+      type ScheduledCommission = CommissionPaymentPlacement & { placement: Placement; kind: PlacementScheduleKind }
 
       const isInMonth = (date: Date) => {
         const dayStart = startOfDay(date)
         return dayStart >= filters.monthStart && dayStart <= filters.monthEnd
       }
 
-      for (const placement of filteredPlacements) {
+      const chunks = await mapWithConcurrency(filteredPlacements, 6, async (placement): Promise<ScheduledCommission[]> => {
+        const allCommissions: ScheduledCommission[] = []
         try {
           const placementCommissions = await service.listCommissions(placement.id)
 
@@ -300,7 +300,9 @@ export function useCalendarPlacement(
             error
           )
         }
-      }
+        return allCommissions
+      })
+      const allCommissions = chunks.flat()
 
       // 3. Enrichir avec les données du bienfaiteur (déjà dans le placement)
       const enrichedCommissions: CalendarCommissionItem[] = allCommissions.map((commission) => {
