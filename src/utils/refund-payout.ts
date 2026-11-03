@@ -2,6 +2,13 @@ import { addDays } from 'date-fns'
 
 export const EARLY_REFUND_PAYOUT_DAYS = 30
 
+export function findCardEarlyWithdrawal(refunds: Array<Record<string, unknown>> = []) {
+  const early = refunds.filter((refund) => refund.type === 'EARLY')
+  return early.find((refund) => refund.status === 'APPROVED')
+    ?? early.find((refund) => refund.status === 'PENDING')
+    ?? early.find((refund) => refund.status === 'PAID')
+}
+
 export function refundDate(value: unknown): Date | null {
   if (!value) return null
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value

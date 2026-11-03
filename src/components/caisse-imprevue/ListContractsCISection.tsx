@@ -26,6 +26,9 @@ import routes from '@/constantes/routes'
 import ContractsFiltersV2 from '@/domains/financial/caisse-imprevue/components/contracts/filters/ContractsFiltersV2'
 import { useContractsCI, type ContractCIFilters } from '@/domains/financial/caisse-imprevue/hooks/useContractsCI'
 import { useContractPaymentStats } from '@/hooks/caisse-imprevue'
+import { useRefundsCI } from '@/hooks/caisse-imprevue/useRefundsCI'
+import { EarlyWithdrawalCardSummary } from '@/components/refunds/EarlyWithdrawalCardSummary'
+import { findCardEarlyWithdrawal } from '@/utils/refund-payout'
 import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks/useSubscriptionsCICache'
 import { useMembers } from '@/hooks/useMembers'
 import { useCaisseImprevueContractsRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractsRealtimeSync'
@@ -205,6 +208,8 @@ function ContractCIGridCard({
   getContractEndDate,
 }: ContractCIGridCardProps) {
   const { data: paymentStats } = useContractPaymentStats(contract.id)
+  const { data: refunds } = useRefundsCI(contract.id)
+  const earlyWithdrawal = findCardEarlyWithdrawal(refunds)
 
   const firstName = contract.memberFirstName || member?.firstName || ''
   const lastName = contract.memberLastName || member?.lastName || ''
@@ -220,7 +225,11 @@ function ContractCIGridCard({
   const isSigned = Boolean(contract.contractStartId)
   const isPendingValidation = contract.memberSignedStatus === 'PENDING_ADMIN'
   const isRejected = contract.memberSignedStatus === 'REJECTED'
-  const statusMeta = STATUS_META_GRID[contract.status] ?? STATUS_META_GRID.ACTIVE
+  const statusMeta = earlyWithdrawal?.status === 'APPROVED'
+    ? { label: 'Remise en attente', dot: 'bg-blue-400', text: 'text-blue-700' }
+    : earlyWithdrawal?.status === 'PENDING'
+      ? { label: 'Retrait demandé', dot: 'bg-blue-400', text: 'text-blue-700' }
+      : STATUS_META_GRID[contract.status] ?? STATUS_META_GRID.ACTIVE
 
   const paid = paymentStats?.paidMonthsCount ?? 0
   const paidAmount = paymentStats?.totalAmountPaid ?? 0
@@ -265,6 +274,8 @@ function ContractCIGridCard({
             {FREQUENCY_LABELS[contract.paymentFrequency] || contract.paymentFrequency}
           </span>
         </div>
+
+        <EarlyWithdrawalCardSummary refund={earlyWithdrawal} />
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">

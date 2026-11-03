@@ -3,9 +3,20 @@ import {
   canFinalizeEarlyRefundAt,
   earlyRefundPayoutDueAt,
   refundDate,
+  findCardEarlyWithdrawal,
 } from '@/utils/refund-payout'
 
 describe('earlyRefundPayoutDueAt', () => {
+  it('retient le retrait en cours pour la carte avant un ancien retrait payé', () => {
+    const approved = { type: 'EARLY', status: 'APPROVED' }
+    expect(findCardEarlyWithdrawal([{ type: 'EARLY', status: 'PAID' }, approved])).toBe(approved)
+  })
+
+  it('conserve un retrait payé et exclut les demandes finales ou archivées', () => {
+    const paid = { type: 'EARLY', status: 'PAID' }
+    expect(findCardEarlyWithdrawal([paid])).toBe(paid)
+    expect(findCardEarlyWithdrawal([{ type: 'FINAL', status: 'APPROVED' }, { type: 'EARLY', status: 'ARCHIVED' }])).toBeUndefined()
+  })
   it('fixe la remise à 30 jours après l’approbation', () => {
     const dueAt = earlyRefundPayoutDueAt({ approvedAt: new Date('2026-11-02T10:00:00.000Z') })
 
