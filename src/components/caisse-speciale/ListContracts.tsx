@@ -34,6 +34,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import { listRefunds } from '@/db/caisse/refunds.db'
+import { EarlyWithdrawalCardSummary } from '@/components/refunds/EarlyWithdrawalCardSummary'
+import { findCardEarlyWithdrawal } from '@/utils/refund-payout'
 import { useCaisseContracts, useCaisseContractsStats } from '@/domains/financial/caisse-speciale/contrats/hooks'
 import { useCaisseSpecialeContractsRealtimeSync } from '@/hooks/caisse-speciale/useCaisseSpecialeContractsRealtimeSync'
 import { useMembersByIds } from '@/domains/memberships/hooks'
@@ -139,6 +141,7 @@ const GROUPED_CAISSE_TAB_TO_TYPES: Record<GroupedCaisseTabValue, [CaisseSpecific
 type ContractRefundDocuments = {
   FINAL?: any
   EARLY?: any
+  earlyWithdrawal?: Record<string, unknown>
 }
 
 const GROUPED_CAISSE_SUBFILTER_OPTIONS: Record<
@@ -965,6 +968,7 @@ const CAISSE_TYPE_SHORT: Record<string, string> = {
 }
 
 interface ContractCSGridCardProps {
+  earlyWithdrawal?: Record<string, unknown>
   contract:        any
   member:          any | undefined
   hasPdf:          boolean
@@ -984,7 +988,7 @@ interface ContractCSGridCardProps {
 }
 
 function ContractCSGridCard({
-  contract, member, hasPdf, canReplace, hasRefundFinal, hasRefundEarly, isGroup,
+  contract, member, hasPdf, canReplace, hasRefundFinal, hasRefundEarly, isGroup, earlyWithdrawal,
   onView, onViewPdf, onUpload, onDownload, onValidate, onReplace, onDelete,
   onViewRefundFinal, onViewRefundEarly,
 }: ContractCSGridCardProps) {
@@ -1015,7 +1019,11 @@ function ContractCSGridCard({
   // Libre : pas de mensualité du tout (le membre verse ce qu'il veut) → tiret.
   const isLibreType = contract.caisseType === 'LIBRE' || contract.caisseType === 'LIBRE_CHARITABLE'
 
-  const statusMeta = STATUS_META_CS[contract.status] ?? { label: contract.status, dot: 'bg-gray-400', text: 'text-gray-500' }
+  const statusMeta = earlyWithdrawal?.status === 'APPROVED'
+    ? { label: 'Remise en attente', dot: 'bg-blue-400', text: 'text-blue-700' }
+    : earlyWithdrawal?.status === 'PENDING'
+      ? { label: 'Retrait demandé', dot: 'bg-blue-400', text: 'text-blue-700' }
+      : STATUS_META_CS[contract.status] ?? { label: contract.status, dot: 'bg-gray-400', text: 'text-gray-500' }
   const typeLabel  = CAISSE_TYPE_SHORT[contract.caisseType] ?? contract.caisseType ?? 'CS'
 
   const nextDue = contract.nextDueAt
@@ -1058,6 +1066,8 @@ function ContractCSGridCard({
           </span>
           <span className="text-[10px] font-medium text-gray-400">{typeLabel}</span>
         </div>
+
+        <EarlyWithdrawalCardSummary refund={earlyWithdrawal} />
 
         {/* Stats 2×2 */}
         <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
@@ -1433,6 +1443,7 @@ const ListContracts = () => {
 
   // Charger les refunds pour chaque contrat
   useEffect(() => {
+    let cancelled = false
     const loadRefunds = async () => {
       if (!contractsData || contractsData.length === 0) return
       
@@ -1448,10 +1459,12 @@ const ListContracts = () => {
           const earlyRefundWithDoc = refunds.find(
             (r: any) => r.type === 'EARLY' && r.document?.url
           )
-          if (finalRefundWithDoc || earlyRefundWithDoc) {
+          const earlyWithdrawal = findCardEarlyWithdrawal(refunds)
+          if (finalRefundWithDoc || earlyRefundWithDoc || earlyWithdrawal) {
             refundsMap[contract.id] = {
               FINAL: finalRefundWithDoc,
               EARLY: earlyRefundWithDoc,
+              earlyWithdrawal,
             }
           }
         } catch (error) {
@@ -1459,10 +1472,11 @@ const ListContracts = () => {
         }
       }
       
-      setContractRefunds(refundsMap)
+      if (!cancelled) setContractRefunds(refundsMap)
     }
     
     loadRefunds()
+    return () => { cancelled = true }
   }, [contractsData])
 
   // Gestionnaires d'événements
@@ -2406,6 +2420,7 @@ const ListContracts = () => {
                       <ContractCSGridCard
                         contract={contract}
                         member={member}
+                        earlyWithdrawal={contractRefunds[contract.id]?.earlyWithdrawal}
                         hasPdf={hasValidContractPdf(contract)}
                         canReplace={canReplaceContractPdf(contract)}
                         hasRefundFinal={!!contractRefunds[contract.id]?.FINAL?.document?.url}
