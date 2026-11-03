@@ -23,10 +23,12 @@ import { CallHistorySheet } from '@/components/calendrier/CallHistorySheet'
 import { LogCallModal, type CallTarget } from '@/components/calendrier/LogCallModal'
 import { addDays, format, isBefore, startOfDay, startOfWeek } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { AlertTriangle, Building2, Calendar, CalendarPlus, ChevronDown, ChevronRight, Download, History, Loader2, MessageCircle, Phone, PhoneCall, RefreshCw, User, Users } from 'lucide-react'
+import { AlertTriangle, Building2, Calendar, CalendarPlus, ChevronDown, ChevronRight, CreditCard, Download, History, Loader2, MessageCircle, Phone, PhoneCall, RefreshCw, User, Users } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { useShownAmount } from './useShownAmount'
+import Link from 'next/link'
+import { CalendarContractLink } from './CalendarContractLink'
 
 interface OverdueCaissePaymentsListProps {
   /** Produit (caisse) dont on affiche les retards */
@@ -218,7 +220,7 @@ function reminderTemplateFor(group: OverdueGroup): { key: string; variables: Rec
 
 export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsListProps) {
   const shownAmount = useShownAmount()
-  const { isSuperAdmin } = useMyAccess()
+  const { isSuperAdmin, canRecordPayments } = useMyAccess()
   const { data: items = [], isLoading, isError, refetch, isFetching } = useOverduePayments([product])
   // Textes de relance personnalisables (Système → Modèles de messages).
   const renderMessage = useRenderMessageTemplate()
@@ -747,6 +749,25 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {g.payments.every((payment) => payment.contractId === g.payments[0].contractId) && (
+                                <CalendarContractLink product={g.product} contractId={g.payments[0].contractId} className="h-8 whitespace-nowrap" />
+                              )}
+                                <Button
+                                  size="sm"
+                                  asChild
+                                  variant={canRecordPayments ? 'default' : 'outline'}
+                                  className={canRecordPayments ? 'h-8 bg-emerald-600 text-white hover:bg-emerald-700' : 'h-8'}
+                                  title={isMulti ? "Ouvrir l'échéance la plus ancienne à régler" : "Ouvrir l'échéance à régler"}
+                                >
+                                  <Link
+                                    href={g.payments[0].paymentHref}
+                                    scroll={false}
+                                    onClick={(event) => event.stopPropagation()}
+                                  >
+                                    <CreditCard className="h-3.5 w-3.5 sm:mr-1.5" />
+                                    <span className="hidden sm:inline">{canRecordPayments ? 'Payer' : 'Échéance'}</span>
+                                  </Link>
+                                </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -801,8 +822,11 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                                 </p>
                                 <div className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
                                   {g.payments.map((p) => (
-                                    <div key={p.key} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
-                                      <span className="text-gray-600">{p.typeLabel}</span>
+                                    <div key={p.key} className="grid gap-2 px-3 py-2 text-sm sm:grid-cols-[minmax(120px,1fr)_140px_150px_70px_auto] sm:items-center">
+                                      <span className="min-w-0 text-gray-600">
+                                        {p.typeLabel}
+                                        <span className="block max-w-[240px] truncate text-xs text-gray-400" title={p.contractId}>Contrat #{p.contractId}</span>
+                                      </span>
                                       <span className="flex items-center gap-1.5 text-gray-700">
                                         <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                                         {format(p.dueAt, 'dd/MM/yyyy', { locale: fr })}
@@ -813,6 +837,15 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                                       <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 tabular-nums">
                                         {p.daysOverdue} j
                                       </span>
+                                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                                        <CalendarContractLink product={p.product} contractId={p.contractId} className="h-8 whitespace-nowrap" />
+                                        <Button asChild size="sm" variant="outline" className="h-8 border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                                          <Link href={p.paymentHref} scroll={false} onClick={(event) => event.stopPropagation()}>
+                                            <CreditCard className="mr-1.5 h-3.5 w-3.5" />
+                                            {canRecordPayments ? 'Payer' : 'Échéance'}
+                                          </Link>
+                                        </Button>
+                                      </div>
                                     </div>
                                   ))}
                                 </div>

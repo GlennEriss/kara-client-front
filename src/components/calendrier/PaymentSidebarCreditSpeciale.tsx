@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { Calendar, CreditCard, User, X } from "lucide-react"
 import { useState } from "react"
 import { useShownAmount } from "./useShownAmount"
+import { CalendarContractLink } from "./CalendarContractLink"
 
 interface PaymentSidebarCreditSpecialeProps {
   payment: CalendarPaymentItemCredit
@@ -93,11 +94,16 @@ export function PaymentSidebarCreditSpeciale({
           </div>
         </div>
 
-        <div className="p-5 border-t border-gray-100">
+        <div className="p-5 border-t border-gray-100 space-y-3">
+          <CalendarContractLink
+            product={payment.contract.creditType === 'FIXE' ? 'Crédit Fixe' : payment.contract.creditType === 'AIDE' ? 'Crédit Aide' : 'Crédit Spéciale'}
+            contractId={payment.contract.id}
+            className="w-full"
+          />
           {!canRecordPayments ? (
             // L'agent de recouvrement relance le membre ; l'encaissement reste aux administrateurs.
             <p className="rounded-xl border border-dashed border-gray-200 bg-white p-3 text-center text-xs text-gray-500">
-              Encaissement réservé aux administrateurs.
+              L’autorisation « Encaisser depuis le calendrier » est nécessaire.
             </p>
           ) : canRecordPayment ? (
             <Button
@@ -121,7 +127,7 @@ export function PaymentSidebarCreditSpeciale({
       />
 
       <CreditPaymentModal
-        isOpen={showPaymentModal}
+        isOpen={showPaymentModal && canRecordPayments}
         onClose={() => setShowPaymentModal(false)}
         creditId={payment.contract.id}
         defaultAmount={Math.max(payment.remainingAmount, 0)}

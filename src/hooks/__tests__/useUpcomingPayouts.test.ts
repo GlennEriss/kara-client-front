@@ -11,9 +11,9 @@ describe('getPayoutDueAt', () => {
   })
 
   it('conserve le délai de 30 jours pour un retrait anticipé', () => {
-    const requestDate = new Date('2026-11-10T15:30:00')
+    const approvalDate = new Date('2026-11-10T15:30:00')
 
-    expect(getPayoutDueAt(requestDate, 'EARLY')).toEqual(
+    expect(getPayoutDueAt(approvalDate, 'EARLY')).toEqual(
       new Date('2026-12-10T00:00:00'),
     )
   })

@@ -1,4 +1,5 @@
 import type { CaisseContract } from '@/types/types'
+import type { EarlyWithdrawalFilter } from '@/domains/financial/refunds/earlyWithdrawalFilter'
 
 export type ContractStatusFilter = CaisseContract['status'] | 'all'
 export type ContractTypeFilter = 'INDIVIDUAL' | 'GROUP' | 'all'
@@ -25,6 +26,7 @@ export interface ContractFilters {
   nextDueAtFrom?: Date
   nextDueAtTo?: Date
   overdueOnly?: boolean
+  earlyWithdrawal?: EarlyWithdrawalFilter
   search?: string
   monthlyAmountMin?: number
   monthlyAmountMax?: number

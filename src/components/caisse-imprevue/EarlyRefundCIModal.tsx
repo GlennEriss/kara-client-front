@@ -159,7 +159,7 @@ export default function EarlyRefundCIModal({
     }
 
     if (!withdrawalProofFile) {
-      toast.error('Veuillez téléverser la preuve du retrait')
+      toast.error('Veuillez téléverser le justificatif de la demande')
       return
     }
 
@@ -242,11 +242,11 @@ export default function EarlyRefundCIModal({
             </div>
           </div>
 
-          {/* Section 1 : Informations du retrait */}
+          {/* Section 1 : Informations de la demande */}
           <div className="space-y-4 border-b pb-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Informations du retrait
+              Informations de la demande
             </h3>
 
             {/* Motif du retrait */}
@@ -269,11 +269,11 @@ export default function EarlyRefundCIModal({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Date de retrait */}
+              {/* Date de la demande */}
               <div>
                 <Label htmlFor="withdrawalDate" className="flex items-center gap-2 mb-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  Date de retrait *
+                  Date de la demande *
                 </Label>
                 <Input
                   id="withdrawalDate"
@@ -288,11 +288,11 @@ export default function EarlyRefundCIModal({
                 )}
               </div>
 
-              {/* Heure de retrait */}
+              {/* Heure de la demande */}
               <div>
                 <Label htmlFor="withdrawalTime" className="flex items-center gap-2 mb-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  Heure de retrait * (HH:mm)
+                  Heure de la demande * (HH:mm)
                 </Label>
                 <Input
                   id="withdrawalTime"
@@ -308,11 +308,11 @@ export default function EarlyRefundCIModal({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Montant retiré */}
+              {/* Montant prévu */}
               <div>
                 <Label htmlFor="withdrawalAmount" className="flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  Montant retiré (FCFA) *
+                  Montant prévu (FCFA) *
                 </Label>
                 <Input
                   id="withdrawalAmount"
@@ -429,11 +429,11 @@ export default function EarlyRefundCIModal({
               Pièces justificatives
             </h3>
 
-            {/* Preuve du retrait */}
+            {/* Justificatif de la demande */}
             <div>
               <Label htmlFor="withdrawalProof" className="flex items-center gap-2 mb-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                Preuve du retrait * (Image uniquement, max 20MB)
+                Justificatif de la demande * (Image uniquement, max 20MB)
               </Label>
               <div className="space-y-2">
                 <Input
@@ -459,7 +459,7 @@ export default function EarlyRefundCIModal({
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Téléversez une photo de la preuve du retrait (JPEG, PNG, WebP, max 20MB)
+                Téléversez une pièce justifiant la demande (JPEG, PNG, WebP, max 20MB)
               </p>
             </div>
 
@@ -531,7 +531,7 @@ export default function EarlyRefundCIModal({
                 </div>
                 {withdrawalAmount && withdrawalAmount > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Montant retiré :</span>
+                    <span className="text-gray-600">Montant prévu :</span>
                     <span className="font-semibold text-blue-600">
                       {withdrawalAmount.toLocaleString('fr-FR')} FCFA
                     </span>
@@ -553,8 +553,8 @@ export default function EarlyRefundCIModal({
           <Alert className="border-orange-200 bg-orange-50">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-700">
-              <strong>Important :</strong> Le retrait anticipé sera traité dans un délai de 45 jours.
-              Assurez-vous que tous les documents sont correctement remplis et signés.
+              <strong>Important :</strong> Cette validation démarre le délai de 30 jours.
+              La remise d'argent devra ensuite être confirmée séparément.
             </AlertDescription>
           </Alert>
         </form>

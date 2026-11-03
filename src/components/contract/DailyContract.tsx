@@ -5,6 +5,8 @@ import { StatStrip } from '@/components/ui/stat-strip'
 import { contractBonusSummary, formatContractPeriod } from '@/services/caisse/contractLabels'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
+import { EarlyRefundHandover } from '@/components/refunds/EarlyRefundHandover'
+import { isCaisseSpecialeContractLocked } from '@/utils/contract-lock'
 import { backOr } from '@/lib/backNavigation'
 import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
 import { ContractCalendarGrid, useContractCalendar } from '@/components/contract/calendar'
@@ -31,11 +33,11 @@ import { useGroupMembers, useMember } from '@/hooks/useMembers'
 import { earlyRefundDefaultValues, earlyRefundSchema, type EarlyRefundFormData } from '@/schemas/schemas'
 import { approveRefund, cancelEarlyRefund, markRefundPaid, requestEarlyRefund, requestFinalRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import type { RefundDocument } from '@/types/types'
-import { getContractStatusConfig } from '@/utils/contract-status'
+import { CaisseContractHeader } from './CaisseContractHeader'
 import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, AlertTriangle, ArrowLeft, Banknote, Building2, Calendar, CalendarDays, CheckCircle, CheckCircle2, Clock, CreditCard, DollarSign, Download, ExternalLink, Eye, FileText, History, Loader2, RefreshCw, Smartphone, Trash2, TrendingUp, Upload, XCircle } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Banknote, Building2, Calendar, CalendarDays, CheckCircle, CheckCircle2, Clock, CreditCard, DollarSign, Download, ExternalLink, Eye, FileText, History, Loader2, RefreshCw, Smartphone, Trash2, TrendingUp, Upload, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -336,26 +338,7 @@ export default function DailyContract({ id }: Props) {
   const bonusSummary = contractBonusSummary(data as any, settings.data, (data as any).payments)
   const currentBonus = bonusSummary.amount
 
-  const isClosed = data.status === 'CLOSED' || data.status === 'RESCINDED'
-  const headerStatusConfig = getContractStatusConfig(data.status)
-  const HeaderStatusIcon = headerStatusConfig.icon
-  const headerBadges = (
-    <>
-      <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-        {isGroupContract ? 'Contrat de Groupe' : 'Contrat Journalier'}
-      </Badge>
-      <Badge className={`${headerStatusConfig.bg} ${headerStatusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
-        <HeaderStatusIcon className="h-4 w-4" />
-        {headerStatusConfig.label}
-      </Badge>
-      {isClosed && (
-        <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg px-4 py-2 flex items-center gap-1.5">
-          <XCircle className="h-4 w-4" />
-          Contrat fermé
-        </Badge>
-      )}
-    </>
-  )
+  const isClosed = isCaisseSpecialeContractLocked(data.status)
 
   // Calculer le nominal payé en sommant tous les montants versés par mois
   const nominalPaid: number = Array.from({ length: totalMonths }).reduce((sum: number, _, monthIndex: number) => {
@@ -682,36 +665,33 @@ export default function DailyContract({ id }: Props) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* En-tête avec bouton retour */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              variant="outline"
-              onClick={() => backOr(router, routes.admin.caisseSpeciale)}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Retour
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={() => router.push(routes.admin.caisseSpecialeContractPayments(id))}
-              className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
-            >
-              <History className="h-4 w-4" />
-              Historique des versements
-            </Button>
+        <CaisseContractHeader
+          contractLabel={isGroupContract ? 'Contrat de Groupe' : 'Contrat Journalier'}
+          status={data.status}
+          refunds={refunds}
+          readOnly={isClosed}
+          onBack={() => backOr(router, routes.admin.caisseSpeciale)}
+        >
+          <Button
+            variant="outline"
+            onClick={() => router.push(routes.admin.caisseSpecialeContractPayments(id))}
+            className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+          >
+            <History className="h-4 w-4" />
+            Historique des versements
+          </Button>
 
-            <EmergencyContact emergencyContact={(data as any)?.emergencyContact} contractKind="CS" contractId={(data as any)?.id} />
-          </div>
+          <Button
+            variant="outline"
+            onClick={() => router.push(routes.admin.caisseSpecialeContractRefunds(id))}
+            className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Remboursements
+          </Button>
 
-          <div className="hidden lg:flex flex-wrap gap-2">
-            {headerBadges}
-          </div>
-          </div>
-        <div className="flex flex-wrap gap-2 lg:hidden">
-          {headerBadges}
-        </div>
+          <EmergencyContact emergencyContact={(data as any)?.emergencyContact} contractKind="CS" contractId={(data as any)?.id} />
+        </CaisseContractHeader>
 
         {/* Titre principal */}
         <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
@@ -1027,17 +1007,11 @@ export default function DailyContract({ id }: Props) {
                 refunds.map((r: any) => {
                   const isEarlyRefund = r.type === 'EARLY'
                   const getRefundStatusConfig = (status: string) => {
-                    if (isEarlyRefund) {
-                      if (status === 'ARCHIVED') {
-                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
-                      }
-                      return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Enregistré' }
-                    }
                     switch (status) {
                       case 'PENDING':
                         return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock, label: 'En attente' }
                       case 'APPROVED':
-                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle, label: 'Approuvé' }
+                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle, label: isEarlyRefund ? 'Approuvé · remise en attente' : 'Approuvé' }
                       case 'PAID':
                         return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
                       default:
@@ -1219,6 +1193,13 @@ export default function DailyContract({ id }: Props) {
                       )}
                     </div>
                   )}
+
+                      {r.status === 'APPROVED' && isEarlyRefund && (
+                        <EarlyRefundHandover
+                          fund="CS" contractId={id} refund={r} userId={user?.uid}
+                          onSuccess={async () => { await refetch(); await reloadRefunds() }}
+                        />
+                      )}
 
                       {r.status === 'APPROVED' && !isEarlyRefund && (
                         <div className="space-y-4">
@@ -2862,6 +2843,7 @@ export default function DailyContract({ id }: Props) {
       )}
 
       <EarlyWithdrawalRequestModal
+        approvalOnly
         isOpen={showEarlyRefundModal}
         onClose={() => setShowEarlyRefundModal(false)}
         isSubmitting={isRefunding}

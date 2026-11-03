@@ -17,6 +17,8 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Building2, Calendar, Download, HandCoins, Phone, RefreshCw, User } from 'lucide-react'
 import { toast } from 'sonner'
+import { useMyAccess } from '@/hooks/useMyAccess'
+import { CalendarContractLink } from './CalendarContractLink'
 
 function fmtAmount(n: number): string {
   return n.toLocaleString('fr-FR').replace(/\s/g, ' ')
@@ -77,16 +79,19 @@ function KindBadge({ payout }: { payout: UpcomingPayout }) {
 }
 
 function referenceLabel(payout: UpcomingPayout): string {
-  if (payout.kind === 'EARLY') return 'Date de la demande de retrait'
+  if (payout.kind === 'EARLY') return 'Date d’approbation du retrait'
   return payout.product === 'Placement' ? 'Date de fin du placement' : 'Date de fin du contrat'
 }
 
 /**
  * Remises d'argent à venir (Caisse Spéciale + Caisse Imprévue + Placement) :
  * une remise finale est due à la fin du contrat ou du placement. Pour un
- * retrait anticipé, l'argent est dû 30 jours après la demande.
+ * retrait anticipé, l'argent est dû 30 jours après l'approbation.
  */
 export function UpcomingPayoutsList() {
+  const { can } = useMyAccess()
+  const showContractLinks = can('calendar.contracts')
+  const columnCount = showContractLinks ? 10 : 9
   // Profondeur de prévision : jusqu'où l'admin veut anticiper les sorties.
   const [horizonMonths, setHorizonMonths] = useState<number>(PAYOUT_HORIZON_MONTHS)
   const { data: payouts = [], isLoading, isError, refetch, isFetching } =
@@ -228,13 +233,14 @@ export function UpcomingPayoutsList() {
                   <TableHead>Fait générateur</TableHead>
                   <TableHead>Remise prévue</TableHead>
                   <TableHead className="text-right">Échéance</TableHead>
+                  {showContractLinks && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading &&
                   [...Array(4)].map((_, i) => (
                     <TableRow key={`skeleton-${i}`}>
-                      <TableCell colSpan={9}>
+                      <TableCell colSpan={columnCount}>
                         <Skeleton className="h-8 w-full" />
                       </TableCell>
                     </TableRow>
@@ -242,7 +248,7 @@ export function UpcomingPayoutsList() {
 
                 {!isLoading && isError && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-10 text-red-600">
+                    <TableCell colSpan={columnCount} className="text-center py-10 text-red-600">
                       Erreur lors du chargement des remises à venir.
                     </TableCell>
                   </TableRow>
@@ -250,7 +256,7 @@ export function UpcomingPayoutsList() {
 
                 {!isLoading && !isError && payouts.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-10 text-gray-500">
+                    <TableCell colSpan={columnCount} className="text-center py-10 text-gray-500">
                       Aucune remise d&apos;argent en attente.
                     </TableCell>
                   </TableRow>
@@ -319,6 +325,11 @@ export function UpcomingPayoutsList() {
                       <TableCell className="text-right">
                         <DueBadge daysUntil={p.daysUntil} />
                       </TableCell>
+                      {showContractLinks && (
+                        <TableCell className="text-right">
+                          <CalendarContractLink product={p.product} contractId={p.contractId} className="h-8 whitespace-nowrap" />
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
               </TableBody>

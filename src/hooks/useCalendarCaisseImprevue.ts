@@ -2,9 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { startOfMonth, endOfMonth, startOfDay, format, addDays, addMonths } from 'date-fns'
+import { startOfMonth, endOfMonth, startOfDay, format } from 'date-fns'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { ContractCI, PaymentCI, CaisseImprevuePaymentFrequency } from '@/types/types'
+import { getPaymentDueDate } from '@/utils/caisse-imprevue-utils'
 
 export interface CalendarPaymentItemCI extends PaymentCI {
   contract: ContractCI
@@ -29,15 +30,7 @@ const IMMINENT_DAYS = 2 // Configurable
 
 // Fonction pour calculer la date d'échéance
 function calculateDueDate(contract: ContractCI, payment: PaymentCI): Date {
-  const firstPaymentDate = new Date(contract.firstPaymentDate)
-  
-  if (contract.paymentFrequency === 'DAILY') {
-    // Pour les contrats journaliers, chaque jour correspond à un versement
-    return addDays(firstPaymentDate, payment.monthIndex)
-  } else {
-    // Pour les contrats mensuels, chaque mois correspond à un versement
-    return addMonths(firstPaymentDate, payment.monthIndex)
-  }
+  return getPaymentDueDate(contract, payment.monthIndex) ?? new Date(contract.firstPaymentDate)
 }
 
 // Fonction pour calculer la couleur d'un versement individuel
@@ -166,12 +159,33 @@ export function useCalendarCaisseImprevue(
           try {
             const contractPayments = await service.getPaymentsByContractId(contract.id)
 
-            // Calculer la date d'échéance pour chaque versement
-            const paymentsWithDueDate = contractPayments.map((p: PaymentCI) => ({
-              ...p,
-              contract,
-              dueDate: calculateDueDate(contract, p),
-            }))
+            // Les échéances CI ne sont pas toujours pré-créées en base. On
+            // reconstitue donc tout l'échéancier pour afficher et ouvrir aussi
+            // une échéance encore sans versement.
+            const byIndex = new Map(contractPayments.map((payment) => [payment.monthIndex, payment]))
+            const duration = contract.subscriptionCIDuration || 0
+            const now = new Date()
+            const paymentsWithDueDate = Array.from({ length: duration }, (_, monthIndex) => {
+              const existing = byIndex.get(monthIndex)
+              const payment: PaymentCI = existing ?? {
+                id: `month-${monthIndex}`,
+                contractId: contract.id,
+                monthIndex,
+                status: 'DUE',
+                targetAmount: contract.subscriptionCIAmountPerMonth || 0,
+                accumulatedAmount: 0,
+                versements: [],
+                createdAt: now,
+                updatedAt: now,
+                createdBy: '',
+                updatedBy: '',
+              }
+              return {
+                ...payment,
+                contract,
+                dueDate: calculateDueDate(contract, payment),
+              }
+            })
 
             // Filtrer les versements du mois
             return paymentsWithDueDate.filter((p) => {

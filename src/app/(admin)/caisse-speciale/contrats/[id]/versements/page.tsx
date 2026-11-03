@@ -21,6 +21,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import React from 'react'
 import { resolveContractEndAt } from '@/services/caisse/contractDates'
+import { contractBonusSummary } from '@/services/caisse/contractLabels'
+import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 
 // Fonction de traduction des statuts de contrat
 const translateContractStatus = (status: string): string => {
@@ -65,6 +67,8 @@ export default function ContractPaymentsPage() {
 
   // Récupérer les versements du contrat
   const { data: payments = [], isLoading: isLoadingPayments, error: paymentsError } = useContractPayments(contractId)
+  const { data: activeSettings, isLoading: isLoadingActiveSettings } = useActiveCaisseSettingsByType(contract?.caisseType as any)
+  const bonusSummary = contract ? contractBonusSummary(contract as any, activeSettings as any, payments) : null
   const { data: member } = useMember(contract?.memberId)
   const { data: group } = useQuery({
     queryKey: ['group', contract?.groupeId],
@@ -170,28 +174,6 @@ export default function ContractPaymentsPage() {
     // Si on n'est pas en train de charger mais qu'on n'a pas d'info, on reste sur "Chargement..."
     // pour éviter l'effet de clignotement entre ID et nom
     return 'Chargement...'
-  }
-
-  // Fonction pour calculer le pourcentage de bonus applicable pour un versement donné
-  const getBonusPercentageForPayment = (monthIndex: number, monthsPlanned: number) => {
-    // Mois 1-3 : pas de bonus
-    if (monthIndex < 3) {
-      return null
-    }
-
-    // Si c'est le dernier mois, utiliser le pourcentage de ce mois
-    if (monthIndex + 1 === monthsPlanned) {
-      const bonusKey = `M${monthIndex + 1}`
-      return contractSettings?.bonusTable?.[bonusKey] || null
-    }
-
-    // Pour les autres mois (à partir du mois 4), utiliser le pourcentage du mois précédent
-    if (monthIndex >= 3) {
-      const bonusKey = `M${monthIndex}` // Mois précédent
-      return contractSettings?.bonusTable?.[bonusKey] || null
-    }
-
-    return null
   }
 
   // Fonction pour exporter les versements en Excel
@@ -935,10 +917,19 @@ export default function ContractPaymentsPage() {
             </div>
           </div>
 
-          {/* Informations sur les bonus et pénalités */}
+          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <p className="text-sm font-medium text-blue-900">Bonus global du contrat à ce jour</p>
+            <p className="mt-1 text-xl font-bold text-blue-900">
+              {isLoadingPayments || isLoadingActiveSettings ? 'Chargement…' : `${(bonusSummary?.amount || 0).toLocaleString('fr-FR')} FCFA`}
+            </p>
+            {!isLoadingPayments && !isLoadingActiveSettings && <p className="mt-1 text-xs text-blue-800">{bonusSummary?.subtitle}</p>}
+            <p className="mt-2 text-xs text-blue-800">Le taux retenu s’applique au total versé. Les pénalités sont déduites du bonus.</p>
+          </div>
+
+          {/* Informations sur le barème enregistré au contrat */}
           {contractSettings && !loadingSettings && (
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">Barème des bonus et pénalités</h4>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Barème enregistré au contrat (historique)</h4>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Bonus */}
@@ -1091,82 +1082,8 @@ export default function ContractPaymentsPage() {
                     </div>
                   </div>
 
-                  {/* Affichage des bonus et pénalités */}
+                  {/* Le bonus est global ; seules les pénalités portent sur un versement. */}
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* Bonus */}
-                    <div className="flex items-center gap-2 text-sm">
-                      <TrendingUp className="h-4 w-4 text-blue-600" />
-                      <span className="text-gray-600">Bonus:</span>
-                      {(() => {
-                        const bonusPercentage = contract?.monthsPlanned && payment.dueMonthIndex !== undefined 
-                          ? getBonusPercentageForPayment(payment.dueMonthIndex, contract.monthsPlanned)
-                          : null
-                        
-                        const bonusApplied = (payment as any).bonusApplied
-                        const isPaid = payment.status === 'PAID' || payment.paidAt
-
-                        if (bonusApplied && bonusApplied > 0) {
-                          return (
-                            <span className="font-medium text-green-700">
-                              {bonusApplied.toLocaleString()} FCFA
-                              {bonusPercentage && (
-                                <span className="ml-1 text-xs">({bonusPercentage}%)</span>
-                              )}
-                            </span>
-                          )
-                        } else if (bonusPercentage && bonusPercentage > 0 && payment.dueMonthIndex !== undefined) {
-                          // Pour LIBRE, utiliser accumulatedAmount (montant réel accumulé jusqu'au mois précédent)
-                          // Pour STANDARD et JOURNALIERE, utiliser monthlyAmount * (dueMonthIndex + 1)
-                          const caisseType = (contract as any)?.caisseType || 'STANDARD'
-                          // Pour LIBRE, le bonus est calculé sur le montant accumulé AVANT ce paiement
-                          // Pour STANDARD et JOURNALIERE, utiliser monthlyAmount * mois
-                          const baseForBonus =
-                            caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
-                            ? ((payment as any).accumulatedAmount || payment.amount || 0)
-                            : (contract?.monthlyAmount || 0) * (payment.dueMonthIndex + 1)
-                          
-                          // Calculer le bonus sur le montant de base avec le pourcentage du mois précédent
-                          const expectedBonusAmount = Math.round((baseForBonus * bonusPercentage) / 100)
-                          
-                          // Si le versement est payé, utiliser bonusApplied si disponible, sinon calculer
-                          if (isPaid) {
-                            // Si bonusApplied existe, l'utiliser (c'est le bonus réellement appliqué)
-                            if (bonusApplied && bonusApplied > 0) {
-                              return (
-                                <span className="font-medium text-green-700">
-                                  {bonusApplied.toLocaleString()} FCFA ({bonusPercentage}%)
-                                </span>
-                              )
-                            }
-                            // Sinon, calculer avec accumulatedAmount
-                            return (
-                              <span className="font-medium text-green-700">
-                                {expectedBonusAmount.toLocaleString()} FCFA ({bonusPercentage}%)
-                              </span>
-                            )
-                          }
-                          
-                          // Sinon, afficher comme bonus attendu
-                          return (
-                            <span className="font-medium text-blue-600">
-                              Attendu: {expectedBonusAmount.toLocaleString()} FCFA ({bonusPercentage}%)
-                            </span>
-                          )
-                        } else if (bonusPercentage && bonusPercentage > 0) {
-                          // Si pas de montant, afficher juste le pourcentage
-                          const prefix = isPaid ? '' : 'Attendu: '
-                          const colorClass = isPaid ? 'text-green-700' : 'text-gray-500'
-                          return (
-                            <span className={`font-medium ${colorClass}`}>
-                              {prefix}{bonusPercentage}%
-                            </span>
-                          )
-                        } else {
-                          return <span className="font-medium text-gray-500">Non</span>
-                        }
-                      })()}
-                    </div>
-
                     {/* Pénalités */}
                     <div className="flex items-center gap-2 text-sm">
                       <AlertTriangle className="h-4 w-4 text-red-600" />

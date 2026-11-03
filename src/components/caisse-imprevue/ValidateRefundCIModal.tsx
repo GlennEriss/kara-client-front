@@ -11,10 +11,11 @@ import { updateRefundCI } from '@/db/caisse/refunds.db'
 import { getStorageInstance } from '@/firebase/storage'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { getAdminById } from '@/db/admin.db'
-import { format } from 'date-fns'
+import { addDays, format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
+import { EARLY_REFUND_PAYOUT_DAYS } from '@/utils/refund-payout'
 
 function formatAmount(value: number): string {
   return new Intl.NumberFormat('fr-FR').format(value) + ' FCFA'
@@ -81,11 +82,15 @@ export default function ValidateRefundCIModal({ open, onClose, contractId, refun
       const admin = await getAdminById(user.uid)
       const approvedByName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : user.uid
 
+      const approvedAt = new Date()
       await updateRefundCI(contractId, refund.id, {
         status: 'APPROVED',
         approvedBy: user.uid,
         approvedByName,
-        approvedAt: new Date(),
+        approvedAt,
+        ...(refund?.type === 'EARLY'
+          ? { payoutDueAt: addDays(approvedAt, EARLY_REFUND_PAYOUT_DAYS) }
+          : {}),
         adminDocumentUrl,
       })
 

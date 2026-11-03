@@ -5,6 +5,7 @@ import PaymentCSModal from "@/components/contract/PaymentCSModal"
 import { getGroupById } from "@/db/group.db"
 import { getUserById } from "@/db/user.db"
 import { useAuth } from "@/hooks/useAuth"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CalendarPaymentItem } from "@/hooks/useCalendarCaisseSpeciale"
 import { usePaymentReceipt } from "@/hooks/usePaymentReceipt"
 import { pay } from "@/services/caisse/mutations"
@@ -15,6 +16,7 @@ import { toast } from "sonner"
 import { PaymentSidebarActions } from "./PaymentSidebarActions"
 import { PaymentSidebarContent } from "./PaymentSidebarContent"
 import { PaymentSidebarHeader } from "./PaymentSidebarHeader"
+import { CalendarContractLink } from "./CalendarContractLink"
 
 interface PaymentSidebarProps {
   payment: CalendarPaymentItem
@@ -34,18 +36,21 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
     usePaymentReceipt(payment)
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { canRecordPayments } = useMyAccess()
 
   // Charger les données du membre/groupe
   useEffect(() => {
+    let canceled = false
+    setMemberData({})
     const loadMemberData = async () => {
       const contract = payment.contract
       if (contract.contractType === "INDIVIDUAL" && contract.memberId) {
         try {
           const member = await getUserById(contract.memberId)
-          if (member) {
+          if (member && !canceled) {
             setMemberData({
               name: `${member.firstName || ""} ${member.lastName || ""}`.trim(),
-              matricule: member.id,
+              matricule: member.matricule || member.id,
               photoURL: member.photoURL ?? undefined,
               contacts: member.contacts || [],
             })
@@ -56,7 +61,7 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
       } else if (contract.contractType === "GROUP" && contract.groupeId) {
         try {
           const group = await getGroupById(contract.groupeId)
-          if (group) {
+          if (group && !canceled) {
             setMemberData({
               name: group.name,
             })
@@ -67,13 +72,16 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
       }
     }
     loadMemberData()
+    return () => { canceled = true }
   }, [payment])
 
   const handleRecordPayment = () => {
+    if (!canRecordPayments) return
     setShowPaymentModal(true)
   }
 
   const handlePaymentSubmit = async (data: PaymentCSFormData) => {
+    if (!canRecordPayments) throw new Error("Vous n’avez pas l’autorisation d’encaisser depuis le calendrier")
     if (!user?.uid) {
       toast.error("Vous devez être connecté pour enregistrer un paiement")
       return
@@ -173,6 +181,9 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
 
         {/* Actions fixes en bas */}
         <div className="flex-shrink-0 border-t border-gray-100">
+          <div className="px-5 pt-3">
+            <CalendarContractLink product="Caisse Spéciale" contractId={payment.contract.id} className="w-full" />
+          </div>
           <PaymentSidebarActions
             payment={payment}
             onRecordPayment={handleRecordPayment}
@@ -191,7 +202,7 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
 
       {/* Modal de paiement */}
       <PaymentCSModal
-        isOpen={showPaymentModal}
+        isOpen={showPaymentModal && canRecordPayments}
         onClose={() => setShowPaymentModal(false)}
         onSubmit={handlePaymentSubmit}
         title={`Versement pour le mois M${payment.dueMonthIndex + 1}`}

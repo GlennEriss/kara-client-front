@@ -76,7 +76,7 @@ export function DayCommissionsModalPlacement({
                 const isCapital = isCapitalRestitution(commission)
                 return (
                   <DayItemCard
-                    key={commission.id}
+                    key={`${commission.placement.id}:${commission.id}`}
                     color={commission.color}
                     icon={isCapital ? PiggyBank : Wallet}
                     title={commission.benefactorDisplayName || "Bienfaiteur inconnu"}

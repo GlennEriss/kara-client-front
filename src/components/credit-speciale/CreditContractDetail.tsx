@@ -27,6 +27,7 @@ import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import EmergencyContact from '@/components/contract/standard/EmergencyContact'
+import { ContractDetailHeader } from '@/components/contract/ContractDetailHeader'
 import routes from '@/constantes/routes'
 import { getAdminById } from '@/db/admin.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
@@ -71,7 +72,6 @@ import { fr } from 'date-fns/locale'
 import {
     AlertCircle,
     AlertTriangle,
-    ArrowLeft,
     Calendar,
     CalendarDays,
     CheckCircle,
@@ -2061,52 +2061,38 @@ export default function CreditContractDetail({
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* En-tête avec bouton retour — même disposition que le contrat Caisse imprévue */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              variant="outline"
-              onClick={() => backOr(router, listPath)}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Retour
-            </Button>
-            <EmergencyContact emergencyContact={contract.emergencyContact} />
-            {(canExtendContract || canSwitchToFixed) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    Actions
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {canExtendContract && (
-                    <DropdownMenuItem onClick={() => setShowExtensionModal(true)}>
-                      <Plus className="h-4 w-4" />
-                      Augmenter le crédit
-                    </DropdownMenuItem>
-                  )}
-                  {canSwitchToFixed && (
-                    <DropdownMenuItem onClick={() => setShowSwitchToFixedModal(true)}>
-                      <Lock className="h-4 w-4" />
-                      Basculer en fixe
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-              {CREDIT_TYPE_LABELS[contract.creditType]}
-            </Badge>
-            <Badge className={cn('text-lg px-4 py-2', statusConfig.bgColor, statusConfig.color)}>
-              {statusConfig.label}
-            </Badge>
-          </div>
-        </div>
+        <ContractDetailHeader
+          contractLabel={CREDIT_TYPE_LABELS[contract.creditType]}
+          statusLabel={statusConfig.label}
+          statusClassName={cn(statusConfig.bgColor, statusConfig.color)}
+          onBack={() => backOr(router, listPath)}
+        >
+          <EmergencyContact emergencyContact={contract.emergencyContact} />
+          {(canExtendContract || canSwitchToFixed) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  Actions
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {canExtendContract && (
+                  <DropdownMenuItem onClick={() => setShowExtensionModal(true)}>
+                    <Plus className="h-4 w-4" />
+                    Augmenter le crédit
+                  </DropdownMenuItem>
+                )}
+                {canSwitchToFixed && (
+                  <DropdownMenuItem onClick={() => setShowSwitchToFixedModal(true)}>
+                    <Lock className="h-4 w-4" />
+                    Basculer en fixe
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </ContractDetailHeader>
 
         {/* Un seul bandeau pour les événements du contrat (rajout, bascule en fixe, contrats liés) */}
         {(hasRajoutNotice || hasManualFixedNotice || parentContract || childContract) && (

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const nextConfig: NextConfig = {
   images: {
@@ -66,4 +67,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default function getNextConfig(phase: string): NextConfig {
+  return {
+    ...nextConfig,
+    // Un build de vérification ne doit pas écraser les fichiers du serveur local.
+    distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
+  };
+}

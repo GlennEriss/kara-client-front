@@ -3,6 +3,7 @@
 import type { CalendarPaymentItemCI, DayPaymentsCI } from "@/hooks/useCalendarCaisseImprevue"
 import { useMyAccess } from "@/hooks/useMyAccess"
 import { cn } from "@/lib/utils"
+import { calendarFocusKey } from "@/utils/calendar-payment-link"
 import type { CaisseImprevuePaymentFrequency } from "@/types/types"
 import { Calendar, CalendarClock, PiggyBank } from "lucide-react"
 import { DAY_ITEM_COLORS, DayDetailsModal, DayItemCard, DayItemGroup, type DayGroupColor } from "./DayDetailsModal"
@@ -68,7 +69,7 @@ export function DayPaymentsModalCI({
             >
               {groupedByFrequency[frequency].map((payment) => (
                 <DayItemCard
-                  key={payment.id}
+                  key={calendarFocusKey.caisseImprevue(payment.contract.id, payment.monthIndex)}
                   color={payment.color}
                   title={payment.memberDisplayName || "Membre inconnu"}
                   status={STATUS_LABELS[payment.status]}

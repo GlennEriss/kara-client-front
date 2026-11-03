@@ -111,6 +111,28 @@ Merci de bien vouloir régulariser dès que possible. Pour toute question, nous 
 — L'équipe LE KARA`,
   },
   {
+    key: 'paymentUpcomingReminder',
+    label: 'Préavis — versement à venir',
+    description:
+      'Envoyé depuis le calendrier pour prévenir un membre avant la date de son prochain versement.',
+    category: 'relance',
+    variables: [
+      V('nom', 'Nom du membre'),
+      V('produit', 'Caisse ou crédit concerné'),
+      V('typeVersement', 'Libellé du versement'),
+      V('montant', 'Montant prévu, formaté'),
+      V('dateEcheance', 'Date d’échéance (jj/mm/aaaa)'),
+      V('delai', 'Délai naturel : aujourd’hui, demain ou dans N jours'),
+    ],
+    defaultBody: `Bonjour {{nom}},
+
+Petit message de la famille LE KARA pour te rappeler que ton versement {{typeVersement}} de {{montant}} FCFA pour ta {{produit}} est prévu {{delai}}, le {{dateEcheance}}.
+
+Merci de prendre tes dispositions. Pour toute question, nous restons à ta disposition 🙏
+
+— L'équipe LE KARA`,
+  },
+  {
     key: 'placementCommissionDue',
     label: 'Information — échéance de placement échue',
     description:
@@ -126,6 +148,27 @@ L'équipe LE KARA vous informe qu'une ou plusieurs échéances de votre placemen
 {{detail}}
 
 Nous vous contactons pour organiser la remise dans les meilleurs délais. Merci de votre confiance 🙏
+
+— L'équipe LE KARA`,
+  },
+  {
+    key: 'placementUpcomingNotice',
+    label: 'Information — échéance de placement à venir',
+    description:
+      'Envoyé au bienfaiteur avant une commission ou une restitution de capital à venir.',
+    category: 'relance',
+    variables: [
+      V('nom', 'Nom du bienfaiteur'),
+      V('typeVersement', 'Commission ou restitution du capital'),
+      V('montant', 'Montant prévu, formaté'),
+      V('dateEcheance', 'Date d’échéance (jj/mm/aaaa)'),
+      V('delai', 'Délai naturel : aujourd’hui, demain ou dans N jours'),
+    ],
+    defaultBody: `Bonjour {{nom}},
+
+L'équipe LE KARA vous informe que votre {{typeVersement}} de {{montant}} FCFA arrive à échéance {{delai}}, le {{dateEcheance}}.
+
+Nous reviendrons vers vous pour organiser la remise. Merci de votre confiance 🙏
 
 — L'équipe LE KARA`,
   },

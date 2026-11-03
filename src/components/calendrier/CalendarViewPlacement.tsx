@@ -6,7 +6,8 @@ import type { CalendarCommissionItem, DayCommissions } from "@/hooks/useCalendar
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, startOfMonth, startOfWeek, subMonths } from "date-fns"
 import { fr } from "date-fns/locale"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { calendarFocusKey } from "@/utils/calendar-payment-link"
 import { CalendarDayPlacement } from "./CalendarDayPlacement"
 import { CommissionSidebarPlacement } from "./CommissionSidebarPlacement"
 import { DayCommissionsModalPlacement } from "./DayCommissionsModalPlacement"
@@ -16,6 +17,7 @@ interface CalendarViewPlacementProps {
   onMonthChange: (month: Date) => void
   daysCommissions: DayCommissions[]
   isLoading: boolean
+  focusedPaymentKey?: string
 }
 
 export function CalendarViewPlacement({
@@ -23,10 +25,24 @@ export function CalendarViewPlacement({
   onMonthChange,
   daysCommissions,
   isLoading,
+  focusedPaymentKey,
 }: CalendarViewPlacementProps) {
   const { canSeeAmounts } = useMyAccess()
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedCommission, setSelectedCommission] = useState<CalendarCommissionItem | null>(null)
+  const openedFocus = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!focusedPaymentKey || openedFocus.current === focusedPaymentKey) return
+    setSelectedDay(null)
+    setSelectedCommission(null)
+    if (isLoading) return
+    const commission = daysCommissions.flatMap((day) => day.commissions)
+      .find((item) => calendarFocusKey.placement(item.placement.id, item.id) === focusedPaymentKey)
+    if (!commission) return
+    openedFocus.current = focusedPaymentKey
+    setSelectedCommission(commission)
+  }, [daysCommissions, focusedPaymentKey, isLoading])
 
   const monthStart = startOfMonth(month)
   const monthEnd = endOfMonth(month)
@@ -239,6 +255,7 @@ export function CalendarViewPlacement({
       {/* Sidebar de détail d'une commission */}
       {selectedCommission && (
         <CommissionSidebarPlacement
+          key={calendarFocusKey.placement(selectedCommission.placement.id, selectedCommission.id)}
           commission={selectedCommission}
           onClose={handleCloseSidebar}
         />

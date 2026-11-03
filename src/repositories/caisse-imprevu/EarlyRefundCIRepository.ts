@@ -26,9 +26,16 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
 
             const docRef = await addDoc(earlyRefundsCollectionRef, {
                 ...data,
-                withdrawalDate: data.withdrawalDate instanceof Date 
-                    ? data.withdrawalDate 
-                    : new Date(data.withdrawalDate),
+                ...(data.withdrawalDate
+                    ? { withdrawalDate: data.withdrawalDate instanceof Date
+                        ? data.withdrawalDate
+                        : new Date(data.withdrawalDate) }
+                    : {}),
+                ...(data.requestedWithdrawalDate
+                    ? { requestedWithdrawalDate: data.requestedWithdrawalDate instanceof Date
+                        ? data.requestedWithdrawalDate
+                        : new Date(data.requestedWithdrawalDate) }
+                    : {}),
                 deadlineAt: data.deadlineAt instanceof Date 
                     ? data.deadlineAt 
                     : new Date(data.deadlineAt),
@@ -79,8 +86,14 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
                 contractId,
                 type: data.type || 'EARLY', // Utiliser le type stocké ou 'EARLY' par défaut
                 reason: data.reason,
-                withdrawalDate: data.withdrawalDate?.toDate ? data.withdrawalDate.toDate() : new Date(data.withdrawalDate),
+                withdrawalDate: data.withdrawalDate?.toDate
+                    ? data.withdrawalDate.toDate()
+                    : data.withdrawalDate ? new Date(data.withdrawalDate) : undefined,
                 withdrawalTime: data.withdrawalTime,
+                requestedWithdrawalDate: data.requestedWithdrawalDate?.toDate
+                    ? data.requestedWithdrawalDate.toDate()
+                    : data.requestedWithdrawalDate ? new Date(data.requestedWithdrawalDate) : undefined,
+                requestedWithdrawalTime: data.requestedWithdrawalTime,
                 withdrawalAmount: data.withdrawalAmount,
                 withdrawalMode: data.withdrawalMode,
                 proofUrl: data.proofUrl,

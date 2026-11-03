@@ -2,13 +2,12 @@
 
 import { useMyAccess } from "@/hooks/useMyAccess"
 import { Button } from "@/components/ui/button"
-import routes from "@/constantes/routes"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
 import { isCapitalRestitution } from "@/hooks/useCalendarPlacement"
 import { roundFcfa } from "@/utils/placementMoney"
-import { CreditCard, Download, ExternalLink, Eye, FileText, Info, Loader2 } from "lucide-react"
-import Link from "next/link"
+import { CreditCard, Download, Eye, FileText, Info, Loader2 } from "lucide-react"
 import { useShownAmount } from "./useShownAmount"
+import { CalendarContractLink } from "./CalendarContractLink"
 
 interface CommissionSidebarActionsPlacementProps {
   commission: CalendarCommissionItem
@@ -46,18 +45,14 @@ export function CommissionSidebarActionsPlacement({
             </p>
           </div>
         </div>
-        <Button asChild variant="outline" className="w-full h-12 rounded-xl border-2">
-          <Link href={routes.admin.placementDetails(commission.placement.id)}>
-            <ExternalLink className="h-5 w-5 mr-2" />
-            Ouvrir le placement
-          </Link>
-        </Button>
+        <CalendarContractLink product="Placement" contractId={commission.placement.id} className="w-full h-12 rounded-xl border-2" />
       </div>
     )
   }
 
   return (
-    <div className="p-5 bg-gradient-to-t from-gray-50 to-white">
+    <div className="p-5 bg-gradient-to-t from-gray-50 to-white space-y-3">
+      <CalendarContractLink product="Placement" contractId={commission.placement.id} className="w-full" />
       {isPaid ? (
         <div className="space-y-3">
           <Button
@@ -109,7 +104,7 @@ export function CommissionSidebarActionsPlacement({
       ) : (
         // L'agent de recouvrement relance le membre ; l'encaissement reste aux administrateurs.
         <p className="rounded-xl border border-dashed border-gray-200 bg-white p-3 text-center text-xs text-gray-500">
-          Encaissement réservé aux administrateurs.
+          L’autorisation « Encaisser depuis le calendrier » est nécessaire.
         </p>
       )}
     </div>

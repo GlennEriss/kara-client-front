@@ -69,6 +69,13 @@ export function PermissionsEditor({ value, onChange, disabled }: PermissionsEdit
             </label>
           ))}
         </div>
+        {module.key === 'calendar' && (
+          <p className="mt-3 pl-6 text-xs leading-relaxed text-gray-500">
+            La consultation seule permet le suivi des échéances et les relances.
+            Pour ouvrir un contrat, accordez aussi « Consulter » dans sa section
+            (caisse, crédit ou placement). L’encaissement nécessite son autorisation dédiée.
+          </p>
+        )}
       </div>
     )
   }

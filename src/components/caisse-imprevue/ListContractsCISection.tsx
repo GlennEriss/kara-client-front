@@ -66,6 +66,7 @@ const ViewContractCIModal = dynamic(() => import('./ViewContractCIModal'), {
 })
 import ViewRefundDocumentCIModal from './ViewRefundDocumentCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
+import type { EarlyWithdrawalFilter } from '@/domains/financial/refunds/earlyWithdrawalFilter'
 
 const STATUS_COLORS: Record<ContractCIStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-700 border-green-200',
@@ -129,6 +130,7 @@ function hasActiveContractFilters(filters: ContractCIFilters): boolean {
       filters.nextDueAtFrom ||
       filters.nextDueAtTo ||
       filters.overdueOnly ||
+      (filters.earlyWithdrawal && filters.earlyWithdrawal !== 'all') ||
       typeof filters.monthlyAmountMin === 'number' ||
       typeof filters.monthlyAmountMax === 'number' ||
       typeof filters.contractAmountMin === 'number' ||
@@ -481,6 +483,11 @@ export default function ListContractsCISection() {
   const [filters, setFilters] = useState<ContractCIFilters>({
     search: searchParams.get('q') || '',
     status: 'all' as ContractCIStatus | 'all',
+    earlyWithdrawal: (
+      ['IN_PROGRESS', 'FINALIZED'].includes(searchParams.get('withdrawal') || '')
+        ? searchParams.get('withdrawal')
+        : 'all'
+    ) as EarlyWithdrawalFilter,
     paymentFrequency: 'all',
     subscriptionCIID: undefined,
     createdAtFrom: undefined,
@@ -516,6 +523,7 @@ export default function ListContractsCISection() {
     page: currentPage > 1 ? currentPage : null,
     view: viewMode !== 'grid' ? viewMode : null,
     q: filters.search || null,
+    withdrawal: filters.earlyWithdrawal !== 'all' ? filters.earlyWithdrawal : null,
   })
 
   // États pour les modals
@@ -599,7 +607,13 @@ export default function ListContractsCISection() {
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: ContractCIFilters) => {
-    setFilters(newFilters)
+    const withdrawalChanged = newFilters.earlyWithdrawal !== filters.earlyWithdrawal
+    const hasWithdrawalFilter = newFilters.earlyWithdrawal && newFilters.earlyWithdrawal !== 'all'
+    const nextFilters = withdrawalChanged && hasWithdrawalFilter
+      ? { ...newFilters, status: 'all' as const, overdueOnly: false }
+      : newFilters
+    setFilters(nextFilters)
+    if (withdrawalChanged && hasWithdrawalFilter) setActiveTab('all')
     setCurrentPage(1)
   }
 
@@ -607,6 +621,7 @@ export default function ListContractsCISection() {
     setFilters({ 
       search: '', 
       status: 'all',
+      earlyWithdrawal: 'all',
       paymentFrequency: 'all',
       subscriptionCIID: undefined,
       createdAtFrom: undefined,

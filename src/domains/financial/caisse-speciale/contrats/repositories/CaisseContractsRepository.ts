@@ -29,6 +29,7 @@ import type {
   SpecificCaisseTypeFilter,
 } from '../entities/contract-filters.types'
 import type { ContractPayment, CreateCaisseContractInput, ContractPdfMetadata, UploadContractPdfInput } from '../entities/contract.types'
+import { getEarlyWithdrawalContractIds } from '@/domains/financial/refunds/earlyWithdrawalFilter'
 
 /** Statuts « en cours » — tous SAUF les contrats clos (CLOSED, RESCINDED). Onglet « Tous ». */
 const ONGOING_STATUSES = [
@@ -202,6 +203,20 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     })
   }
 
+  private async applyEarlyWithdrawalFilter(
+    contracts: CaisseContract[],
+    filters?: ContractFilters,
+  ): Promise<CaisseContract[]> {
+    const withdrawalFilter = filters?.earlyWithdrawal || 'all'
+    if (withdrawalFilter === 'all') return contracts
+    const contractIds = await getEarlyWithdrawalContractIds(
+      'CS',
+      withdrawalFilter,
+      contracts.map((contract) => contract.id || '').filter(Boolean),
+    )
+    return contracts.filter((contract) => Boolean(contract.id && contractIds.has(contract.id)))
+  }
+
   private hasAmountFilters(filters?: ContractFilters): boolean {
     if (!filters) return false
     const amountKeys: (keyof ContractFilters)[] = [
@@ -326,7 +341,11 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     // sans lui ici, on ne chargeait qu'une page brute avant de filtrer, et
     // l'onglet Retard n'affichait qu'une poignée de contrats avec un total faux.
     const needsClientSideFiltering =
-      clientSideNextDueFilter || hasAmountFilters || hasPaymentCountFilters || Boolean(normalizedFilters.overdueOnly)
+      clientSideNextDueFilter ||
+      hasAmountFilters ||
+      hasPaymentCountFilters ||
+      Boolean(normalizedFilters.overdueOnly) ||
+      Boolean(normalizedFilters.earlyWithdrawal && normalizedFilters.earlyWithdrawal !== 'all')
 
     const fetchLimit = needsClientSideFiltering ? 1000 : Math.min(100, pagination.limit * 3)
     const searchWords = normalizedQuery.split(/\s+/).filter(Boolean)
@@ -387,6 +406,7 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     }
     filtered = this.applyAmountFilters(filtered, normalizedFilters)
     filtered = await this.applyPaymentCountFilters(filtered, normalizedFilters)
+    filtered = await this.applyEarlyWithdrawalFilter(filtered, normalizedFilters)
 
     let startIndex = 0
     if (pagination.cursor) {
@@ -427,7 +447,11 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     // sans lui ici, on ne chargeait qu'une page brute avant de filtrer, et
     // l'onglet Retard n'affichait qu'une poignée de contrats avec un total faux.
     const needsClientSideFiltering =
-      clientSideNextDueFilter || hasAmountFilters || hasPaymentCountFilters || Boolean(normalizedFilters.overdueOnly)
+      clientSideNextDueFilter ||
+      hasAmountFilters ||
+      hasPaymentCountFilters ||
+      Boolean(normalizedFilters.overdueOnly) ||
+      Boolean(normalizedFilters.earlyWithdrawal && normalizedFilters.earlyWithdrawal !== 'all')
 
     constraints.push(...this.buildBaseConstraints(normalizedFilters, { excludeNextDueAt: clientSideNextDueFilter }))
     if (hasNextDueRange && !hasCreatedAtRange) {
@@ -459,6 +483,7 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     }
     filtered = this.applyAmountFilters(filtered, normalizedFilters)
     filtered = await this.applyPaymentCountFilters(filtered, normalizedFilters)
+    filtered = await this.applyEarlyWithdrawalFilter(filtered, normalizedFilters)
     const hasNextPage = !needsClientSideFiltering && filtered.length > pagination.limit
     if (hasNextPage) filtered.pop()
 

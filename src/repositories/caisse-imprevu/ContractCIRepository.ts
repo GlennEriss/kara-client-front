@@ -3,6 +3,7 @@ import { ContractCI } from "@/types/types";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 import { getPaymentDueDate } from "@/utils/caisse-imprevue-utils";
 import { findOverdueMonths, summarizeOverdue, type OverduePaymentInput } from "@/services/caisse-imprevue/overdueDetection";
+import { getEarlyWithdrawalContractIds } from '@/domains/financial/refunds/earlyWithdrawalFilter'
 
 const getFirestore = () => import("@/firebase/firestore");
 
@@ -508,6 +509,15 @@ export class ContractCIRepository implements IContractCIRepository {
             // Filtrer par métriques paiements/supports (sous-collections)
             contracts = await this.applySupportAndPaymentMetricFilters(contracts, normalizedFilters);
 
+            if (normalizedFilters?.earlyWithdrawal && normalizedFilters.earlyWithdrawal !== 'all') {
+                const contractIds = await getEarlyWithdrawalContractIds(
+                    'CI',
+                    normalizedFilters.earlyWithdrawal,
+                    contracts.map((contract) => contract.id),
+                );
+                contracts = contracts.filter((contract) => contractIds.has(contract.id));
+            }
+
             return contracts;
 
         } catch (error) {
@@ -578,6 +588,15 @@ export class ContractCIRepository implements IContractCIRepository {
             let filteredContracts = this.filterByNextDueRange(contracts, normalizedFilters);
             if (normalizedFilters?.overdueOnly) {
                 filteredContracts = await this.filterOverdueContracts(filteredContracts);
+            }
+
+            if (normalizedFilters?.earlyWithdrawal && normalizedFilters.earlyWithdrawal !== 'all') {
+                const contractIds = await getEarlyWithdrawalContractIds(
+                    'CI',
+                    normalizedFilters.earlyWithdrawal,
+                    filteredContracts.map((contract) => contract.id),
+                );
+                filteredContracts = filteredContracts.filter((contract) => contractIds.has(contract.id));
             }
 
             const total = filteredContracts.length;

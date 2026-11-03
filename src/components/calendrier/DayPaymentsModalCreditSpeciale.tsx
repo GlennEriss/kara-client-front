@@ -45,7 +45,7 @@ export function DayPaymentsModalCreditSpeciale({
       <div className="space-y-2">
         {dayPayments.payments.map((payment) => (
           <DayItemCard
-            key={payment.installment.id}
+            key={`${payment.contract.id}:${payment.installment.installmentNumber}`}
             color={payment.color}
             title={payment.clientDisplayName}
             status={STATUS_LABELS[payment.status]}

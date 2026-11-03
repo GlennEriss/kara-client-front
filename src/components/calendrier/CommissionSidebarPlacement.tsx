@@ -3,6 +3,7 @@
 import PayCommissionModal, { CommissionPaymentFormData } from "@/components/placement/PayCommissionModal"
 import { ServiceFactory } from "@/factories/ServiceFactory"
 import { useAuth } from "@/hooks/useAuth"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
 import { isCapitalRestitution } from "@/hooks/useCalendarPlacement"
 import { useCommissionReceiptPlacement } from "@/hooks/useCommissionReceiptPlacement"
@@ -24,6 +25,7 @@ export function CommissionSidebarPlacement({
   onClose,
 }: CommissionSidebarPlacementProps) {
   const { user } = useAuth()
+  const { canRecordPayments } = useMyAccess()
   const queryClient = useQueryClient()
   const [showPayModal, setShowPayModal] = useState(false)
   const [showReceipt, setShowReceipt] = useState(false)
@@ -36,6 +38,7 @@ export function CommissionSidebarPlacement({
   } = useCommissionReceiptPlacement(commission)
 
   const handleRecordPayment = () => {
+    if (!canRecordPayments) return
     // Garde-fou : une restitution de capital n'a pas de document commission en
     // base, la payer via cette voie écrirait sur un id inexistant.
     if (isCapitalRestitution(commission)) {
@@ -50,6 +53,7 @@ export function CommissionSidebarPlacement({
   }
 
   const handlePaySubmit = async (data: CommissionPaymentFormData) => {
+    if (!canRecordPayments) throw new Error("Vous n’avez pas l’autorisation de payer depuis le calendrier")
     try {
       if (!user?.uid) {
         toast.error("Vous devez être connecté")
@@ -166,7 +170,7 @@ export function CommissionSidebarPlacement({
       />
 
       {/* Modal de paiement */}
-      {showPayModal && (
+      {showPayModal && canRecordPayments && (
         <PayCommissionModal
           isOpen={showPayModal}
           onClose={handleClosePayModal}

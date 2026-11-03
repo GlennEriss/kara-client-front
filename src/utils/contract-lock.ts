@@ -10,8 +10,14 @@
 export const CONTRACT_LOCKED_MESSAGE =
   'Ce contrat est terminé ou résilié : il ne peut plus être modifié ni supprimé.'
 
-/** Caisse Spéciale : clôturé ou résilié. */
-export const CAISSE_SPECIALE_LOCKED_STATUSES = ['CLOSED', 'RESCINDED'] as const
+/** Caisse Spéciale : clôturé, résilié ou en attente d'une remise d'argent. */
+export const CAISSE_SPECIALE_LOCKED_STATUSES = [
+  'CLOSED',
+  'RESCINDED',
+  'EARLY_WITHDRAW_REQUESTED',
+  'EARLY_REFUND_PENDING',
+  'FINAL_REFUND_PENDING',
+] as const
 /** Caisse Imprévue : terminé ou annulé. */
 export const CAISSE_IMPREVUE_LOCKED_STATUSES = ['FINISHED', 'CANCELED'] as const
 /** Placement : clôturé, sorti par anticipation ou annulé. */

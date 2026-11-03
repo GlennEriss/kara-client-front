@@ -11,6 +11,9 @@ import { updateContractPdf, updateContract } from '@/db/caisse/contracts.db'
 import { updatePayment } from '@/db/caisse/payments.db'
 import { computeNextDueAt } from '@/services/caisse/engine'
 import { recomputeNow } from '@/services/caisse/readers'
+import { getActiveSettings } from '@/db/caisse/settings.db'
+import { computeContractBonusFromPayments, sumContractNominalPaid, sumContractPenalties } from '@/services/caisse/bonus'
+import type { CaisseType } from '@/services/caisse/types'
 
 const ALLOWED_REPLACE_PDF_STATUSES = ['DRAFT', 'ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY'] as const
 
@@ -154,14 +157,12 @@ export class CaisseContractsService {
     }
 
     const remaining = await this.repo.getContractPayments(contractId)
-    const nominalPaid = remaining.reduce((sum: number, p: any) => {
-      if (p.status === 'PAID') {
-        return sum + (p.accumulatedAmount ?? p.amount ?? 0)
-      }
-      return sum
-    }, 0)
-    const bonusAccrued = remaining.reduce((sum: number, p: any) => sum + (p.bonusApplied ?? 0), 0)
-    const penaltiesTotal = remaining.reduce((sum: number, p: any) => sum + (p.penaltyApplied ?? 0), 0)
+    const nominalPaid = sumContractNominalPaid(remaining)
+    const settings = await getActiveSettings(contract.caisseType as CaisseType)
+    const bonusAccrued = computeContractBonusFromPayments(
+      { ...contract, nominalPaid }, remaining, settings as any,
+    ).amount
+    const penaltiesTotal = sumContractPenalties(remaining)
     const paidIndices = remaining.filter((p: any) => p.status === 'PAID').map((p: any) => p.dueMonthIndex ?? 0)
     const currentMonthIndex = paidIndices.length > 0 ? Math.max(...paidIndices) + 1 : 0
     const nextDueAt = computeNextDueAt({

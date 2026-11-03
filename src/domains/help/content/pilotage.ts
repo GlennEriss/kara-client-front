@@ -108,6 +108,9 @@ export const calendrierHelp: HelpTopic = {
             'Chaque jour affiche les échéances prévues ; un clic ouvre le détail des membres concernés.',
             'Les filtres affinent la vue : type de caisse, fréquence de versement, mode de versement des placements.',
             'La liste des versements en retard montre, pour chaque membre, le montant dû, l’échéance la plus ancienne et le dernier contact. Le filtre par mois ne garde que les membres dont l’échéance la plus ancienne tombe dans le mois choisi ; le total et les exports suivent ce filtre.',
+            'Le bouton « Payer » ouvre directement le bon onglet, le bon mois et l’échéance concernée. Lorsqu’un membre a plusieurs retards, développez sa ligne pour choisir précisément l’échéance à régler.',
+            'Les boutons « Ouvrir le contrat » ou « Ouvrir le placement » permettent de retrouver le dossier depuis les retards, les versements à venir, le panneau d’une échéance et les remises d’argent. Si une personne a plusieurs contrats en retard, développez sa ligne pour choisir le contrat exact.',
+            'Le tableau « Versements à venir » anticipe les échéances sur 7, 30, 60 ou 90 jours. Il permet de prévenir le membre sur WhatsApp, d’ouvrir l’échéance et d’exporter la prévision dans Excel.',
             'Le superadmin peut sélectionner plusieurs retardataires, planifier leurs appels sur un jour de la semaine en cours et attribuer le lot à tout compte actif autorisé à consulter le calendrier, notamment un agent de recouvrement. Un lot non attribué reste visible par tous les utilisateurs du calendrier.',
           ],
         },
@@ -122,6 +125,29 @@ export const calendrierHelp: HelpTopic = {
           items: [
             'Cliquez sur le jour, puis sur l’échéance du membre.',
             'Dans le panneau qui s’ouvre, enregistrez le versement : montant, date, moyen de paiement, preuve.',
+            'Vous pouvez aussi cliquer sur « Payer » dans les versements en retard : l’échéance exacte s’ouvre automatiquement.',
+            'Avec un accès de consultation uniquement, le bouton « Échéance » ouvre le détail sans autoriser l’enregistrement d’un paiement.',
+          ],
+        },
+        {
+          type: 'steps',
+          title: 'Prévenir avant une échéance',
+          items: [
+            'Dans « Versements à venir », choisissez l’horizon souhaité : 7, 30, 60 ou 90 jours.',
+            'Cliquez sur « Prévenir » pour ouvrir WhatsApp avec le membre, le montant et la date déjà renseignés.',
+            'Cliquez sur « Échéance » pour contrôler le détail. Le message envoyé est ajouté à l’historique des contacts.',
+            'Les textes des préavis peuvent être personnalisés dans Système → Modèles de messages.',
+          ],
+        },
+        {
+          type: 'steps',
+          title: 'Configurer les accès au calendrier',
+          items: [
+            'Dans Administration, ouvrez la fiche du compte et la partie « Accès & permissions ».',
+            'Dans Calendrier, cochez « Consulter les échéances et versements » pour autoriser le suivi et les relances.',
+            'Cochez « Ouvrir les contrats depuis le calendrier » pour afficher les liens vers les dossiers. Accordez également « Consulter » dans chaque section concernée : caisse, crédit ou placement.',
+            'Cochez séparément « Encaisser depuis le calendrier » pour autoriser l’enregistrement des paiements. La consultation et les liens vers les contrats ne donnent pas ce droit.',
+            'Enregistrez la fiche. Les superadmins disposent de tous les accès ; les autres comptes suivent les permissions accordées.',
           ],
         },
         {
@@ -154,7 +180,8 @@ export const calendrierHelp: HelpTopic = {
         {
           type: 'definitions',
           items: [
-            { term: 'Encaisser', text: 'Réservé aux admins qui ont le droit d’enregistrer des versements depuis le calendrier.' },
+            { term: 'Encaisser', text: 'Nécessite les droits « Consulter les échéances et versements » et « Encaisser depuis le calendrier ». La date, le montant, le moyen de paiement et la preuve sont confirmés lors de l’enregistrement.' },
+            { term: 'Ouvrir un contrat', text: 'Nécessite le droit « Ouvrir les contrats depuis le calendrier » et le droit de consultation de la section du contrat. Un lien de contrat n’accorde aucun droit de paiement supplémentaire.' },
             { term: 'Montants masqués', text: 'L’agent de recouvrement relance les membres sans voir les sommes en jeu.' },
           ],
         },

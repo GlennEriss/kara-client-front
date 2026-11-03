@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
+import { RefundPayoutCountdown } from '@/components/refunds/RefundPayoutCountdown'
 
 function formatAmount(value: number): string {
   return new Intl.NumberFormat('fr-FR').format(value) + ' FCFA'
@@ -268,7 +269,7 @@ export default function ContractCIRefundsPage() {
                                 onClick={() => setMarkPaidRefund(refund)}
                               >
                                 <Banknote className="h-3.5 w-3.5" />
-                                Marquer comme payé
+                                {refund.type === 'EARLY' ? 'Finaliser la remise' : 'Confirmer la remise'}
                               </Button>
                             )}
                             {refund.documentUrl && (
@@ -297,6 +298,8 @@ export default function ContractCIRefundsPage() {
                             )}
                           </div>
                         </div>
+
+                        <RefundPayoutCountdown refund={refund} />
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg text-sm">
                           <div>
@@ -380,6 +383,9 @@ export default function ContractCIRefundsPage() {
           contractId={contractId}
           refundId={markPaidRefund.id}
           refundLabel={`${REFUND_TYPE_LABELS[markPaidRefund.type] ?? markPaidRefund.type} — ${markPaidRefund.withdrawalAmount ? formatAmount(markPaidRefund.withdrawalAmount) : ''}`}
+          refundType={markPaidRefund.type}
+          approvedAt={markPaidRefund.approvedAt}
+          payoutDueAt={markPaidRefund.payoutDueAt}
           userId={user.uid}
           onSuccess={() => setMarkPaidRefund(null)}
         />

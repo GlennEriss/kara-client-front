@@ -19,7 +19,8 @@ import {
 } from "date-fns"
 import { fr } from "date-fns/locale"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { calendarFocusKey } from "@/utils/calendar-payment-link"
 import { DayPaymentsModalCreditSpeciale } from "./DayPaymentsModalCreditSpeciale"
 import { PaymentSidebarCreditSpeciale } from "./PaymentSidebarCreditSpeciale"
 
@@ -28,6 +29,7 @@ interface CalendarViewCreditSpecialeProps {
   onMonthChange: (month: Date) => void
   daysPayments: DayPaymentsCredit[]
   isLoading: boolean
+  focusedPaymentKey?: string
 }
 
 const COLOR_CLASS: Record<DayPaymentsCredit["color"], string> = {
@@ -43,11 +45,25 @@ export function CalendarViewCreditSpeciale({
   onMonthChange,
   daysPayments,
   isLoading,
+  focusedPaymentKey,
 }: CalendarViewCreditSpecialeProps) {
   const { canSeeAmounts } = useMyAccess()
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedPayment, setSelectedPayment] =
     useState<CalendarPaymentItemCredit | null>(null)
+  const openedFocus = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!focusedPaymentKey || openedFocus.current === focusedPaymentKey) return
+    setSelectedDay(null)
+    setSelectedPayment(null)
+    if (isLoading) return
+    const payment = daysPayments.flatMap((day) => day.payments)
+      .find((item) => calendarFocusKey.credit(item.contract.id, item.installment.installmentNumber) === focusedPaymentKey)
+    if (!payment) return
+    openedFocus.current = focusedPaymentKey
+    setSelectedPayment(payment)
+  }, [daysPayments, focusedPaymentKey, isLoading])
 
   const monthStart = startOfMonth(month)
   const monthEnd = endOfMonth(month)
@@ -180,6 +196,7 @@ export function CalendarViewCreditSpeciale({
 
       {selectedPayment && (
         <PaymentSidebarCreditSpeciale
+          key={calendarFocusKey.credit(selectedPayment.contract.id, selectedPayment.installment.installmentNumber)}
           payment={selectedPayment}
           onClose={() => setSelectedPayment(null)}
         />

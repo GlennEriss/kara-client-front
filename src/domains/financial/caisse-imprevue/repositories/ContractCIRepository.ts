@@ -38,6 +38,7 @@ export class ContractCIRepository implements IContractCIRepository {
       nextDueAtFrom: filters.nextDueAtFrom,
       nextDueAtTo: filters.nextDueAtTo,
       overdueOnly: filters.overdueOnly,
+      earlyWithdrawal: filters.earlyWithdrawal,
       monthlyAmountMin: filters.monthlyAmountMin,
       monthlyAmountMax: filters.monthlyAmountMax,
       contractAmountMin: filters.contractAmountMin,

@@ -17,13 +17,12 @@ import { cn } from '@/lib/utils'
 import { requestEarlyRefund, requestFinalRefund } from '@/services/caisse/mutations'
 import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { calculateMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-utils'
-import { getContractStatusConfig } from '@/utils/contract-status'
+import { CaisseContractHeader } from '@/components/contract/CaisseContractHeader'
 import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
     AlertCircle,
-    ArrowLeft,
     Calendar,
     CalendarDays,
     CheckCircle,
@@ -48,6 +47,7 @@ import EarlyRefundCIModal from './EarlyRefundCIModal'
 import EditContractCategoryCIModal from './EditContractCategoryCIModal'
 import FinalRefundCIModal from './FinalRefundCIModal'
 import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
+import { EarlyRefundHandover } from '@/components/refunds/EarlyRefundHandover'
 import ValidateRefundCIModal from './ValidateRefundCIModal'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
@@ -174,7 +174,13 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
   const [editCategoryOpen, setEditCategoryOpen] = useState(false)
   const [confirmApproveRefundId, setConfirmApproveRefundId] = useState<string | null>(null)
-  const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{ id: string; label: string } | null>(null)
+  const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{
+    id: string
+    label: string
+    type: string
+    approvedAt?: unknown
+    payoutDueAt?: unknown
+  } | null>(null)
   const [refundToValidate, setRefundToValidate] = useState<any | null>(null)
   const [editVersement, setEditVersement] = useState<{ payment: PaymentCI; versement: VersementCI } | null>(null)
 
@@ -634,79 +640,65 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const progress = totalMonths > 0 ? Math.min(100, (paidCount / totalMonths) * 100) : 0
   const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED')
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED')
+  const hasPendingRefund = refunds.some((refund) => refund.status === 'PENDING' || refund.status === 'APPROVED')
   const isContractCanceled = contract.status === 'CANCELED'
   const isContractFinished = contract.status === 'FINISHED'
   const isContractTerminated = isContractCanceled || isContractFinished
-  const headerStatusConfig = getContractStatusConfig(contract.status)
-  const HeaderStatusIcon = headerStatusConfig.icon
-  const headerBadges = (
-    <>
-      <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-        Contrat Journalier CI
-      </Badge>
-      <Badge className={`${headerStatusConfig.bg} ${headerStatusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
-        <HeaderStatusIcon className="h-4 w-4" />
-        {headerStatusConfig.label}
-      </Badge>
-      {activeSupport && activeSupport.status === 'ACTIVE' && (
-        <Badge className="bg-orange-600 text-white px-3 py-1.5 flex items-center gap-1">
-          <AlertCircle className="h-3 w-3" />
-          Support en cours
-        </Badge>
-      )}
-    </>
-  )
+  const supportBadge = activeSupport?.status === 'ACTIVE' ? (
+    <Badge className="bg-orange-600 text-white px-3 py-1.5 flex items-center gap-1">
+      <AlertCircle className="h-3 w-3" />
+      Support en cours
+    </Badge>
+  ) : undefined
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* En-tête avec bouton retour */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3 flex-wrap">
+        <CaisseContractHeader
+          contractLabel="Contrat Journalier CI"
+          status={contract.status}
+          refunds={refunds}
+          readOnly={isContractTerminated}
+          extraBadges={supportBadge}
+          onBack={() => backOr(router, routes.admin.caisseImprevue)}
+        >
+          <Button
+            variant="outline"
+            onClick={() => router.push(routes.admin.caisseImprevueContractPayments(contract.id))}
+            className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+          >
+            <History className="h-4 w-4" />
+            Historique des versements
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => router.push(routes.admin.caisseImprevueContractRefunds(contract.id))}
+            className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Remboursements
+          </Button>
+
+          {/* Bouton Demander une aide */}
+          {isEligible && !activeSupport && !isContractTerminated && (
             <Button
               variant="outline"
-              onClick={() => backOr(router, routes.admin.caisseImprevue)}
-              className="gap-2"
+              onClick={() => setShowRequestSupportModal(true)}
+              className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Retour
+              <HandCoins className="h-4 w-4" />
+              Demander une aide
             </Button>
-            
-            <Button
-              variant="outline"
-              onClick={() => router.push(routes.admin.caisseImprevueContractPayments(contract.id))}
-              className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
-            >
-              <History className="h-4 w-4" />
-              Historique des versements
-            </Button>
+          )}
 
-            {/* Bouton Demander une aide */}
-            {isEligible && !activeSupport && !isContractTerminated && (
-              <Button
-                variant="outline"
-                onClick={() => setShowRequestSupportModal(true)}
-                className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
-              >
-                <HandCoins className="h-4 w-4" />
-                Demander une aide
-              </Button>
-            )}
+          {/* Bouton Contact d'urgence */}
+          <EmergencyContact emergencyContact={(contract as any)?.emergencyContact} contractKind="CI" contractId={(contract as any)?.id} />
 
-            {/* Bouton Contact d'urgence */}
-            <EmergencyContact emergencyContact={(contract as any)?.emergencyContact} contractKind="CI" contractId={(contract as any)?.id} />
-
-            {/* Modifier les infos du membre (superAdmin) */}
-            <ContractCIMemberInfoDialog contract={contract} />
-          </div>
-
-          <div className="hidden lg:flex flex-wrap gap-2">
-            {headerBadges}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 lg:hidden">
-          {headerBadges}
-        </div>
+          {/* Modifier les infos du membre (superAdmin) */}
+          <ContractCIMemberInfoDialog contract={contract} />
+        </CaisseContractHeader>
 
         {/* Titre principal */}
         <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
@@ -776,7 +768,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
         </Card>
 
         {/* Banner d'alerte si contrat résilié */}
-        {isContractCanceled && (
+        {isContractCanceled && !hasPendingRefund && (
           <Card className="border-0 shadow-lg border-2 border-red-300 bg-red-50">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
@@ -797,7 +789,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
         )}
 
         {/* Banner d'alerte si contrat terminé */}
-        {isContractFinished && (
+        {isContractFinished && !hasPendingRefund && (
           <Card className="border-0 shadow-lg border-2 border-blue-300 bg-blue-50">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
@@ -1479,7 +1471,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                   const handledTime = r.paidAtTime || r.withdrawalTime || (r as { time?: string }).time
                   const canShowPendingMessage = r.status === 'PENDING'
                   const canShowApprovedMessage = r.status === 'APPROVED'
-                  const canShowActions = r.status === 'PENDING' || r.status === 'APPROVED'
+                  const canShowActions = r.status === 'PENDING' || (r.status === 'APPROVED' && (r.type !== 'EARLY' || Boolean(r.adminDocumentUrl)))
                   const canShowPaidInfo = r.status === 'PAID' && (r.paidByName || r.paidAt)
 
                   return (
@@ -1595,6 +1587,11 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                         )}
                       </div>
 
+                      <EarlyRefundHandover
+                        fund="CI" contractId={contract.id} refund={r} userId={user?.uid}
+                        onSuccess={reloadRefunds}
+                      />
+
                       {canShowActions && (
                         <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
                           {r.status === 'PENDING' && (
@@ -1628,15 +1625,21 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                                   </Button>
                                 </a>
                               )}
-                              <Button
+                              {r.type !== 'EARLY' && <Button
                                 variant="outline"
                                 size="sm"
                                 className="border-green-300 text-green-600 hover:bg-green-50"
-                                onClick={() => setRefundToMarkAsPaid({ id: r.id, label: r.type === 'FINAL' ? 'Remboursement Final' : 'Retrait Anticipé' })}
+                                onClick={() => setRefundToMarkAsPaid({
+                                  id: r.id,
+                                  label: r.type === 'FINAL' ? 'Remboursement Final' : 'Retrait Anticipé',
+                                  type: r.type,
+                                  approvedAt: r.approvedAt,
+                                  payoutDueAt: r.payoutDueAt,
+                                })}
                               >
                                 <CheckCircle className="h-4 w-4 mr-1" />
-                                Marquer comme payé
-                              </Button>
+                                Confirmer la remise
+                              </Button>}
                             </>
                           )}
                         </div>
@@ -1806,6 +1809,9 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             contractId={contract.id}
             refundId={refundToMarkAsPaid.id}
             refundLabel={refundToMarkAsPaid.label}
+            refundType={refundToMarkAsPaid.type}
+            approvedAt={refundToMarkAsPaid.approvedAt}
+            payoutDueAt={refundToMarkAsPaid.payoutDueAt}
             onSuccess={reloadRefunds}
             userId={user.uid}
           />
