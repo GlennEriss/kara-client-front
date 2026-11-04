@@ -85,9 +85,18 @@ export async function middleware(request: NextRequest) {
     let sessionValid = false;
     let role: string | null = null;
     try {
-        const verifyUrl = new URL('/api/auth/session/verify', request.nextUrl.origin);
+        // App Hosting termine HTTPS au proxy, mais Next écoute en HTTP dans
+        // Cloud Run. nextUrl.origin peut donc pointer vers https://0.0.0.0:8080.
+        // Utiliser le port du conteneur et une adresse locale fixe évite cet
+        // appel TLS invalide et ne dépend pas des headers Host du visiteur.
+        const port = process.env.PORT;
+        const verificationOrigin = process.env.K_SERVICE && port && /^\d+$/.test(port)
+            ? `http://127.0.0.1:${port}`
+            : request.nextUrl.origin;
+        const verifyUrl = new URL('/api/auth/session/verify', verificationOrigin);
         const verifyResp = await fetch(verifyUrl, {
             method: 'GET',
+            cache: 'no-store',
             headers: {
                 // Transmettre le cookie au endpoint
                 cookie: request.headers.get('cookie') || '',
@@ -99,7 +108,8 @@ export async function middleware(request: NextRequest) {
             const body = await verifyResp.json().catch(() => null);
             role = body?.claims?.role ? String(body.claims.role) : null;
         }
-    } catch (error) {
+    } catch {
+        console.error('[Middleware] Échec de l’appel de vérification de session');
         // En cas de souci réseau/serveur, considérer la session invalide pour les routes protégées
         sessionValid = false;
     }
