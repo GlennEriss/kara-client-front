@@ -75,10 +75,7 @@ export function buildCreditSpecialFacturePage1Data(
     : 'INCONNU'
   const memberPhone1 = member?.contacts?.[0] ?? contract.clientContacts?.[0] ?? '-'
   const memberPhone2 = member?.contacts?.[1] ?? contract.clientContacts?.[1] ?? '-'
-  const quartier =
-    member?.address?.additionalInfo ??
-    (member?.address ? [member.address.city, member.address.district].filter(Boolean).join(', ') : null) ??
-    '-'
+  const quartier = member?.address?.district?.trim() || 'Non renseigné'
 
   return {
     contractId: contract.id,

@@ -42,6 +42,7 @@ import {
   buildCreditSpecialFacturePage1Data,
 } from '@/services/credit-speciale/creditSpecialeFactureHelpers'
 import { generateGlobalFactureCreditSpecialPDF } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
+import { getPaidCreditPenaltiesForGlobalFacture } from '@/services/credit-speciale/creditGlobalFacturePenalties'
 import { generateCreditSpecialGuarantorCommissionHistoryPDF } from '@/services/credit-speciale/guarantorCommissionHistoryCreditSpecialPdfExport'
 import { generateCreditSpecialLossHistoryPDF } from '@/services/credit-speciale/lossHistoryCreditSpecialPdfExport'
 import { CreditContract, CreditContractStatus, CreditPayment, CreditMissedEarningsPayment, CreditPenalty, GuarantorPayment } from '@/types/types'
@@ -1398,6 +1399,7 @@ export default function CreditContractDetail({
     if (normalizedDueDate) normalizedDueDate.setHours(0, 0, 0, 0)
 
     return penalties.reduce((sum, penalty) => {
+      if (!penalty.paid) return sum
       const parsedInstallment = parseCycleAndMonthFromInstallmentRef(penalty.installmentId)
       const penaltyCycle = parsedInstallment.cycleNumber ?? resolvePenaltyCycleNumber(penalty)
       const penaltyMonth = parsedInstallment.monthNumber
@@ -1438,16 +1440,7 @@ export default function CreditContractDetail({
           payment.comment?.includes('Paiement de 0 FCFA') ||
           (!payment.comment?.includes('Paiement de pénalités uniquement') && payment.amount === 0)
       )
-    const paymentsById = new Map(payments.map((payment) => [payment.id, payment]))
-    const penaltiesForGlobalFacture = penalties.filter((penalty) => {
-      if (!penalty.paymentId) return true
-      const linkedPayment = paymentsById.get(penalty.paymentId)
-      if (!linkedPayment) return true
-      return !(
-        linkedPayment.penaltyAmount > 0 ||
-        linkedPayment.comment?.includes('Paiement de pénalités uniquement')
-      )
-    })
+    const penaltiesForGlobalFacture = getPaidCreditPenaltiesForGlobalFacture(payments, penalties)
 
     const paymentEntries = paymentsForGlobalFacture.map((payment) => {
       const paymentContext = getPaymentReceiptContext(payment)
@@ -1465,7 +1458,7 @@ export default function CreditContractDetail({
         id: `PENALTY_${penalty.id}`,
         creditId: contract.id,
         installmentId: penalty.installmentId,
-        amount: penalty.paid ? Math.round(penalty.amount) : 0,
+        amount: Math.round(penalty.amount),
         principalAmount: 0,
         interestAmount: 0,
         penaltyAmount: Math.round(penalty.amount),
@@ -1473,9 +1466,7 @@ export default function CreditContractDetail({
         paymentTime: penalty.paymentTime || '12H00',
         mode: penalty.paymentMode ?? 'cash',
         withFees: penalty.withFees,
-        comment: penalty.paid
-          ? `Pénalité payée (${penalty.daysLate} jour(s) de retard)`
-          : `Pénalité impayée (${penalty.daysLate} jour(s) de retard)`,
+        comment: `Pénalité payée (${penalty.daysLate} jour(s) de retard)`,
         note: 0,
         reference: penalty.paymentId ? `PENALITE:${penalty.id}` : undefined,
         agentRecouvrementId: penalty.agentRecouvrementId,
@@ -1509,7 +1500,7 @@ export default function CreditContractDetail({
     })
 
     if (factureEntries.length === 0) {
-      toast.error('Aucun versement ni pénalité à inclure dans la facture globale')
+      toast.error('Aucun versement enregistré à inclure dans la facture globale')
       return
     }
 
@@ -1539,7 +1530,7 @@ export default function CreditContractDetail({
 
         const titleSuffix =
           entry.kind === 'penalty'
-            ? ` - PENALITE ${entry.penalty.paid ? 'PAYEE' : 'IMPAYEE'}`
+            ? ' - PENALITE PAYEE'
             : ''
 
         return {

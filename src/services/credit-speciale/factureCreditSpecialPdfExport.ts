@@ -110,6 +110,18 @@ const LINE_COLOR = [24, 24, 24] as [number, number, number]
 const NAVY = [21, 62, 96] as [number, number, number]
 const PAGE_FILL = [247, 249, 252] as [number, number, number]
 
+function drawPageFooter(doc: jsPDF, pageNumber: number, totalPages: number): void {
+  doc.setFont(FONT_LABEL, 'italic')
+  doc.setFontSize(8.5)
+  doc.setTextColor(90, 90, 90)
+  doc.text(
+    `Page ${pageNumber} sur ${totalPages} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+    doc.internal.pageSize.getWidth() / 2,
+    doc.internal.pageSize.getHeight() - 9,
+    { align: 'center' }
+  )
+}
+
 export async function loadFactureCreditSpecialLogoDataUrl(): Promise<{ dataUrl: string; width: number; height: number } | null> {
   try {
     const response = await fetch('/assets/caisse-imprevue/image1.png')
@@ -142,8 +154,9 @@ export function drawFactureCreditSpecialPage1(
   logoDataUrl: { dataUrl: string; width: number; height: number } | null,
   pageNumber: number = 1,
   totalPages: number = 2,
-  mainTitle: string = 'HISTORIQUE VERSEMENT CREDIT SPECIALE'
-): void {
+  mainTitle: string = 'HISTORIQUE VERSEMENT CREDIT SPECIALE',
+  withFooter: boolean = true
+): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
   const contentWidth = pageWidth - MARGIN_X * 2
@@ -192,19 +205,25 @@ export function drawFactureCreditSpecialPage1(
     startY: number,
     opts?: { leftLabelWidth?: number; rightLabelWidth?: number }
   ) => {
-    const rowHeight = 8
     const halfWidth = contentWidth / 2
     const leftLabelWidth = opts?.leftLabelWidth ?? 33
     const rightLabelWidth = opts?.rightLabelWidth ?? 33
-    const totalHeight = rows.length * rowHeight
+    doc.setFont(FONT_LABEL, 'normal')
+    doc.setFontSize(9.2)
+    const preparedRows = rows.map((row) => {
+      const leftLines = doc.splitTextToSize(row.leftValue || '-', halfWidth - leftLabelWidth - 4) as string[]
+      const rightLines = doc.splitTextToSize(row.rightValue || '-', halfWidth - rightLabelWidth - 4) as string[]
+      return { ...row, leftLines, rightLines, height: Math.max(8, Math.max(leftLines.length, rightLines.length) * 3.8 + 3) }
+    })
+    const totalHeight = preparedRows.reduce((sum, row) => sum + row.height, 0)
     doc.setDrawColor(...LINE_COLOR)
     doc.setLineWidth(0.2)
     doc.rect(MARGIN_X, startY, contentWidth, totalHeight)
     doc.line(MARGIN_X + halfWidth, startY, MARGIN_X + halfWidth, startY + totalHeight)
     doc.line(MARGIN_X + leftLabelWidth, startY, MARGIN_X + leftLabelWidth, startY + totalHeight)
     doc.line(MARGIN_X + halfWidth + rightLabelWidth, startY, MARGIN_X + halfWidth + rightLabelWidth, startY + totalHeight)
-    rows.forEach((row, index) => {
-      const y = startY + index * rowHeight
+    let y = startY
+    preparedRows.forEach((row, index) => {
       if (index > 0) doc.line(MARGIN_X, y, MARGIN_X + contentWidth, y)
       doc.setFont(FONT_LABEL, 'bold')
       doc.setFontSize(9.2)
@@ -214,8 +233,9 @@ export function drawFactureCreditSpecialPage1(
       doc.setFont(FONT_LABEL, 'normal')
       doc.setFontSize(9.2)
       doc.setTextColor(15, 15, 15)
-      doc.text(row.leftValue, MARGIN_X + leftLabelWidth + 2, y + 5.3)
-      doc.text(row.rightValue, MARGIN_X + halfWidth + rightLabelWidth + 2, y + 5.3)
+      doc.text(row.leftLines, MARGIN_X + leftLabelWidth + 2, y + 4.5, { lineHeightFactor: 1.15 })
+      doc.text(row.rightLines, MARGIN_X + halfWidth + rightLabelWidth + 2, y + 4.5, { lineHeightFactor: 1.15 })
+      y += row.height
     })
     return startY + totalHeight
   }
@@ -236,7 +256,7 @@ export function drawFactureCreditSpecialPage1(
     yCursor
   )
   drawSectionTitle('Informations Concernant Le Contact Urgent', yCursor + 9)
-  drawGridRows(
+  const contentEndY = drawGridRows(
     [
       { leftLabel: 'NOM', leftValue: page1Data.emergencyName, rightLabel: 'LIEN', rightValue: page1Data.emergencyRelation },
       { leftLabel: 'TELEPHONE 1', leftValue: page1Data.emergencyPhone1, rightLabel: 'TELEPHONE 2', rightValue: page1Data.emergencyPhone2 },
@@ -245,15 +265,8 @@ export function drawFactureCreditSpecialPage1(
     yCursor + 17.2
   )
 
-  doc.setFont(FONT_LABEL, 'italic')
-  doc.setFontSize(8.5)
-  doc.setTextColor(90, 90, 90)
-  doc.text(
-    `Page ${pageNumber} sur ${totalPages} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
-    pageWidth / 2,
-    pageHeight - 9,
-    { align: 'center' }
-  )
+  if (withFooter) drawPageFooter(doc, pageNumber, totalPages)
+  return contentEndY
 }
 
 function drawPage2(
@@ -261,7 +274,8 @@ function drawPage2(
   data: FactureCreditSpecialPDFData,
   titleText?: string,
   pageNumber: number = 2,
-  totalPages: number = 2
+  totalPages: number = 2,
+  withFooter: boolean = true
 ): void {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -324,15 +338,7 @@ function drawPage2(
   doc.setLineWidth(BORDER_LINE_WIDTH)
   doc.rect(MARGIN, tableTop, contentWidth, tableHeight, 'S')
 
-  doc.setFont(FONT_LABEL, 'italic')
-  doc.setFontSize(8.5)
-  doc.setTextColor(90, 90, 90)
-  doc.text(
-    `Page ${pageNumber} sur ${totalPages} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
-    pageWidth / 2,
-    pageHeight - 9,
-    { align: 'center' }
-  )
+  if (withFooter) drawPageFooter(doc, pageNumber, totalPages)
 }
 
 export type GenerateFactureCreditSpecialPDFOptions = {
@@ -401,11 +407,10 @@ export async function generateGlobalFactureCreditSpecialPDF(
 
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('p', 'mm', 'a4')
-  const totalPages = (page1Data ? 1 : 0) + factures.length
   const logoDataUrl = page1Data ? await loadFactureCreditSpecialLogoDataUrl() : null
 
   if (page1Data) {
-    drawFactureCreditSpecialPage1(doc, page1Data, logoDataUrl, 1, totalPages, page1MainTitle)
+    drawFactureCreditSpecialPage1(doc, page1Data, logoDataUrl, 1, 1, page1MainTitle, false)
   }
 
   factures.forEach((entry, index) => {
@@ -413,8 +418,14 @@ export async function generateGlobalFactureCreditSpecialPDF(
       doc.addPage()
     }
     const titleDate = entry.titleDate ?? entry.factureData.dateEcheance ?? entry.factureData.paymentDate
-    drawPage2(doc, entry.factureData, titleDate, (page1Data ? 2 : 1) + index, totalPages)
+    drawPage2(doc, entry.factureData, titleDate, 1, 1, false)
   })
+
+  const totalPages = doc.getNumberOfPages()
+  for (let page = 1; page <= totalPages; page++) {
+    doc.setPage(page)
+    drawPageFooter(doc, page, totalPages)
+  }
 
   if (outputMode === 'open' && typeof window !== 'undefined') {
     const blobUrl = String(doc.output('bloburl'))
