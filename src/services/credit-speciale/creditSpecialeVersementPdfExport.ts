@@ -176,7 +176,7 @@ export function buildCreditSpecialeVersementPDFFirstTwoPages(
   const memberIdDocument = memberData?.identityDocumentNumber ?? '-'
   const memberGender = memberData?.gender ? String(memberData.gender).toUpperCase() : '-'
   const memberAge = memberData?.birthDate ? getAge(memberData.birthDate) : '-'
-  const memberQuarter = (memberData?.address?.district ?? memberData?.address?.arrondissement ?? memberData?.address?.city) ?? '-'
+  const memberQuarter = memberData?.address?.district?.trim() || 'Non renseigné'
   const memberProfession = memberData?.profession ?? memberData?.companyName ?? '-'
   const emergencyContactName = contract.emergencyContact
     ? `${contract.emergencyContact.lastName || ''} ${contract.emergencyContact.firstName || ''}`.trim() || 'INCONNU'
