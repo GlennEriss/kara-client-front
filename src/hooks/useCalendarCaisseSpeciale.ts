@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { startOfMonth, endOfMonth, startOfDay, format } from 'date-fns'
-import { getAllContracts } from '@/db/caisse/contracts.db'
+import { getAllContracts, getContract } from '@/db/caisse/contracts.db'
 import { listPayments } from '@/db/caisse/payments.db'
 import { CaisseContract, CaissePayment } from '@/services/caisse/types'
 import { getUserById } from '@/db/user.db'
@@ -102,7 +102,8 @@ function calculateDayColor(
 export function useCalendarCaisseSpeciale(
   month: Date,
   caisseTypes: CaisseType[],
-  enabled: boolean = true
+  enabled: boolean = true,
+  contractId?: string
 ) {
   const filters = useMemo(
     () => ({
@@ -118,12 +119,16 @@ export function useCalendarCaisseSpeciale(
       'calendar-caisse-speciale',
       format(month, 'yyyy-MM'),
       caisseTypes.join(','),
+      ...(contractId ? ['contract', contractId] : []),
     ],
     queryFn: async (): Promise<DayPayments[]> => {
       const today = new Date()
 
-      // 1. Récupérer tous les contrats actifs
-      const allContracts = await getAllContracts({ statuses: ['ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY'] })
+      // 1. Cibler un contrat pour l'ouverture rapide, ou charger le calendrier complet.
+      const focusedContract = contractId ? await getContract(contractId) : null
+      const allContracts = contractId
+        ? focusedContract ? [focusedContract] : []
+        : await getAllContracts({ statuses: ['ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY'] })
       const activeContracts = allContracts.filter(
         (c: any) =>
           c.status === 'ACTIVE' ||

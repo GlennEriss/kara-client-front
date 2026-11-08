@@ -8,6 +8,7 @@ import { Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/comp
 import { useAdmin } from '@/hooks/admin/useAdmin'
 import { useAgentsActifs } from '@/hooks/agent-recouvrement'
 import { useAuth } from '@/hooks/useAuth'
+import { useMember } from '@/hooks/useMembers'
 import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
 import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { format } from 'date-fns'
@@ -87,6 +88,7 @@ export default function PaymentReceiptCIModal({
   const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const { data: admin, isLoading: isLoadingAdmin } = useAdmin(payment.updatedBy ?? '')
   const { user } = useAuth()
+  const { data: member } = useMember(contract.memberId)
   const { data: agents = [] } = useAgentsActifs()
   const agentsMap = React.useMemo(() => Object.fromEntries(agents.map((a) => [a.id, a])), [agents])
 
@@ -135,6 +137,7 @@ export default function PaymentReceiptCIModal({
       }
       await generateSingleVersementCIPDF(contract, payment, {
         contractId: contract.id,
+        member,
         getAdminDisplayName,
       })
       toast.success('PDF téléchargé avec succès')

@@ -12,7 +12,7 @@ import ShopPurchaseSection from './ShopPurchaseSection'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import { canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
-import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
+import { getCreditContractEndDate, getCreditContractRemainingMonths, getCreditContractStartDates } from '@/services/credit-speciale/creditContractDates'
 import { computeWeeklyCreditTotals, formatCreditDuration, getFlatInstallmentCount, getWeeklyCreditStartDate, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from '@/utils/credit-weekly'
 
 import { backOr } from '@/lib/backNavigation'
@@ -198,11 +198,10 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
 
   // Même présentation compacte que le contrat Caisse imprévue, montants en FCFA.
   const fcfa = (value: number) => `${Math.round(value).toLocaleString('fr-FR')} FCFA`
-  const startDate = contract.firstPaymentDate
-    ? isWeeklyCredit(contract)
-      ? getWeeklyCreditStartDate(contract.firstPaymentDate, contract.duration)
-      : new Date(contract.firstPaymentDate)
-    : null
+  const startDate = isWeeklyCredit(contract)
+    ? getWeeklyCreditStartDate(contract.firstPaymentDate, contract.duration)
+    : getCreditContractStartDates(contract).startDate
+  const remainingMonths = getCreditContractRemainingMonths(contract)
   const endDate = getCreditContractEndDate(contract)
   // Le manque à gagner s'affiche une fois la date de fin prévue passée, que le
   // contrat soit clôturé ou non, ou dès un basculement manuel en partie fixe.
@@ -220,6 +219,11 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
         ? `du ${startDate.toLocaleDateString('fr-FR')} au ${endDate.toLocaleDateString('fr-FR')}`
         : undefined,
     },
+    ...(remainingMonths !== null ? [{
+      title: 'Mois restants',
+      value: `${remainingMonths} sur ${contract.duration}`,
+      subtitle: 'Mensualités prévues aujourd’hui ou à venir',
+    }] : []),
     { title: 'Montant versé', value: fcfa(contract.amountPaid), tone: 'accent' },
     { title: 'Montant restant', value: fcfa(realRemainingAmount) },
     {
@@ -486,6 +490,7 @@ export default function CreditContractDetail({
   }, [contract.id, payments.length, isLoadingPayments, queryClient])
 
   const statusConfig = getStatusConfig(contract.status)
+  const { startDate, initialStartDate, hasExtension } = getCreditContractStartDates(contract)
   const isUploadActivationFlow = contract.status === 'PENDING'
 
   const formatDate = (date: Date | undefined) => {
@@ -2159,6 +2164,12 @@ export default function CreditContractDetail({
                   ? 'Échéancier personnalisé'
                   : `${isWeekly ? 'Montant dû' : 'Mensualité'} ${contract.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA`}
               </p>
+              <p className="text-sm">
+                Date de départ : <span className="font-semibold text-white">{startDate ? formatDate(startDate) : '—'}</span>
+              </p>
+              {hasExtension && initialStartDate && (
+                <p className="text-xs">Date de départ initiale : {formatDate(initialStartDate)}</p>
+              )}
               <button
                 type="button"
                 onClick={() => setShowContractInfo((value) => !value)}

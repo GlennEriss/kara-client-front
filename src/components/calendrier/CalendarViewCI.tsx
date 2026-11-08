@@ -3,11 +3,13 @@
 import { Button } from "@/components/ui/button"
 import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CalendarPaymentItemCI, DayPaymentsCI } from "@/hooks/useCalendarCaisseImprevue"
+import { useCalendarCaisseImprevue } from "@/hooks/useCalendarCaisseImprevue"
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, startOfMonth, startOfWeek, subMonths } from "date-fns"
 import { fr } from "date-fns/locale"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { calendarFocusKey } from "@/utils/calendar-payment-link"
+import { calendarFocusKey, getCalendarFocusContractId } from "@/utils/calendar-payment-link"
+import { CalendarFocusLoading } from "./CalendarFocusLoading"
 import { CalendarDayCI } from "./CalendarDayCI"
 import { DayPaymentsModalCI } from "./DayPaymentsModalCI"
 import { PaymentSidebarCI } from "./PaymentSidebarCI"
@@ -31,18 +33,23 @@ export function CalendarViewCI({
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedPayment, setSelectedPayment] = useState<CalendarPaymentItemCI | null>(null)
   const openedFocus = useRef<string | null>(null)
+  const cachedFocus = focusedPaymentKey && !isLoading ? daysPayments.flatMap((day) => day.payments)
+    .find((item) => calendarFocusKey.caisseImprevue(item.contract.id, item.monthIndex) === focusedPaymentKey) : undefined
+  const focusedContractId = getCalendarFocusContractId(focusedPaymentKey, 'ci')
+  const { data: focusedDays, isFetching: isFetchingFocus } = useCalendarCaisseImprevue(
+    month, [], !!focusedContractId && !cachedFocus && openedFocus.current !== focusedPaymentKey, focusedContractId
+  )
 
   useEffect(() => {
     if (!focusedPaymentKey || openedFocus.current === focusedPaymentKey) return
     setSelectedDay(null)
     setSelectedPayment(null)
-    if (isLoading) return
-    const payment = daysPayments.flatMap((day) => day.payments)
+    const payment = cachedFocus ?? focusedDays?.flatMap((day) => day.payments)
       .find((item) => calendarFocusKey.caisseImprevue(item.contract.id, item.monthIndex) === focusedPaymentKey)
     if (!payment) return
     openedFocus.current = focusedPaymentKey
     setSelectedPayment(payment)
-  }, [daysPayments, focusedPaymentKey, isLoading])
+  }, [cachedFocus, focusedDays, focusedPaymentKey])
 
   const monthStart = startOfMonth(month)
   const monthEnd = endOfMonth(month)
@@ -116,6 +123,7 @@ export function CalendarViewCI({
 
   return (
     <div className="space-y-6">
+      <CalendarFocusLoading loading={!!focusedContractId && openedFocus.current !== focusedPaymentKey && isFetchingFocus} />
       {/* Statistiques du mois */}
       <div className={`grid grid-cols-2 gap-4 ${canSeeAmounts ? "md:grid-cols-4" : "md:grid-cols-2"}`}>
         {canSeeAmounts && (

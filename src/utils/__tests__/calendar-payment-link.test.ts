@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calendarFocusKey, calendarPaymentHref } from '@/utils/calendar-payment-link'
+import { calendarFocusKey, calendarPaymentHref, getCalendarFocusContractId } from '@/utils/calendar-payment-link'
 
 describe('calendarPaymentHref', () => {
   it('cible le bon onglet, le mois et le versement de caisse spéciale', () => {
@@ -27,5 +27,23 @@ describe('calendarPaymentHref', () => {
     expect(href).toContain('tab=credit-fixe')
     expect(href).toContain('month=2027-01')
     expect(href).toContain('focus=credit%3Acontract-7%3A3')
+  })
+})
+
+describe('contrat ciblé par un lien du calendrier', () => {
+  it.each([
+    ['cs', 'cs:contract-A:payment-1'],
+    ['ci', 'ci:contract-A:0'],
+    ['credit', 'credit:contract-A:3'],
+    ['placement', 'placement:contract-A:commission-1'],
+  ] as const)('extrait le contrat pour %s', (product, focus) => {
+    expect(getCalendarFocusContractId(focus, product)).toBe('contract-A')
+  })
+
+  it('ignore les liens ambigus, mal formés ou d’un autre produit', () => {
+    expect(getCalendarFocusContractId('cs:payment-1', 'cs')).toBeUndefined()
+    expect(getCalendarFocusContractId('ci:contract-A:0', 'cs')).toBeUndefined()
+    expect(getCalendarFocusContractId('credit:contract-A:NaN', 'credit')).toBeUndefined()
+    expect(getCalendarFocusContractId('cs::payment-1', 'cs')).toBeUndefined()
   })
 })

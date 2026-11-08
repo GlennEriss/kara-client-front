@@ -8,11 +8,39 @@ import {
   createCallPlanBatch,
   deleteCallPlan,
   listCallPlans,
+  listOverdueCallPlans,
+  rescheduleCallPlan,
+  type RescheduleCallPlanRequest,
   type CallPlanAssignee,
   type CallPlanTarget,
 } from '@/services/call-logs/callPlan'
+import { callPlanToday } from '@/utils/call-plan-dates'
 
 const QUERY_KEY = 'call-plans'
+
+export function useOverdueCallPlans() {
+  const today = callPlanToday()
+  return useQuery({ queryKey: [QUERY_KEY, 'overdue', today], queryFn: () => listOverdueCallPlans(today), staleTime: 20_000 })
+}
+
+export function useRescheduleCallPlan() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
+  return useMutation({
+    mutationFn: (input: RescheduleCallPlanRequest) => rescheduleCallPlan({
+      ...input,
+      byId: user?.uid ?? 'inconnu',
+      byName: user?.displayName?.trim() || user?.email || 'Super administrateur',
+    }),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (count, input) => log({
+      action: 'update', module: 'recouvrement', moduleLabel: 'Recouvrement', targetType: 'appel-planifie',
+      targetId: input.id ?? input.batchId, description: `${count} appel(s) replanifié(s) pour le ${input.scheduledDate}`,
+      metadata: { scheduledDate: input.scheduledDate, reason: input.reason, count },
+    }),
+  })
+}
 
 export function useCallPlans(startDate: string, endDate: string) {
   return useQuery({
@@ -34,14 +62,17 @@ export function useScheduleCallBatch() {
       scheduledDate,
       targets,
       assignee,
+      sourceCallLogId,
     }: {
       scheduledDate: string
       targets: CallPlanTarget[]
       assignee?: CallPlanAssignee
+      sourceCallLogId?: string
     }) => createCallPlanBatch({
       scheduledDate,
       targets,
       assignee,
+      sourceCallLogId,
       createdById: user?.uid ?? 'inconnu',
       createdByEmail: user?.email ?? undefined,
       createdByName: user?.displayName?.trim() || user?.email || 'Super administrateur',

@@ -32,3 +32,11 @@ export const calendarFocusKey = {
   credit: (contractId: string, installmentNumber: number) => `credit:${contractId}:${installmentNumber}`,
   placement: (placementId: string, commissionId: string) => `placement:${placementId}:${commissionId}`,
 }
+
+/** Les anciens liens sans contrat sont ambigus et ne doivent jamais ouvrir un autre dossier. */
+export function getCalendarFocusContractId(focusKey: string | undefined, product: 'cs' | 'ci' | 'credit' | 'placement'): string | undefined {
+  const parts = focusKey?.split(':')
+  if (!parts || parts.length !== 3 || parts[0] !== product || !parts[1] || !parts[2]) return undefined
+  if ((product === 'ci' || product === 'credit') && !/^\d+$/.test(parts[2])) return undefined
+  return parts[1]
+}

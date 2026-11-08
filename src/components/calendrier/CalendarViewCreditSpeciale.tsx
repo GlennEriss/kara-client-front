@@ -20,7 +20,10 @@ import {
 import { fr } from "date-fns/locale"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { calendarFocusKey } from "@/utils/calendar-payment-link"
+import { useCalendarCreditSpeciale } from "@/hooks/useCalendarCreditSpeciale"
+import type { CreditType } from "@/types/types"
+import { calendarFocusKey, getCalendarFocusContractId } from "@/utils/calendar-payment-link"
+import { CalendarFocusLoading } from "./CalendarFocusLoading"
 import { DayPaymentsModalCreditSpeciale } from "./DayPaymentsModalCreditSpeciale"
 import { PaymentSidebarCreditSpeciale } from "./PaymentSidebarCreditSpeciale"
 
@@ -30,6 +33,7 @@ interface CalendarViewCreditSpecialeProps {
   daysPayments: DayPaymentsCredit[]
   isLoading: boolean
   focusedPaymentKey?: string
+  creditType?: CreditType
 }
 
 const COLOR_CLASS: Record<DayPaymentsCredit["color"], string> = {
@@ -46,24 +50,30 @@ export function CalendarViewCreditSpeciale({
   daysPayments,
   isLoading,
   focusedPaymentKey,
+  creditType = 'SPECIALE',
 }: CalendarViewCreditSpecialeProps) {
   const { canSeeAmounts } = useMyAccess()
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedPayment, setSelectedPayment] =
     useState<CalendarPaymentItemCredit | null>(null)
   const openedFocus = useRef<string | null>(null)
+  const cachedFocus = focusedPaymentKey && !isLoading ? daysPayments.flatMap((day) => day.payments)
+    .find((item) => calendarFocusKey.credit(item.contract.id, item.installment.installmentNumber) === focusedPaymentKey) : undefined
+  const focusedContractId = getCalendarFocusContractId(focusedPaymentKey, 'credit')
+  const { data: focusedDays, isFetching: isFetchingFocus } = useCalendarCreditSpeciale(
+    month, creditType, !!focusedContractId && !cachedFocus && openedFocus.current !== focusedPaymentKey, focusedContractId
+  )
 
   useEffect(() => {
     if (!focusedPaymentKey || openedFocus.current === focusedPaymentKey) return
     setSelectedDay(null)
     setSelectedPayment(null)
-    if (isLoading) return
-    const payment = daysPayments.flatMap((day) => day.payments)
+    const payment = cachedFocus ?? focusedDays?.flatMap((day) => day.payments)
       .find((item) => calendarFocusKey.credit(item.contract.id, item.installment.installmentNumber) === focusedPaymentKey)
     if (!payment) return
     openedFocus.current = focusedPaymentKey
     setSelectedPayment(payment)
-  }, [daysPayments, focusedPaymentKey, isLoading])
+  }, [cachedFocus, focusedDays, focusedPaymentKey])
 
   const monthStart = startOfMonth(month)
   const monthEnd = endOfMonth(month)
@@ -91,6 +101,7 @@ export function CalendarViewCreditSpeciale({
 
   return (
     <div className="space-y-6">
+      <CalendarFocusLoading loading={!!focusedContractId && openedFocus.current !== focusedPaymentKey && isFetchingFocus} />
       <div className={`grid grid-cols-2 gap-4 ${canSeeAmounts ? "md:grid-cols-3" : "md:grid-cols-1"}`}>
         {canSeeAmounts && (
           <>

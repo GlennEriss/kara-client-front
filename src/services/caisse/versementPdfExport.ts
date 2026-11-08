@@ -1,3 +1,5 @@
+import { getCaisseSpecialeRecordedVersements, getMemberQuarterForPdf } from '@/utils/versement-history'
+import { drawPdfHistoryTable } from '@/utils/pdf-history-table'
 /**
  * Exporter PDF "historique versement" (2 pages infos + bloc VERSEMENT i DU date).
  * Utilisé par la page versements (bouton PDF) et par le modal facture (Télécharger PDF).
@@ -146,42 +148,6 @@ export function buildVersementPDFFirstTwoPages(
     return base
   }
 
-  /**
-   * Dessine la valeur d'une cellule, sur une ou deux lignes. La seconde ligne
-   * est en corps réduit et rognée à la largeur de colonne : deux lignes tiennent
-   * dans la hauteur de ligne existante, une troisième déborderait.
-   */
-  const drawCellValue = (
-    value: string | string[],
-    centerX: number,
-    rowTopY: number,
-    columnWidth: number,
-    fontSize = 8.9
-  ) => {
-    const lines = Array.isArray(value) ? value : [String(value ?? '')]
-    doc.setFont('times', 'normal')
-    doc.setTextColor(18, 18, 18)
-
-    if (lines.length < 2) {
-      doc.setFontSize(fontSize)
-      doc.text(String(lines[0] ?? ''), centerX, rowTopY + 5.3, { align: 'center' })
-      return
-    }
-
-    doc.setFontSize(fontSize)
-    doc.text(String(lines[0]), centerX, rowTopY + 3.6, { align: 'center' })
-    doc.setFontSize(fontSize - 1.5)
-    // Une seule ligne de qualificatif tient : au-delà on tronque avec une
-    // ellipsis, en refermant la parenthèse pour rester lisible.
-    const raw = String(lines[1])
-    const parts = doc.splitTextToSize(raw, columnWidth - 3)
-    const second =
-      parts.length > 1
-        ? `${String(parts[0]).trimEnd()}…${raw.endsWith(')') ? ')' : ''}`
-        : String(parts[0] ?? raw)
-    doc.text(second, centerX, rowTopY + 7, { align: 'center' })
-    doc.setFontSize(fontSize)
-  }
   const getAge = (birthDate?: string): string => {
     if (!birthDate) return '-'
     const birth = toDateSafe(birthDate)
@@ -192,13 +158,7 @@ export function buildVersementPDFFirstTwoPages(
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age -= 1
     return age > 0 ? `${age} ANS` : '-'
   }
-  const getPaymentRemark = (payment: any): string => {
-    if (payment.status === 'PAID')
-      return (payment.penaltyApplied || 0) > 0 ? `RETARD ${payment.penaltyDays || 0}J` : 'CONFORME'
-    const dueDate = toDateSafe(payment.dueAt)
-    if (dueDate && new Date() > dueDate) return 'IMPAYE'
-    return 'EN ATTENTE'
-  }
+
   const getAdminNameForExport = (payment: any): string => {
     const label = getAdminDisplayName(payment.updatedBy)
     if (!label || label === 'Chargement...') return payment.updatedBy || '-'
@@ -234,9 +194,9 @@ export function buildVersementPDFFirstTwoPages(
   const memberQuarter =
     contract.contractType === 'GROUP'
       ? '-'
-      : member?.address?.district || member?.address?.arrondissement || member?.address?.city || '-'
+      : getMemberQuarterForPdf(member)
   const memberProfession =
-    contract.contractType === 'GROUP' ? '-' : member?.profession || member?.companyName || '-'
+    contract.contractType === 'GROUP' ? '-' : member?.profession?.trim() || 'Non renseigné'
   const emergencyContactName = contract.emergencyContact
     ? `${contract.emergencyContact.lastName || ''} ${contract.emergencyContact.firstName || ''}`.trim() || 'INCONNU'
     : 'INCONNU'
@@ -244,21 +204,15 @@ export function buildVersementPDFFirstTwoPages(
   const emergencyPhone1 = contract.emergencyContact?.phone1 || '-'
   const emergencyPhone2 = contract.emergencyContact?.phone2 || '-'
   const emergencyId = contract.emergencyContact?.idNumber || '-'
-  const unpaidCount = sortedPayments.filter((p) => p.status !== 'PAID').length
-  const paidCount = sortedPayments.filter((p) => p.status === 'PAID').length
+  const unpaidCount = sortedPayments.filter((p) => p.status !== 'PAID' && toDateSafe(p.dueAt) && toDateSafe(p.dueAt)!.getTime() < Date.now()).length
+  const paidCount = sortedPayments.reduce((sum, p) => sum + getCaisseSpecialeRecordedVersements(p).length, 0)
   const isJournalierType =
     contract.caisseType === 'JOURNALIERE' || contract.caisseType === 'JOURNALIERE_CHARITABLE'
   const totalCotisation = isJournalierType
     ? sortedPayments.length * (Number(contract.monthlyAmount) || 0)
     : sortedPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
-  const totalPaid = isJournalierType
-    ? sortedPayments.reduce((sum, p) => {
-        if (p.contribs && Array.isArray(p.contribs)) {
-          return sum + (p.contribs as any[]).reduce((s, c) => s + (Number(c.amount) || 0), 0)
-        }
-        return sum + (Number((p as any).accumulatedAmount) || 0)
-      }, 0)
-    : sortedPayments.filter((p) => p.status === 'PAID').reduce((sum, p) => sum + (p.amount || 0), 0)
+  const totalPaid = sortedPayments.reduce((sum, payment) =>
+    sum + getCaisseSpecialeRecordedVersements(payment).reduce((total, v) => total + v.amount, 0), 0)
   const totalUnpaid = Math.max(totalCotisation - totalPaid, 0)
   const totalPenalties = sortedPayments.reduce((sum, p) => sum + ((p as any).penaltyApplied || 0), 0)
 
@@ -345,218 +299,38 @@ export function buildVersementPDFFirstTwoPages(
     })
     return startY + totalHeight
   }
-  const rowHeight = 8
-  const drawPaymentBlock = (payment: any, startY: number) => {
-    const headerHeight = 8,
-      titleHeight = 8
-    const columns = [43, 41, 33, 18, 34, 36, 64]
-    const isJournalierType =
-      contract.caisseType === 'JOURNALIERE' || contract.caisseType === 'JOURNALIERE_CHARITABLE'
 
+  const drawPaymentBlock = (payment: any, startY: number) => {
+    const versements = getCaisseSpecialeRecordedVersements(payment)
+    if (!versements.length) return startY
+    const isDaily = contract.caisseType === 'JOURNALIERE' || contract.caisseType === 'JOURNALIERE_CHARITABLE'
+    const bounds = isDaily ? getJournalierPeriodBounds(payment) : null
+    const nextPage = () => { drawPageBackground(); drawMainTitle() }
+    if (startY + 25 > pageHeight - 20) { doc.addPage(); nextPage(); startY = 30 }
     doc.setFillColor(...colors.headerFill)
     doc.setDrawColor(...colors.line)
     doc.setLineWidth(0.2)
-    doc.rect(marginX, startY, contentWidth, titleHeight, 'FD')
+    doc.rect(marginX, startY, contentWidth, 8, 'FD')
     doc.setFont('times', 'bold')
     doc.setFontSize(10)
     doc.setTextColor(...colors.navy)
-
-    if (isJournalierType) {
-      const bounds = getJournalierPeriodBounds(payment)
-      const titleText = bounds
-        ? `VERSEMENT ${payment.dueMonthIndex + 1} DU ${formatShortDate(bounds.start)} AU ${formatShortDate(bounds.end)}`
-        : `VERSEMENT ${payment.dueMonthIndex + 1} DU ${formatLongDate(payment.dueAt)}`
-      doc.text(titleText, marginX + 3, startY + 5.4)
-    } else {
-      doc.text(
-        `VERSEMENT ${payment.dueMonthIndex + 1} DU ${formatLongDate(payment.dueAt)}`,
-        marginX + 3,
-        startY + 5.4
-      )
-    }
-    const tableY = startY + titleHeight
-
-    // Bouton "PDF" (single versement) : tableau journalier détaillé 30 jours (18+12) + total
-    if (isJournalierType) {
-      const bounds = getJournalierPeriodBounds(payment)
-      const contribs = Array.isArray(payment.contribs) ? payment.contribs : []
-      const dayCount = PERIOD_DAYS
-      const dates: Date[] = []
-      if (bounds) {
-        for (let d = 0; d < dayCount; d++) {
-          const day = new Date(bounds.start)
-          day.setDate(day.getDate() + d)
-          dates.push(day)
-        }
-      }
-      const findContribForDate = (date: Date): any => {
-        const y = date.getFullYear()
-        const m = date.getMonth()
-        const d = date.getDate()
-        return contribs.find((c: any) => {
-          const paid = toDateSafe(c.paidAt)
-          if (!paid) return false
-          return paid.getFullYear() === y && paid.getMonth() === m && paid.getDate() === d
-        })
-      }
-      const getAdminNameFromContrib = (contrib: any, payment: any): string => {
-        const id = contrib?.updatedBy ?? contrib?.createdBy ?? payment?.updatedBy ?? ''
-        const label = getAdminDisplayName(id)
-        if (!label || label === 'Chargement...') return id || '-'
-        return label
-      }
-
-      const ROWS_PER_PAGE = 18
-      const headers = ['DATE ECHEANCE', 'DATE REMISE', 'MONTANT', 'HEURE', 'MOYEN /TRANS', 'AGENT', 'REMARQUE']
-
-      const totalAmount = contribs.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
-
-      const drawJournalierTableChunk = (
-        chunkRows: Date[],
-        chunkStartY: number,
-        options?: { totalAmount?: number }
-      ) => {
-        const hasTotalRow = options?.totalAmount != null
-        const chunkHeight =
-          headerHeight + chunkRows.length * rowHeight + (hasTotalRow ? rowHeight : 0)
-        doc.setLineWidth(0.2)
-        doc.setDrawColor(...colors.line)
-        doc.rect(marginX, chunkStartY, contentWidth, chunkHeight)
-        doc.setFillColor(225, 235, 245)
-        doc.rect(marginX, chunkStartY, contentWidth, headerHeight, 'F')
-        let cursorX = marginX
-        headers.forEach((header, index) => {
-          const width = columns[index]
-          if (index > 0) doc.line(cursorX, chunkStartY, cursorX, chunkStartY + chunkHeight)
-          doc.setFont('times', 'bold')
-          doc.setFontSize(8.7)
-          doc.setTextColor(32, 32, 32)
-          doc.text(header, cursorX + width / 2, chunkStartY + 5.3, { align: 'center' })
-          cursorX += width
-        })
-        doc.line(marginX, chunkStartY + headerHeight, marginX + contentWidth, chunkStartY + headerHeight)
-
-        chunkRows.forEach((date: Date, idx: number) => {
-          const rowY = chunkStartY + headerHeight + idx * rowHeight
-          if (idx > 0) doc.line(marginX, rowY, marginX + contentWidth, rowY)
-          const contrib = findContribForDate(date)
-          const rowValues = contrib
-            ? [
-                formatShortDate(date),
-                formatShortDate(contrib.paidAt),
-                `${formatAmountForPDF(Number(contrib.amount) || 0)} FCFA`,
-                contrib.time || '-',
-                formatMode(contrib.mode, contrib),
-                getAdminNameFromContrib(contrib, payment),
-                'CONFORME',
-              ]
-            : [
-                formatShortDate(date),
-                '-',
-                '0 FCFA',
-                '-',
-                '-',
-                '-',
-                'NON CONFORME',
-              ]
-          cursorX = marginX
-          rowValues.forEach((value, colIndex) => {
-            const width = columns[colIndex]
-            drawCellValue(value, cursorX + width / 2, rowY, width)
-            cursorX += width
-          })
-        })
-
-        if (hasTotalRow) {
-          const totalRowY = chunkStartY + headerHeight + chunkRows.length * rowHeight
-          doc.line(marginX, totalRowY, marginX + contentWidth, totalRowY)
-          const totalRowValues = [
-            'TOTAL',
-            '-',
-            `${formatAmountForPDF(options!.totalAmount!)} FCFA`,
-            '-',
-            '-',
-            '-',
-            '-',
-          ]
-          cursorX = marginX
-          totalRowValues.forEach((value, colIndex) => {
-            const width = columns[colIndex]
-            doc.setFont('times', 'bold')
-            doc.setFontSize(8.9)
-            doc.setTextColor(18, 18, 18)
-            doc.text(String(value), cursorX + width / 2, totalRowY + 5.3, { align: 'center' })
-            cursorX += width
-          })
-        }
-      }
-
-      const rowsToRender =
-        bounds && dates.length > 0
-          ? dates
-          : bounds
-            ? Array.from({ length: dayCount }, (_, i) => {
-                const d = new Date(bounds.start)
-                d.setDate(d.getDate() + i)
-                return d
-              })
-            : []
-
-      const firstChunk = rowsToRender.slice(0, ROWS_PER_PAGE)
-      const secondChunk = rowsToRender.slice(ROWS_PER_PAGE)
-
-      const tableYFirst = startY + titleHeight
-      drawJournalierTableChunk(firstChunk, tableYFirst)
-
-      if (secondChunk.length > 0) {
-        doc.addPage()
-        drawPageBackground()
-        drawMainTitle()
-        const suiteTableY = 28
-        drawJournalierTableChunk(secondChunk, suiteTableY, { totalAmount })
-        return suiteTableY + headerHeight + secondChunk.length * rowHeight + rowHeight
-      }
-
-      return startY + titleHeight + headerHeight + firstChunk.length * rowHeight
-    }
-
-    const valuesHeight = rowHeight
-    const totalHeight = titleHeight + headerHeight + valuesHeight
-    doc.setDrawColor(...colors.line)
-    doc.rect(marginX, tableY, contentWidth, headerHeight + valuesHeight)
-    doc.setFillColor(225, 235, 245)
-    doc.rect(marginX, tableY, contentWidth, headerHeight, 'F')
-    const headers = ['DATE ECHEANCE', 'DATE REMISE', 'MONTANT', 'HEURE', 'MOYEN /TRANS', 'AGENT', 'REMARQUE']
-    let cursorX = marginX
-    headers.forEach((header, index) => {
-      const width = columns[index]
-      if (index > 0) doc.line(cursorX, tableY, cursorX, tableY + headerHeight + valuesHeight)
-      doc.setFont('times', 'bold')
-      doc.setFontSize(8.7)
-      doc.setTextColor(32, 32, 32)
-      doc.text(header, cursorX + width / 2, tableY + 5.3, { align: 'center' })
-      cursorX += width
+    const title = bounds
+      ? `VERSEMENT ${payment.dueMonthIndex + 1} DU ${formatShortDate(bounds.start)} AU ${formatShortDate(bounds.end)}`
+      : `VERSEMENT ${payment.dueMonthIndex + 1} DU ${formatLongDate(payment.dueAt)}`
+    doc.text(title, marginX + 3, startY + 5.4)
+    return drawPdfHistoryTable(doc, {
+      startY: startY + 8,
+      columns: [43, 41, 33, 18, 34, 36, 64],
+      rows: versements.map((v) => [
+        bounds ? formatShortDate(bounds.end) : formatLongDate(payment.dueAt),
+        formatLongDate(v.paidAt), `${formatAmountForPDF(v.amount)} FCFA`, v.time || '-',
+        formatMode(v.mode, v),
+        getAdminNameForExport({ updatedBy: v.updatedBy ?? v.createdBy ?? payment.updatedBy }),
+        (payment.penaltyApplied || 0) > 0 ? `RETARD ${payment.penaltyDays || 0}J` : 'CONFORME',
+      ]),
+      totalAmount: versements.length > 1 ? `${formatAmountForPDF(versements.reduce((sum, v) => sum + v.amount, 0))} FCFA` : undefined,
+      onNewPage: nextPage,
     })
-    doc.line(marginX, tableY + headerHeight, marginX + contentWidth, tableY + headerHeight)
-
-    const isPaymentCompleted = payment.status === 'PAID' || Boolean(payment.paidAt)
-    const displayedAmount = isPaymentCompleted ? payment.amount || 0 : 0
-    const rowValues = [
-      formatLongDate(payment.dueAt),
-      formatLongDate(payment.paidAt),
-      `${formatAmountForPDF(displayedAmount)} FCFA`,
-      payment.time || '-',
-      formatMode(payment.mode, payment),
-      getAdminNameForExport(payment),
-      getPaymentRemark(payment),
-    ]
-    cursorX = marginX
-    rowValues.forEach((value, index) => {
-      const width = columns[index]
-      drawCellValue(value, cursorX + width / 2, tableY + headerHeight, width)
-      cursorX += width
-    })
-    return startY + totalHeight
   }
 
   // Page 1
@@ -572,7 +346,7 @@ export function buildVersementPDFFirstTwoPages(
         rightLabel: 'ANNEE',
         rightValue: String(new Date().getFullYear()),
       },
-      { leftLabel: 'MEMBRE', leftValue: '', rightLabel: 'CODE', rightValue: (contract.id || contractId).slice(0, 16) },
+      { leftLabel: 'MEMBRE', leftValue: contract.contractType === 'GROUP' ? 'GROUPE' : 'INDIVIDUEL', rightLabel: 'CODE', rightValue: (contract.id || contractId).slice(0, 16) },
       { leftLabel: 'NOM', leftValue: memberLastName, rightLabel: 'PRENOM', rightValue: memberFirstName },
       {
         leftLabel: 'LIEU / NAISSANCE',
@@ -664,7 +438,7 @@ export function buildVersementPDFFirstTwoPages(
         {
           leftLabel: 'MONTANT PAYE',
           leftValue: `${formatAmountForPDF(totalPaid)} FCFA`,
-          rightLabel: 'MONTANT IMPAYE',
+          rightLabel: 'RESTE A VERSER',
           rightValue: `${formatAmountForPDF(totalUnpaid)} FCFA`,
         },
         {
@@ -694,6 +468,7 @@ export type GenerateSingleVersementPdfParams = {
 /** Génère et télécharge le PDF "historique versement" pour un seul versement (même format que la page versements > PDF). */
 export async function generateSingleVersementPDF(params: GenerateSingleVersementPdfParams): Promise<void> {
   const { contract, contractId, member, group, payments, payment, getAdminDisplayName } = params
+  if (!getCaisseSpecialeRecordedVersements(payment).length) throw new Error('Aucun versement enregistré pour cette échéance')
   const logoDataUrl = await loadLogoDataUrl()
   const sortedPayments = [...payments].sort((a, b) => a.dueMonthIndex - b.dueMonthIndex)
   const { jsPDF } = await import('jspdf')

@@ -11,6 +11,7 @@
  */
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useRecordCall } from '@/hooks/useCallLogs'
+import { useScheduleCallBatch } from '@/hooks/useCallPlans'
+import { useMyAccess } from '@/hooks/useMyAccess'
+import type { CallPlanAssignee } from '@/services/call-logs/callPlan'
+import { callPlanToday, isValidCallPlanDate } from '@/utils/call-plan-dates'
 import {
   CALL_OUTCOME_LABELS,
   CONTACT_CHANNEL_LABELS,
@@ -48,6 +53,8 @@ export interface CallTarget {
   totalOverdue: number
   overdueCount: number
   maxDaysOverdue: number
+  phone?: string
+  whatsappNumber?: string
 }
 
 interface LogCallModalProps {
@@ -59,6 +66,7 @@ interface LogCallModalProps {
   onRecorded: (callLogId: string) => void
   /** Fermeture sans enregistrer (croix, Échap, clic extérieur, « Annuler »). */
   onCancel: () => void
+  followUpAssignee?: CallPlanAssignee
 }
 
 /** Ordre d'affichage : les issues les plus fréquentes en premier. */
@@ -74,9 +82,12 @@ const OUTCOME_ORDER: CallOutcome[] = [
 
 const SUMMARY_MIN_LENGTH = 5
 
-export function LogCallModal({ open, target, channel, onRecorded, onCancel }: LogCallModalProps) {
+export function LogCallModal({ open, target, channel, onRecorded, onCancel, followUpAssignee }: LogCallModalProps) {
   const shownAmount = useShownAmount()
   const { record, isPending } = useRecordCall()
+  const { isSuperAdmin } = useMyAccess()
+  const scheduleBatch = useScheduleCallBatch()
+  const [schedulePromise, setSchedulePromise] = useState(false)
 
   const [outcome, setOutcome] = useState<CallOutcome | ''>('')
   const [summary, setSummary] = useState('')
@@ -93,6 +104,7 @@ export function LogCallModal({ open, target, channel, onRecorded, onCancel }: Lo
       setPromiseDate('')
       setPromiseAmount('')
       setSubmitted(false)
+      setSchedulePromise(false)
     }
   }, [open, target?.personKey])
 
@@ -100,7 +112,8 @@ export function LogCallModal({ open, target, channel, onRecorded, onCancel }: Lo
 
   const needsPromiseDate = outcome === 'promesse_paiement'
   const summaryTooShort = summary.trim().length < SUMMARY_MIN_LENGTH
-  const missingPromiseDate = needsPromiseDate && !promiseDate
+  const missingPromiseDate = needsPromiseDate && !isValidCallPlanDate(promiseDate)
+  const busy = isPending || scheduleBatch.isPending
 
   const handleSubmit = async () => {
     setSubmitted(true)
@@ -131,6 +144,19 @@ export function LogCallModal({ open, target, channel, onRecorded, onCancel }: Lo
             : undefined,
       })
       toast.success('Compte rendu enregistré')
+      if (needsPromiseDate && schedulePromise && isSuperAdmin) {
+        try {
+          const count = await scheduleBatch.mutateAsync({
+            scheduledDate: promiseDate,
+            targets: [{ ...target }],
+            assignee: followUpAssignee,
+            sourceCallLogId: callLogId,
+          })
+          toast.success(count ? 'Relance planifiée à la date promise.' : 'Une relance existe déjà à cette date.')
+        } catch {
+          toast.error('Compte rendu enregistré, mais la relance n’a pas pu être planifiée. Planifiez-la depuis le tableau des retards.')
+        }
+      }
       onRecorded(callLogId)
     } catch (error) {
       console.error('[callLog] enregistrement impossible:', error)
@@ -139,7 +165,7 @@ export function LogCallModal({ open, target, channel, onRecorded, onCancel }: Lo
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel() }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next && !busy) onCancel() }}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -187,11 +213,11 @@ export function LogCallModal({ open, target, channel, onRecorded, onCancel }: Lo
                   id="promise-date"
                   type="date"
                   value={promiseDate}
-                  min={format(new Date(), 'yyyy-MM-dd')}
+                  min={callPlanToday()}
                   onChange={(e) => setPromiseDate(e.target.value)}
                 />
                 {submitted && missingPromiseDate && (
-                  <p className="text-xs text-red-600">Indiquez la date promise.</p>
+                  <p className="text-xs text-red-600">Indiquez une date promise à partir d&apos;aujourd&apos;hui.</p>
                 )}
               </div>
               <div className="space-y-1.5">
@@ -204,6 +230,12 @@ export function LogCallModal({ open, target, channel, onRecorded, onCancel }: Lo
                   onChange={(e) => setPromiseAmount(e.target.value)}
                 />
               </div>
+              {isSuperAdmin && (
+                <label className="flex items-start gap-2 text-sm text-amber-900 sm:col-span-2">
+                  <Checkbox checked={schedulePromise} onCheckedChange={(value) => setSchedulePromise(value === true)} disabled={busy} />
+                  Prévoir une relance à cette date{followUpAssignee ? `, attribuée à ${followUpAssignee.name}` : ''}
+                </label>
+              )}
             </div>
           )}
 
@@ -233,13 +265,13 @@ export function LogCallModal({ open, target, channel, onRecorded, onCancel }: Lo
           <Button
             variant="outline"
             onClick={onCancel}
-            disabled={isPending}
+            disabled={busy}
             className="w-full sm:w-auto"
           >
             Annuler
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending} className="w-full sm:w-auto">
-            {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          <Button onClick={handleSubmit} disabled={busy} className="w-full sm:w-auto">
+            {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Enregistrer le compte rendu
           </Button>
         </DialogFooter>

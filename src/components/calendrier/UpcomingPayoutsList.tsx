@@ -220,8 +220,8 @@ export function UpcomingPayoutsList() {
       {/* Tableau */}
       <Card className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
+          <div className="min-w-0">
+            <Table topScroll>
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead>Matricule</TableHead>

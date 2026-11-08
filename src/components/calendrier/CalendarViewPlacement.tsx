@@ -3,11 +3,13 @@
 import { Button } from "@/components/ui/button"
 import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CalendarCommissionItem, DayCommissions } from "@/hooks/useCalendarPlacement"
+import { useCalendarPlacement } from "@/hooks/useCalendarPlacement"
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, startOfMonth, startOfWeek, subMonths } from "date-fns"
 import { fr } from "date-fns/locale"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { calendarFocusKey } from "@/utils/calendar-payment-link"
+import { calendarFocusKey, getCalendarFocusContractId } from "@/utils/calendar-payment-link"
+import { CalendarFocusLoading } from "./CalendarFocusLoading"
 import { CalendarDayPlacement } from "./CalendarDayPlacement"
 import { CommissionSidebarPlacement } from "./CommissionSidebarPlacement"
 import { DayCommissionsModalPlacement } from "./DayCommissionsModalPlacement"
@@ -31,18 +33,23 @@ export function CalendarViewPlacement({
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedCommission, setSelectedCommission] = useState<CalendarCommissionItem | null>(null)
   const openedFocus = useRef<string | null>(null)
+  const cachedFocus = focusedPaymentKey && !isLoading ? daysCommissions.flatMap((day) => day.commissions)
+    .find((item) => calendarFocusKey.placement(item.placement.id, item.id) === focusedPaymentKey) : undefined
+  const focusedContractId = getCalendarFocusContractId(focusedPaymentKey, 'placement')
+  const { data: focusedDays, isFetching: isFetchingFocus } = useCalendarPlacement(
+    month, [], !!focusedContractId && !cachedFocus && openedFocus.current !== focusedPaymentKey, focusedContractId
+  )
 
   useEffect(() => {
     if (!focusedPaymentKey || openedFocus.current === focusedPaymentKey) return
     setSelectedDay(null)
     setSelectedCommission(null)
-    if (isLoading) return
-    const commission = daysCommissions.flatMap((day) => day.commissions)
+    const commission = cachedFocus ?? focusedDays?.flatMap((day) => day.commissions)
       .find((item) => calendarFocusKey.placement(item.placement.id, item.id) === focusedPaymentKey)
     if (!commission) return
     openedFocus.current = focusedPaymentKey
     setSelectedCommission(commission)
-  }, [daysCommissions, focusedPaymentKey, isLoading])
+  }, [cachedFocus, focusedDays, focusedPaymentKey])
 
   const monthStart = startOfMonth(month)
   const monthEnd = endOfMonth(month)
@@ -117,6 +124,7 @@ export function CalendarViewPlacement({
 
   return (
     <div className="space-y-6">
+      <CalendarFocusLoading loading={!!focusedContractId && openedFocus.current !== focusedPaymentKey && isFetchingFocus} />
       {/* Statistiques du mois */}
       <div className={`grid grid-cols-2 gap-4 ${canSeeAmounts ? "md:grid-cols-4" : "md:grid-cols-2"}`}>
         {canSeeAmounts && (

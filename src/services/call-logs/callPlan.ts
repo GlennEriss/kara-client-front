@@ -2,9 +2,8 @@
  * Planning des appels de recouvrement.
  *
  * Un lot est enregistré sous forme d'une tâche par retardataire. Le `batchId`
- * permet de conserver le lien entre les personnes planifiées ensemble, tandis
- * qu'un identifiant déterministe évite les doublons pour une même personne,
- * un même produit et une même date.
+ * permet de conserver le lien entre les personnes planifiées ensemble.
+ * Les reports conservent la tâche, son attribution et son historique.
  */
 
 import {
@@ -14,13 +13,16 @@ import {
   getDocs,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
+  Timestamp,
   updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+import { callPlanToday, isValidCallPlanDate } from '@/utils/call-plan-dates'
 
 export type CallPlanStatus = 'planned' | 'completed'
 
@@ -45,6 +47,15 @@ export interface CallPlanAssignee {
   name: string
 }
 
+export interface CallPlanReschedule {
+  from: string
+  to: string
+  at: Date
+  byId: string
+  byName: string
+  reason?: string
+}
+
 export interface CallPlanItem extends CallPlanTarget {
   id: string
   batchId: string
@@ -60,6 +71,9 @@ export interface CallPlanItem extends CallPlanTarget {
   completedById?: string
   completedByName?: string
   callLogId?: string
+  originalScheduledDate?: string
+  rescheduleHistory?: CallPlanReschedule[]
+  sourceCallLogId?: string
 }
 
 export interface CreateCallPlanBatchInput {
@@ -69,6 +83,7 @@ export interface CreateCallPlanBatchInput {
   createdById: string
   createdByEmail?: string
   createdByName: string
+  sourceCallLogId?: string
 }
 
 const toDate = (value: unknown): Date => {
@@ -87,33 +102,32 @@ const optionalDate = (value: unknown): Date | undefined => {
 const sanitize = <T extends Record<string, unknown>>(value: T): T =>
   Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T
 
-/** Petit hash stable, suffisant pour fabriquer un identifiant Firestore lisible. */
-const stableHash = (value: string): string => {
-  let hash = 2166136261
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index)
-    hash = Math.imul(hash, 16777619)
-  }
-  return (hash >>> 0).toString(36)
-}
-
-const taskIdOf = (scheduledDate: string, target: CallPlanTarget) =>
-  `${scheduledDate}_${stableHash(`${target.product}|${target.personKey}`)}`
-
 export async function createCallPlanBatch(input: CreateCallPlanBatchInput): Promise<number> {
+  if (!isValidCallPlanDate(input.scheduledDate)) throw new Error('Choisissez une date à partir d’aujourd’hui.')
   const batchId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  // Un report conserve son ID : ne jamais écraser une ancienne tâche ni son historique.
+  const existing = await getDocs(query(collection(db, firebaseCollectionNames.callPlans), where('scheduledDate', '==', input.scheduledDate)))
+  const planned = new Set(existing.docs.map((item) => `${item.data().product}|${item.data().personKey}`))
+  const targetsToCreate = input.targets.filter((target) => {
+    const key = `${target.product}|${target.personKey}`
+    if (planned.has(key)) return false
+    planned.add(key)
+    return true
+  })
 
   // Une écriture groupée Firestore accepte au maximum 500 opérations. Des lots
   // de 400 gardent une marge si la transaction évolue plus tard.
-  for (let offset = 0; offset < input.targets.length; offset += 400) {
+  for (let offset = 0; offset < targetsToCreate.length; offset += 400) {
     const batch = writeBatch(db)
-    const targets = input.targets.slice(offset, offset + 400)
+    const targets = targetsToCreate.slice(offset, offset + 400)
     for (const target of targets) {
-      const ref = doc(db, firebaseCollectionNames.callPlans, taskIdOf(input.scheduledDate, target))
+      const ref = doc(collection(db, firebaseCollectionNames.callPlans))
       batch.set(ref, sanitize({
         ...target,
         batchId,
         scheduledDate: input.scheduledDate,
+        originalScheduledDate: input.scheduledDate,
+        sourceCallLogId: input.sourceCallLogId,
         assignee: input.assignee,
         status: 'planned' as const,
         createdById: input.createdById,
@@ -125,7 +139,7 @@ export async function createCallPlanBatch(input: CreateCallPlanBatchInput): Prom
     }
     await batch.commit()
   }
-  return input.targets.length
+  return targetsToCreate.length
 }
 
 const mapCallPlan = (id: string, data: Record<string, any>): CallPlanItem => ({
@@ -161,7 +175,64 @@ const mapCallPlan = (id: string, data: Record<string, any>): CallPlanItem => ({
   completedById: data.completedById ? String(data.completedById) : undefined,
   completedByName: data.completedByName ? String(data.completedByName) : undefined,
   callLogId: data.callLogId ? String(data.callLogId) : undefined,
+  originalScheduledDate: data.originalScheduledDate || data.scheduledDate,
+  sourceCallLogId: data.sourceCallLogId,
+  rescheduleHistory: Array.isArray(data.rescheduleHistory) ? data.rescheduleHistory.map((entry: Record<string, any>) => ({
+    from: String(entry.from), to: String(entry.to), at: toDate(entry.at),
+    byId: String(entry.byId), byName: String(entry.byName), reason: entry.reason,
+  })) : [],
 })
+
+/** Une seule égalité : aucun nouvel index composite nécessaire. */
+export async function listOverdueCallPlans(today = callPlanToday()): Promise<CallPlanItem[]> {
+  const snap = await getDocs(query(collection(db, firebaseCollectionNames.callPlans), where('status', '==', 'planned')))
+  return snap.docs.map((item) => mapCallPlan(item.id, item.data()))
+    .filter((item) => item.scheduledDate < today)
+    .sort((left, right) => left.scheduledDate.localeCompare(right.scheduledDate))
+}
+
+export type RescheduleCallPlanRequest = ({ id: string; batchId?: never } | { batchId: string; id?: never }) & {
+  scheduledDate: string
+  reason?: string
+}
+
+export type RescheduleCallPlanInput = RescheduleCallPlanRequest & {
+  byId: string
+  byName: string
+}
+
+export async function rescheduleCallPlan(input: RescheduleCallPlanInput): Promise<number> {
+  if (!isValidCallPlanDate(input.scheduledDate)) throw new Error('Choisissez une date à partir d’aujourd’hui.')
+  const refs = input.id
+    ? [doc(db, firebaseCollectionNames.callPlans, input.id)]
+    : (await getDocs(query(collection(db, firebaseCollectionNames.callPlans), where('batchId', '==', input.batchId)))).docs.map((item) => item.ref)
+  let count = 0
+  // Lire avant d'écrire dans chaque transaction : un appel réalisé entre-temps reste terminé.
+  for (let offset = 0; offset < refs.length; offset += 400) {
+    count += await runTransaction(db, async (transaction) => {
+      const snapshots = await Promise.all(refs.slice(offset, offset + 400).map((ref) => transaction.get(ref)))
+      let updated = 0
+      for (const snapshot of snapshots) {
+        if (!snapshot.exists()) continue
+        const data = snapshot.data()
+        if (data.status !== 'planned' || data.scheduledDate === input.scheduledDate) continue
+        const entry = sanitize({
+          from: data.scheduledDate, to: input.scheduledDate, at: Timestamp.now(),
+          byId: input.byId, byName: input.byName, reason: input.reason?.trim() || undefined,
+        })
+        transaction.update(snapshot.ref, {
+          scheduledDate: input.scheduledDate,
+          originalScheduledDate: data.originalScheduledDate ?? data.scheduledDate,
+          rescheduleHistory: [...(data.rescheduleHistory ?? []), entry],
+          updatedAt: serverTimestamp(),
+        })
+        updated++
+      }
+      return updated
+    })
+  }
+  return count
+}
 
 export async function listCallPlans(startDate: string, endDate: string): Promise<CallPlanItem[]> {
   const q = query(

@@ -22,6 +22,9 @@ import {
 import { creditPaymentFormSchema, type CreditPaymentFormInput } from '@/schemas/credit-speciale.schema'
 import { ImageCompressionService } from '@/services/imageCompressionService'
 import { CreditPayment, CreditPaymentMode } from '@/types/types'
+import { getMonthPenaltyReferenceDate } from '@/utils/credit-penalty-due-date'
+import { daysLateBetween, LATE_TOLERANCE_DAYS } from '@/utils/credit-payment-punctuality'
+import { isFlatCredit } from '@/utils/credit-weekly'
 import {
   buildCreditSpecialeHistory,
   getContractCalendarMonthFromDate,
@@ -198,11 +201,6 @@ export default function CreditPaymentModal({
   // Calculer la note selon le retard ; commentaire par défaut = CONFORME (on enregistre un paiement)
   const autoNote = useMemo(() => calculateNoteByDelay(calculatedDaysLate), [calculatedDaysLate])
 
-  const isLateButNoPenalty = useMemo(
-    () => calculatedDaysLate > 0 && calculatedDaysLate <= 3,
-    [calculatedDaysLate]
-  )
-  
   // Log des erreurs du formulaire pour déboguer
   useEffect(() => {
     if (Object.keys(form.formState.errors).length > 0) {
@@ -330,22 +328,32 @@ export default function CreditPaymentModal({
 
   const currentVersementPenaltyBase = currentMonthHistory?.interest ?? 0
 
+  const penaltyDaysLate = useMemo(() => {
+    if (!watchedPaymentDate || !isValidDateValue(watchedPaymentDate)) return 0
+    const referenceDate = contract?.creditType === 'SPECIALE' && !isFlatCredit(contract) && currentPaymentMonth
+      ? getMonthPenaltyReferenceDate(contract, recordedPayments, currentPaymentMonth)
+      : defaultPaymentDate
+    return referenceDate ? daysLateBetween(referenceDate, watchedPaymentDate) : 0
+  }, [contract, recordedPayments, currentPaymentMonth, defaultPaymentDate, watchedPaymentDate])
+
+  const isLateButNoPenalty = penaltyDaysLate > 0 && penaltyDaysLate <= LATE_TOLERANCE_DAYS
+
   // Calculer la pénalité potentielle du versement courant selon la règle officielle :
   // intérêt du mois * nombre de jours de retard / 30.
   const potentialPenalty = useMemo(() => {
     if (editMode || watchedAmount <= 0) return null
     if (linkedPenalties.length > 0) return null
-    if (calculatedDaysLate > 3 && currentVersementPenaltyBase > 0) {
-      const penaltyAmount = (currentVersementPenaltyBase * calculatedDaysLate) / 30
+    if (penaltyDaysLate > LATE_TOLERANCE_DAYS && currentVersementPenaltyBase > 0) {
+      const penaltyAmount = (currentVersementPenaltyBase * penaltyDaysLate) / 30
       return {
-        daysLate: calculatedDaysLate,
+        daysLate: penaltyDaysLate,
         amount: Math.round(penaltyAmount),
         interestBase: Math.round(currentVersementPenaltyBase),
       }
     }
 
     return null
-  }, [editMode, watchedAmount, linkedPenalties.length, calculatedDaysLate, currentVersementPenaltyBase])
+  }, [editMode, watchedAmount, linkedPenalties.length, penaltyDaysLate, currentVersementPenaltyBase])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -807,14 +815,14 @@ export default function CreditPaymentModal({
             </Card>
           )}
 
-          {/* Message informatif pour retards de 1-2 jours (sans pénalité) */}
+          {/* Message informatif pour retards de 1 à 3 jours après la référence (sans pénalité) */}
           {isLateButNoPenalty && !potentialPenalty && (
             <Alert variant="default" className="border-yellow-200 bg-yellow-50">
               <AlertCircle className="h-4 w-4 text-yellow-600" />
               <AlertDescription>
                 <div className="space-y-1">
                   <p className="font-medium text-yellow-800">
-                    Paiement en retard de {calculatedDaysLate} jour{calculatedDaysLate > 1 ? 's' : ''}
+                    Paiement en retard de {penaltyDaysLate} jour{penaltyDaysLate > 1 ? 's' : ''} pour le calcul des pénalités
                   </p>
                   <p className="text-yellow-700">
                     Aucune pénalité ne sera appliquée. Les pénalités commencent uniquement à partir du 4e jour de retard.

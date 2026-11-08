@@ -6,6 +6,9 @@ import { getUserById } from '@/db/user.db'
 import type { CalendarPaymentItem, DayPayments } from '@/hooks/useCalendarCaisseSpeciale'
 import { calendarFocusKey, calendarPaymentHref } from '@/utils/calendar-payment-link'
 
+const focusedQuery = vi.hoisted(() => vi.fn())
+vi.mock('@/hooks/useCalendarCaisseSpeciale', () => ({ useCalendarCaisseSpeciale: focusedQuery }))
+
 vi.mock('@/hooks/useMyAccess', () => ({
   useMyAccess: () => ({ canSeeAmounts: true, canRecordPayments: true, can: () => true }),
 }))
@@ -83,12 +86,39 @@ function renderCalendar(focus: string) {
 
 describe('ouverture du versement sélectionné dans le calendrier', () => {
   beforeEach(() => {
+    focusedQuery.mockReset().mockReturnValue({ data: undefined, isFetching: false })
     vi.mocked(getUserById).mockReset()
     vi.mocked(getUserById).mockImplementation(async (id) => ({
       id,
       firstName: 'Personne',
       lastName: id === 'member-A' ? 'Alpha' : 'Beta',
     }) as Awaited<ReturnType<typeof getUserById>>)
+  })
+
+  it('ouvre le contrat ciblé pendant que le calendrier complet est encore en chargement', async () => {
+    focusedQuery.mockReturnValue({ data: [{ ...days[0], payments: [beta] }], isFetching: false })
+    const client = new QueryClient()
+    render(<CalendarView month={dueAt} onMonthChange={vi.fn()} daysPayments={[]}
+      isLoading focusedPaymentKey={focusFromLink(beta)} />, {
+      wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+    })
+
+    expect(await screen.findByText('Personne Beta')).toBeInTheDocument()
+    expect(focusedQuery).toHaveBeenCalledWith(dueAt, [], true, 'contract-BETA')
+    expect(getUserById).not.toHaveBeenCalledWith('member-A')
+  })
+
+  it('affiche un retour de chargement et ignore les données d’un autre contrat', () => {
+    focusedQuery.mockReturnValue({ data: [{ ...days[0], payments: [alpha] }], isFetching: true })
+    const client = new QueryClient()
+    render(<CalendarView month={dueAt} onMonthChange={vi.fn()} daysPayments={[]}
+      isLoading focusedPaymentKey={focusFromLink(beta)} />, {
+      wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+    })
+
+    expect(screen.getByRole('status')).toHaveTextContent("Chargement de l'échéance")
+    expect(screen.queryByText('Détails du versement')).not.toBeInTheDocument()
+    expect(getUserById).not.toHaveBeenCalled()
   })
 
   it('ouvre le contrat et la personne du lien, malgré un ID de paiement identique', async () => {

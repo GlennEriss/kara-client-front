@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils'
 import {
   buildPlacementFacturePage1Data,
   generatePlacementFacturePDF,
+  hasRecordedPlacementCommission,
   mapCommissionToPlacementVersement,
 } from '@/services/placement/facturePlacementPdfExport'
 import type { CommissionPaymentPlacement } from '@/types/types'
@@ -212,7 +213,7 @@ const sortedCommissions = useMemo(
 const paidCommissions = useMemo(
   () =>
     [...commissions]
-      .filter((c) => c.status === 'Paid')
+      .filter(hasRecordedPlacementCommission)
       .sort((a, b) => new Date(b.paidAt || b.dueDate).getTime() - new Date(a.paidAt || a.dueDate).getTime()),
   [commissions]
 )
@@ -867,6 +868,7 @@ const handleGenerateGlobalFacture = async () => {
                             </td>
                             <td className="px-4 py-3 font-semibold text-gray-900">
                               {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString('fr-FR')} FCFA
+                              {commission.status === 'Partial' && <span className="ml-2 text-xs font-normal text-amber-700">Partiel</span>}
                             </td>
                             <td className="px-4 py-3">
                               {commission.proofDocumentId ? (
