@@ -2224,7 +2224,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const allPayments = await this.getPaymentsByCreditId(creditId);
         const cyclePayments = this.getPaymentsForCycle(contract, allPayments, cycleNumber);
 
-        // Crédit spécial en mois : le plus grand retard des mois précédents reste toléré
+        // Crédit spécial en mois : seuls les retards pénalisables font évoluer le décalage
         // (échéance glissante). La pénalité garde la date prévue, qui la rattache à son mois.
         const referenceDate = cycleContract.creditType === 'SPECIALE' && !isFlatCredit(cycleContract)
             ? getMonthPenaltyReferenceDate(cycleContract, cyclePayments, monthNumber)

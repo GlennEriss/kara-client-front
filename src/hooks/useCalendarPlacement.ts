@@ -216,7 +216,8 @@ export function groupPlacementScheduleByDay(
 export function useCalendarPlacement(
   month: Date,
   payoutModes: PayoutMode[],
-  enabled: boolean = true
+  enabled: boolean = true,
+  placementId?: string
 ) {
   const filters = useMemo(
     () => ({
@@ -232,13 +233,17 @@ export function useCalendarPlacement(
       'calendar-placements',
       format(month, 'yyyy-MM'),
       payoutModes.join(','),
+      ...(placementId ? ['contract', placementId] : []),
     ],
     queryFn: async (): Promise<DayCommissions[]> => {
       const today = new Date()
       const service = ServiceFactory.getPlacementService()
 
-      // 1. Récupérer tous les placements actifs
-      const allPlacements = await service.listPlacements()
+      // 1. Cibler un placement pour l'ouverture rapide, ou charger le calendrier complet.
+      const focusedPlacement = placementId ? await service.getPlacement(placementId) : null
+      const allPlacements = placementId
+        ? focusedPlacement ? [focusedPlacement] : []
+        : await service.listPlacements()
       const activePlacements = allPlacements.filter(
         (p: Placement) => p.status === 'Active'
       )

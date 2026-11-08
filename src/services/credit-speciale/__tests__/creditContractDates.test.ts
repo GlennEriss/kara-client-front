@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { getCreditContractEndDate } from '../creditContractDates'
+import { getCreditContractEndDate, getCreditContractRemainingMonths, getCreditContractStartDates } from '../creditContractDates'
+import type { CreditContractCycle } from '@/types/types'
 
 /**
  * Formate en date locale : `toISOString()` bascule sur le jour précédent dès que
@@ -43,5 +44,63 @@ describe('getCreditContractEndDate — crédit en semaines', () => {
     expect(end?.getFullYear()).toBe(2026)
     expect(end?.getMonth()).toBe(4)
     expect(end?.getDate()).toBe(17)
+  })
+})
+
+describe('dates de départ après rajout', () => {
+  const initialDate = new Date('2026-01-01T12:00:00')
+  const extensionDate = new Date('2026-11-20T12:00:00')
+
+  it('conserve le départ initial quand il n’y a pas de rajout', () => {
+    expect(getCreditContractStartDates({ createdAt: initialDate })).toEqual({
+      startDate: initialDate, initialStartDate: initialDate, hasExtension: false,
+    })
+  })
+
+  it('prend le départ du dernier cycle, même si les cycles sont désordonnés', () => {
+    const creditCycles = [
+      { cycleNumber: 2, type: 'AUGMENTATION', startedAt: extensionDate },
+      { cycleNumber: 1, type: 'INITIAL', startedAt: initialDate },
+    ] as CreditContractCycle[]
+    expect(getCreditContractStartDates({ createdAt: initialDate, creditCycles })).toEqual({
+      startDate: extensionDate, initialStartDate: initialDate, hasExtension: true,
+    })
+    expect(creditCycles[0].cycleNumber).toBe(2)
+  })
+
+  it('utilise la date du rajout des anciens contrats sans cycles', () => {
+    expect(getCreditContractStartDates({ createdAt: initialDate, extendedAt: extensionDate })).toEqual({
+      startDate: extensionDate, initialStartDate: initialDate, hasExtension: true,
+    })
+  })
+})
+
+describe('mois restants du cycle courant', () => {
+  const contract = {
+    createdAt: new Date('2026-01-01'),
+    extendedAt: new Date('2026-11-20'),
+    firstPaymentDate: '2026-12-05',
+    duration: 7,
+  }
+
+  it('repart sur les sept nouvelles échéances après le rajout', () => {
+    expect(getCreditContractRemainingMonths(contract, new Date('2026-11-20T12:00:00'))).toBe(7)
+    expect(localDate(getCreditContractEndDate(contract))).toBe('2027-06-05')
+  })
+
+  it('inclut l’échéance du jour et ne décompte que les dates passées', () => {
+    expect(getCreditContractRemainingMonths(contract, new Date('2026-12-05T18:00:00'))).toBe(7)
+    expect(getCreditContractRemainingMonths(contract, new Date('2026-12-06T12:00:00'))).toBe(6)
+    expect(getCreditContractRemainingMonths(contract, new Date('2027-06-06T12:00:00'))).toBe(0)
+  })
+
+  it('respecte les échéances en fin de mois', () => {
+    expect(getCreditContractRemainingMonths({ firstPaymentDate: '2026-01-31', duration: 3 }, new Date('2026-02-28T12:00:00'))).toBe(2)
+  })
+
+  it('renvoie zéro pour un contrat terminé et aucun compteur si l’échéancier est inconnu ou en semaines', () => {
+    expect(getCreditContractRemainingMonths({ ...contract, status: 'CLOSED' }, new Date('2026-11-20'))).toBe(0)
+    expect(getCreditContractRemainingMonths({ ...contract, durationUnit: 'WEEKS' })).toBeNull()
+    expect(getCreditContractRemainingMonths({ duration: 7 })).toBeNull()
   })
 })

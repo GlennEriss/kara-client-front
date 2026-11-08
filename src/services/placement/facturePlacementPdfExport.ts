@@ -1,3 +1,4 @@
+import { getMemberQuarterForPdf } from '@/utils/versement-history'
 import { getNationalityName } from '@/constantes/nationality'
 import { CommissionPaymentPlacement, PaymentMode, Placement, User } from '@/types/types'
 import {
@@ -21,6 +22,7 @@ type PlacementVersementFactureData = {
   dueDate: Date | string
   paidAt?: Date | string
   amount: number
+  commissionAmount?: number
   placementAmount: number
   rate: number
   paymentMode?: PaymentMode
@@ -112,13 +114,13 @@ const drawVersementPage = (
   doc.setFont('times', 'bold')
   doc.setFontSize(11)
   doc.setTextColor(...NAVY)
-  doc.text(`VERSEMENT DU: ${formatDate(versement.paidAt || versement.dueDate)}`, MARGIN, y)
+  doc.text(`VERSEMENT DU: ${formatDate(versement.paidAt)}`, MARGIN, y)
   y += 10
 
   const rows: Array<{ label: string; value: string }> = [
     { label: 'CAPITAL DE BASE', value: formatAmount(versement.placementAmount) },
     { label: 'TAUX COMMISSION', value: `${versement.rate}%` },
-    { label: 'MONTANT COMMISSION', value: formatAmount(versement.amount) },
+    { label: 'MONTANT COMMISSION', value: formatAmount(versement.commissionAmount ?? versement.amount) },
     { label: 'MONTANT VERSE', value: formatAmount(versement.amount) },
     { label: 'DATE ECHEANCE', value: formatDate(versement.dueDate) },
     { label: 'DATE VERSEMENT', value: formatDate(versement.paidAt) },
@@ -181,10 +183,7 @@ export const buildPlacementFacturePage1Data = (
 ): FactureCreditSpecialPage1Data => {
   const [fallbackLastName = '-', ...firstNames] = (placement.benefactorName || '').trim().split(/\s+/)
   const fallbackFirstName = firstNames.join(' ') || '-'
-  const memberQuarter =
-    member?.address?.additionalInfo ||
-    [member?.address?.city, member?.address?.district].filter(Boolean).join(', ') ||
-    '-'
+  const memberQuarter = getMemberQuarterForPdf(member)
   const emergencyName = `${placement.urgentContact?.name || '-'} ${placement.urgentContact?.firstName || ''}`.trim()
 
   return {
@@ -243,16 +242,25 @@ export const mapCommissionToPlacementVersement = (params: {
   commission: CommissionPaymentPlacement
 }): PlacementVersementFactureData => {
   const { placement, commission } = params
+  if (!hasRecordedPlacementCommission(commission)) {
+    throw new Error('Aucun versement enregistré pour cette commission')
+  }
   return {
     reference: `${placement.id.slice(-8).toUpperCase()}-${commission.id.slice(-6).toUpperCase()}`,
     dueDate: commission.dueDate,
     paidAt: commission.paidAt,
     amount: roundFcfa(commission.paidAmount ?? commission.amount),
+    commissionAmount: roundFcfa(commission.amount),
     placementAmount: roundFcfa(placement.amount),
     rate: placement.rate,
     paymentMode: commission.paymentMode,
     withFees: commission.withFees,
     paymentMethodOther: commission.paymentMethodOther,
-    comment: commission.status === 'Paid' ? 'Commission réglée' : 'Commission non réglée',
+    comment: commission.status === 'Paid' ? 'Commission réglée' : 'Commission partiellement réglée',
   }
+}
+
+export function hasRecordedPlacementCommission(commission: CommissionPaymentPlacement): boolean {
+  const amount = commission.status === 'Paid' ? commission.paidAmount ?? commission.amount : commission.paidAmount
+  return (commission.status === 'Paid' || commission.status === 'Partial') && Number.isFinite(amount) && Number(amount) > 0
 }

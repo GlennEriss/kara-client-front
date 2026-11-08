@@ -1,3 +1,4 @@
+import { getMemberQuarterForPdf } from '@/utils/versement-history'
 import { addMonths, format, parseISO } from 'date-fns'
 import type { ContractCI, SupportCI } from '@/types/types'
 import { CONTRACT_CI_STATUS_LABELS } from '@/types/types'
@@ -94,7 +95,7 @@ function getAge(birthDate?: string | Date): string {
 }
 
 function getSupportDate(support: SupportCI): Date | null {
-  return toDateSafe(support.approvedAt) || toDateSafe(support.requestedAt) || toDateSafe(support.createdAt)
+  return toDateSafe(support.approvedAt)
 }
 
 export async function generateSupportHistoryCIPDF(
@@ -104,11 +105,13 @@ export async function generateSupportHistoryCIPDF(
 ): Promise<void> {
   const { contractId, member, getAdminDisplayName, fileNamePrefix } = options
   const logoDataUrl = await loadLogoDataUrl()
-  const sortedSupports = [...supports].sort((a, b) => {
+  const sortedSupports = supports.filter((support) => support.status === 'ACTIVE' || support.status === 'REPAID').sort((a, b) => {
     const aDate = getSupportDate(a)?.getTime() || 0
     const bDate = getSupportDate(b)?.getTime() || 0
     return aDate - bDate
   })
+
+  if (!sortedSupports.length) throw new Error('Aucune aide accordée à exporter')
 
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('l', 'mm', 'a4')
@@ -141,12 +144,7 @@ export async function generateSupportHistoryCIPDF(
   const memberPhone2 = member?.contacts?.[1] || contract.memberContacts?.[1] || '-'
   const memberGender = (member?.gender || contract.memberGender) ? String(member?.gender || contract.memberGender).toUpperCase() : '-'
   const memberAge = getAge(member?.birthDate || contract.memberBirthDate)
-  const memberQuarter =
-    member?.address?.district ||
-    member?.address?.arrondissement ||
-    member?.address?.city ||
-    contract.memberAddress ||
-    '-'
+  const memberQuarter = getMemberQuarterForPdf(member)
   const memberProfession = member?.profession || contract.memberProfession || '-'
 
   const emergencyContactName = contract.emergencyContact

@@ -21,7 +21,7 @@ import { effectivePermissions, restrictedRoleOf } from '@/constantes/permissions
 import { CALL_OUTCOME_COLORS, CALL_OUTCOME_LABELS, type ContactChannel } from '@/services/call-logs/callLog'
 import { CallHistorySheet } from '@/components/calendrier/CallHistorySheet'
 import { LogCallModal, type CallTarget } from '@/components/calendrier/LogCallModal'
-import { addDays, format, isBefore, startOfDay, startOfWeek } from 'date-fns'
+import { addDays, format, startOfWeek } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { AlertTriangle, Building2, Calendar, CalendarPlus, ChevronDown, ChevronRight, CreditCard, Download, History, Loader2, MessageCircle, Phone, PhoneCall, RefreshCw, User, Users } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useState } from 'react'
@@ -29,6 +29,8 @@ import { toast } from 'sonner'
 import { useShownAmount } from './useShownAmount'
 import Link from 'next/link'
 import { CalendarContractLink } from './CalendarContractLink'
+import { CallPlanDatePicker } from './CallPlanDatePicker'
+import { callPlanToday, isValidCallPlanDate } from '@/utils/call-plan-dates'
 
 interface OverdueCaissePaymentsListProps {
   /** Produit (caisse) dont on affiche les retards */
@@ -258,7 +260,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
   // Constitution d'un lot d'appels (superAdmin uniquement).
   const [selectedPeople, setSelectedPeople] = useState<Set<string>>(new Set())
   const [scheduleOpen, setScheduleOpen] = useState(false)
-  const [scheduledDate, setScheduledDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [scheduledDate, setScheduledDate] = useState(callPlanToday())
   const [assigneeId, setAssigneeId] = useState('unassigned')
   const scheduleBatch = useScheduleCallBatch()
   const { data: adminsPage } = useAdmins({}, 1, 100)
@@ -334,13 +336,13 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
           maxDaysOverdue: group.maxDaysOverdue,
         })),
       })
-      toast.success(`${count} appel${count > 1 ? 's' : ''} planifié${count > 1 ? 's' : ''}`)
+      toast.success(count ? `${count} appel${count > 1 ? 's' : ''} planifié${count > 1 ? 's' : ''}` : 'Les personnes sélectionnées sont déjà planifiées à cette date.')
       setSelectedPeople(new Set())
       setScheduleOpen(false)
       setAssigneeId('unassigned')
     } catch (error) {
       console.error('[callPlan] planification impossible:', error)
-      toast.error("Le lot d'appels n'a pas pu être planifié.")
+      toast.error(error instanceof Error ? error.message : "Le lot d'appels n'a pas pu être planifié.")
     }
   }
 
@@ -470,6 +472,8 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
     totalOverdue: group.totalAmount,
     overdueCount: group.count,
     maxDaysOverdue: group.maxDaysOverdue,
+    phone: group.phone,
+    whatsappNumber: group.whatsappNumber,
   })
 
   const handleSendWhatsApp = (group: OverdueGroup) => {
@@ -587,8 +591,8 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       {/* Tableau */}
       <Card className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
+          <div className="min-w-0">
+            <Table topScroll>
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   {isSuperAdmin && (
@@ -902,30 +906,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Jour de la semaine en cours</Label>
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-                {weekDays.map((day) => {
-                  const key = format(day, 'yyyy-MM-dd')
-                  const disabled = isBefore(startOfDay(day), startOfDay(new Date()))
-                  const active = key === scheduledDate
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => setScheduledDate(key)}
-                      className={`rounded-lg border px-2 py-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
-                        active ? 'border-[#234D65] bg-[#234D65] text-white' : 'border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="block capitalize">{format(day, 'EEE', { locale: fr })}</span>
-                      <span className="font-bold">{format(day, 'dd/MM')}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+            <CallPlanDatePicker id="call-plan-date" value={scheduledDate} onChange={setScheduledDate} />
 
             <div className="space-y-2">
               <Label htmlFor="call-plan-assignee">Attribuer le lot (facultatif)</Label>
@@ -947,7 +928,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setScheduleOpen(false)} disabled={scheduleBatch.isPending}>Annuler</Button>
-            <Button onClick={handleScheduleBatch} disabled={scheduleBatch.isPending || selectedGroups.length === 0}>
+            <Button onClick={handleScheduleBatch} disabled={scheduleBatch.isPending || selectedGroups.length === 0 || !isValidCallPlanDate(scheduledDate)}>
               {scheduleBatch.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Planifier {selectedGroups.length} appel{selectedGroups.length > 1 ? 's' : ''}
             </Button>

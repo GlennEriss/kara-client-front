@@ -1,5 +1,10 @@
 'use client'
 
+import { toast } from 'sonner'
+
+import { getCIRecordedVersementCount, getCIRecordedVersements, getMemberQuarterForPdf } from '@/utils/versement-history'
+import { drawPdfHistoryTable } from '@/utils/pdf-history-table'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -337,42 +342,6 @@ export default function ContractCIPaymentsPage() {
       return base
     }
 
-    /**
-     * Dessine la valeur d'une cellule, sur une ou deux lignes. La seconde ligne
-     * est en corps réduit et rognée à la largeur de colonne : deux lignes
-     * tiennent dans la hauteur de ligne existante, une troisième déborderait.
-     */
-    const drawCellValue = (
-      value: string | string[],
-      centerX: number,
-      rowTopY: number,
-      columnWidth: number,
-      fontSize = 8.9
-    ) => {
-      const lines = Array.isArray(value) ? value : [String(value ?? '')]
-      doc.setFont('times', 'normal')
-      doc.setTextColor(18, 18, 18)
-
-      if (lines.length < 2) {
-        doc.setFontSize(fontSize)
-        doc.text(String(lines[0] ?? ''), centerX, rowTopY + 5.3, { align: 'center' })
-        return
-      }
-
-      doc.setFontSize(fontSize)
-      doc.text(String(lines[0]), centerX, rowTopY + 3.6, { align: 'center' })
-      doc.setFontSize(fontSize - 1.5)
-      // Une seule ligne de qualificatif tient : au-delà on tronque avec une
-      // ellipsis, en refermant la parenthèse pour rester lisible.
-      const raw = String(lines[1])
-      const parts = doc.splitTextToSize(raw, columnWidth - 3)
-      const second =
-        parts.length > 1
-          ? `${String(parts[0]).trimEnd()}…${raw.endsWith(')') ? ')' : ''}`
-          : String(parts[0] ?? raw)
-      doc.text(second, centerX, rowTopY + 7, { align: 'center' })
-      doc.setFontSize(fontSize)
-    }
 
     const getAge = (birthDate?: string): string => {
       if (!birthDate) return '-'
@@ -412,41 +381,14 @@ export default function ContractCIPaymentsPage() {
       return getPaymentDueAt(payment)
     }
 
-    const getPaymentPaidAt = (payment: PaymentCI): Date | null => {
-      const lastVersement = payment.versements?.length ? payment.versements[payment.versements.length - 1] : null
-      return lastVersement?.date ? toDateSafe(lastVersement.date) : null
-    }
 
-    const getPaymentTime = (payment: PaymentCI): string => {
-      const lastVersement = payment.versements?.length ? payment.versements[payment.versements.length - 1] : null
-      return lastVersement?.time || '-'
-    }
 
-    const getPaymentMode = (payment: PaymentCI): string | string[] => {
-      const lastVersement = payment.versements?.length ? payment.versements[payment.versements.length - 1] : null
-      return lastVersement?.mode ? formatMode(lastVersement.mode, lastVersement) : '-'
-    }
 
     const getPaymentPenaltyAmount = (payment: PaymentCI): number => {
       return (payment.versements || []).reduce((sum, v) => sum + (v.penalty || 0), 0)
     }
 
-    const getPaymentPenaltyDays = (payment: PaymentCI): number => {
-      return Math.max(0, ...(payment.versements || []).map((v) => v.daysLate || 0))
-    }
 
-    const getPaymentRemark = (payment: PaymentCI): string => {
-      if (payment.status === 'PAID') {
-        const penaltyDays = getPaymentPenaltyDays(payment)
-        const penaltyAmount = getPaymentPenaltyAmount(payment)
-        if (penaltyAmount > 0 || penaltyDays > 0) return `RETARD ${penaltyDays}J`
-        return 'CONFORME'
-      }
-      if (payment.status === 'PARTIAL') return 'PARTIEL'
-      const dueAt = getPaymentDeadline(payment)
-      if (dueAt && new Date() > dueAt) return 'IMPAYE'
-      return 'EN ATTENTE'
-    }
 
     const getAdminNameForExport = (payment: PaymentCI): string => {
       const label = getAdminDisplayName(payment.updatedBy)
@@ -465,12 +407,7 @@ export default function ContractCIPaymentsPage() {
     const memberPhone2 = member?.contacts?.[1] || contract.memberContacts?.[1] || '-'
     const memberGender = (member?.gender || contract.memberGender) ? String(member?.gender || contract.memberGender).toUpperCase() : '-'
     const memberAge = getAge(member?.birthDate || contract.memberBirthDate)
-    const memberQuarter =
-      member?.address?.district ||
-      member?.address?.arrondissement ||
-      member?.address?.city ||
-      contract.memberAddress ||
-      '-'
+    const memberQuarter = getMemberQuarterForPdf(member)
     const memberProfession = member?.profession || contract.memberProfession || '-'
 
     const emergencyContactName = contract.emergencyContact
@@ -481,10 +418,10 @@ export default function ContractCIPaymentsPage() {
     const emergencyPhone2 = contract.emergencyContact?.phone2 || '-'
     const emergencyId = contract.emergencyContact?.idNumber || '-'
 
-    const unpaidCount = sortedPayments.filter((payment) => payment.status !== 'PAID').length
-    const paidCount = sortedPayments.filter((payment) => payment.status === 'PAID').length
+    const unpaidCount = sortedPayments.filter((payment) => payment.status !== 'PAID' && getPaymentDeadline(payment) && getPaymentDeadline(payment)!.getTime() < Date.now()).length
+    const paidCount = getCIRecordedVersementCount(sortedPayments)
     const totalCotisation = sortedPayments.reduce((sum, payment) => sum + (payment.targetAmount || 0), 0)
-    const totalPaid = sortedPayments.reduce((sum, payment) => sum + (payment.accumulatedAmount || 0), 0)
+    const totalPaid = sortedPayments.reduce((sum, payment) => sum + getCIRecordedVersements(payment).reduce((total, v) => total + v.amount, 0), 0)
     const totalUnpaid = Math.max(totalCotisation - totalPaid, 0)
     const totalPenalties = sortedPayments.reduce((sum, payment) => sum + getPaymentPenaltyAmount(payment), 0)
     const firstPaidDate = sortedPayments
@@ -577,72 +514,34 @@ export default function ContractCIPaymentsPage() {
     }
 
     const drawPaymentBlock = (payment: PaymentCI, startY: number) => {
-      const headerHeight = 8
-      const valuesHeight = 8
-      const titleHeight = 8
-      const totalHeight = titleHeight + headerHeight + valuesHeight
-      const columns = [43, 41, 33, 18, 34, 36, 64]
-
+      const versements = getCIRecordedVersements(payment)
+      if (!versements.length) return startY
+      const nextPage = () => { drawPageBackground(); drawMainTitle() }
+      if (startY + 25 > pageHeight - 20) { doc.addPage(); nextPage(); startY = 30 }
       doc.setFillColor(...colors.headerFill)
       doc.setDrawColor(...colors.line)
       doc.setLineWidth(0.2)
-      doc.rect(marginX, startY, contentWidth, titleHeight, 'FD')
+      doc.rect(marginX, startY, contentWidth, 8, 'FD')
       doc.setFont('times', 'bold')
       doc.setFontSize(10)
       doc.setTextColor(...colors.navy)
-      if (isQuotidien) {
-        const bounds = getQuotidienPeriodBounds(payment)
-        const titleText = bounds
-          ? `VERSEMENT ${payment.monthIndex + 1} DU ${formatShortDate(bounds.start)} AU ${formatShortDate(bounds.end)}`
-          : `VERSEMENT ${payment.monthIndex + 1} DU ${formatLongDate(getPaymentDueAt(payment))}`
-        doc.text(titleText, marginX + 3, startY + 5.4)
-      } else {
-        doc.text(`VERSEMENT ${payment.monthIndex + 1} DU ${formatLongDate(getPaymentDueAt(payment))}`, marginX + 3, startY + 5.4)
-      }
-
-      const tableY = startY + titleHeight
-      doc.setDrawColor(...colors.line)
-      doc.rect(marginX, tableY, contentWidth, headerHeight + valuesHeight)
-      doc.setFillColor(225, 235, 245)
-      doc.rect(marginX, tableY, contentWidth, headerHeight, 'F')
-
-      const headers = ['DATE ECHEANCE', 'DATE REMISE', 'MONTANT', 'HEURE', 'MOYEN /TRANS', 'AGENT', 'REMARQUE']
-      let cursorX = marginX
-      headers.forEach((header, index) => {
-        const width = columns[index]
-        if (index > 0) doc.line(cursorX, tableY, cursorX, tableY + headerHeight + valuesHeight)
-        doc.setFont('times', 'bold')
-        doc.setFontSize(8.7)
-        doc.setTextColor(32, 32, 32)
-        doc.text(header, cursorX + width / 2, tableY + 5.3, { align: 'center' })
-        cursorX += width
+      const bounds = isQuotidien ? getQuotidienPeriodBounds(payment) : null
+      doc.text(bounds
+        ? `VERSEMENT ${payment.monthIndex + 1} DU ${formatShortDate(bounds.start)} AU ${formatShortDate(bounds.end)}`
+        : `VERSEMENT ${payment.monthIndex + 1} DU ${formatLongDate(getPaymentDueAt(payment))}`,
+        marginX + 3, startY + 5.4)
+      return drawPdfHistoryTable(doc, {
+        startY: startY + 8, columns: [43, 41, 33, 18, 34, 36, 64],
+        rows: versements.map((v) => [
+          formatLongDate(getPaymentDeadline(payment)), formatLongDate(v.date),
+          `${formatAmountForPDF(v.amount)} FCFA`, v.time || '-',
+          v.mode ? formatMode(v.mode, v as VersementCI) : '-',
+          getAdminNameForExport({ updatedBy: v.createdBy || payment.updatedBy } as PaymentCI),
+          (v.penalty || 0) > 0 || (v.daysLate || 0) > 0 ? `RETARD ${v.daysLate || 0}J` : 'CONFORME',
+        ]),
+        totalAmount: versements.length > 1 ? `${formatAmountForPDF(versements.reduce((sum, v) => sum + v.amount, 0))} FCFA` : undefined,
+        onNewPage: nextPage,
       })
-
-      doc.line(marginX, tableY + headerHeight, marginX + contentWidth, tableY + headerHeight)
-
-      const isPaymentCompleted = payment.status === 'PAID' || payment.accumulatedAmount >= payment.targetAmount
-      const displayedAmount = payment.accumulatedAmount ?? 0
-
-      const rowValues = [
-        isQuotidien && getQuotidienPeriodBounds(payment)
-          ? formatLongDate(getQuotidienPeriodBounds(payment)!.end)
-          : formatLongDate(getPaymentDueAt(payment)),
-        formatLongDate(getPaymentPaidAt(payment)),
-        `${formatAmountForPDF(displayedAmount)} FCFA`,
-        getPaymentTime(payment),
-        getPaymentMode(payment),
-        getAdminNameForExport(payment),
-        getPaymentRemark(payment),
-      ]
-
-      cursorX = marginX
-      rowValues.forEach((value, index) => {
-        const width = columns[index]
-        drawCellValue(value, cursorX + width / 2, tableY + headerHeight, width)
-        cursorX += width
-      })
-
-      return startY + totalHeight
     }
 
     drawPageBackground()
@@ -774,7 +673,7 @@ export default function ContractCIPaymentsPage() {
         {
           leftLabel: 'MONTANT PAYE',
           leftValue: `${formatAmountForPDF(totalPaid)} FCFA`,
-          rightLabel: 'MONTANT IMPAYE',
+          rightLabel: 'RESTE A VERSER',
           rightValue: `${formatAmountForPDF(totalUnpaid)} FCFA`,
         },
         {
@@ -793,22 +692,10 @@ export default function ContractCIPaymentsPage() {
       }
     )
 
-    if (sortedPayments.length > 0) {
-      drawPaymentBlock(sortedPayments[0], 130)
-    }
-
-    const remainingPayments = sortedPayments.slice(1)
-    const chunkSize = 3
-    for (let i = 0; i < remainingPayments.length; i += chunkSize) {
-      const chunk = remainingPayments.slice(i, i + chunkSize)
-      doc.addPage()
-      drawPageBackground()
-      drawMainTitle()
-      let blockY = 30
-      chunk.forEach((payment) => {
-        blockY = drawPaymentBlock(payment, blockY) + 6
-      })
-    }
+    let blockY = 130
+    sortedPayments.filter((payment) => getCIRecordedVersements(payment).length > 0).forEach((payment) => {
+      blockY = drawPaymentBlock(payment, blockY) + 6
+    })
 
     const pageCount = doc.getNumberOfPages()
     for (let page = 1; page <= pageCount; page += 1) {
@@ -831,8 +718,17 @@ export default function ContractCIPaymentsPage() {
   // Fonction pour exporter un paiement individuel en PDF (même PDF que « Télécharger en PDF » du modal reçu / page contrat)
   const exportSinglePaymentToPDF = async (payment: PaymentCI) => {
     if (!contract) return
+    if (!getCIRecordedVersements(payment).length) {
+      toast.info('Aucun versement enregistré pour cette échéance')
+      return
+    }
+    if (!schedule.some((payment) => getCIRecordedVersements(payment).length > 0)) {
+      toast.info('Aucun versement enregistré à exporter')
+      return
+    }
     await generateSingleVersementCIPDF(contract, payment, {
       contractId,
+      member,
       getAdminDisplayName,
     })
   }

@@ -112,7 +112,8 @@ function calculateDayColor(
 export function useCalendarCaisseImprevue(
   month: Date,
   paymentFrequencies: CaisseImprevuePaymentFrequency[],
-  enabled: boolean = true
+  enabled: boolean = true,
+  contractId?: string
 ) {
   const filters = useMemo(
     () => ({
@@ -128,15 +129,17 @@ export function useCalendarCaisseImprevue(
       'calendar-caisse-imprevue',
       format(month, 'yyyy-MM'),
       paymentFrequencies.join(','),
+      ...(contractId ? ['contract', contractId] : []),
     ],
     queryFn: async (): Promise<DayPaymentsCI[]> => {
       const today = new Date()
       const service = ServiceFactory.getCaisseImprevueService()
 
-      // 1. Récupérer tous les contrats actifs
-      const allContracts = await service.getContractsCIPaginated({
-        status: 'ACTIVE',
-      })
+      // 1. Cibler un contrat pour l'ouverture rapide, ou charger le calendrier complet.
+      const focusedContract = contractId ? await service.getContractCIById(contractId) : null
+      const allContracts = contractId
+        ? focusedContract?.status === 'ACTIVE' ? [focusedContract] : []
+        : await service.getContractsCIPaginated({ status: 'ACTIVE' })
 
       // Filtrer par types de paiement
       const filteredContracts =

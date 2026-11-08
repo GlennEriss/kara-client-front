@@ -4,17 +4,77 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
-  return (
+function Table({
+  className,
+  topScroll = false,
+  ...props
+}: React.ComponentProps<"table"> & { topScroll?: boolean }) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const topScrollRef = React.useRef<HTMLDivElement>(null);
+  const [scrollWidth, setScrollWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!topScroll) return;
+    const container = containerRef.current;
+    const table = container?.querySelector("table");
+    if (!container || !table) return;
+
+    const measure = () => {
+      setScrollWidth(container.scrollWidth > container.clientWidth ? container.scrollWidth : 0);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    observer.observe(table);
+    return () => observer.disconnect();
+  }, [topScroll]);
+
+  React.useEffect(() => {
+    if (topScrollRef.current && containerRef.current) {
+      topScrollRef.current.scrollLeft = containerRef.current.scrollLeft;
+    }
+  }, [scrollWidth]);
+
+  const container = (
     <div
+      ref={containerRef}
       data-slot="table-container"
       className="relative w-full overflow-x-auto rounded-2xl border border-gray-100 bg-white"
+      onScroll={() => {
+        if (topScrollRef.current && containerRef.current && topScrollRef.current.scrollLeft !== containerRef.current.scrollLeft) {
+          topScrollRef.current.scrollLeft = containerRef.current.scrollLeft;
+        }
+      }}
     >
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
+    </div>
+  );
+
+  if (!topScroll) return container;
+
+  return (
+    <div className="min-w-0 w-full">
+      {scrollWidth > 0 && (
+        <div
+          ref={topScrollRef}
+          role="region"
+          aria-label="Défilement horizontal du tableau"
+          tabIndex={0}
+          className="h-4 w-full overflow-x-auto overflow-y-hidden border-x border-transparent"
+          onScroll={() => {
+            if (containerRef.current && topScrollRef.current && containerRef.current.scrollLeft !== topScrollRef.current.scrollLeft) {
+              containerRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+            }
+          }}
+        >
+          <div aria-hidden="true" className="h-px" style={{ width: scrollWidth }} />
+        </div>
+      )}
+      {container}
     </div>
   );
 }

@@ -106,6 +106,7 @@ export const creditSpecialeHelp: HelpTopic = {
         {
           items: [
             '« Augmenter le crédit » (rajout) : ajoute un montant au contrat. Le reste dû et le rajout forment un nouveau cycle, qui repart à M1. Un seul rajout par contrat, possible seulement sur un contrat actif ou partiel, sans pénalité impayée.',
+            'Après un rajout, la date de départ affichée devient celle du rajout ; la date de départ initiale reste visible. Les mois restants correspondent aux mensualités prévues aujourd’hui ou à venir dans le nouvel échéancier.',
             '« Basculer en fixe » : arrête les intérêts dès la prochaine échéance, avec un motif. Irréversible.',
             '« Clôturer en perte » (super admin) : quand le membre ne remboursera plus, le reste dû est enregistré comme perte. Les sommes récupérées ensuite se saisissent comme récupérations.',
             '« Enregistrer un paiement au garant » : verser au garant les commissions gagnées, depuis l’onglet Commission du garant.',
@@ -134,7 +135,7 @@ export const creditSpecialeHelp: HelpTopic = {
             },
             {
               term: 'Pénalités de retard',
-              text: 'Intérêts du mois × jours de retard ÷ 30. Aucune pénalité jusqu’à 3 jours de retard ; au-delà, tous les jours comptent. Un retard déjà constaté reste toléré pour les mois suivants du cycle (échéance glissante). La pénalité naît quand le versement en retard est enregistré.',
+              text: 'Intérêts du mois × jours de retard ÷ 30. Aucune pénalité jusqu’à 3 jours de retard ; au-delà, tous les jours comptent. L’échéance glissante ne commence ou n’augmente qu’à partir du 4e jour de retard par rapport à la référence en vigueur. Un retard dans les 3 jours de tolérance ne change pas cette référence. La pénalité naît quand le versement en retard est enregistré.',
             },
             {
               term: 'Commission du garant',

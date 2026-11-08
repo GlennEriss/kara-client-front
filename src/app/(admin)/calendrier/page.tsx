@@ -47,8 +47,15 @@ const isCalendarTab = (value: string | null): value is CalendarTab =>
 function CalendrierPageContent() {
   const searchParams = useSearchParams()
   const { canSeeAmounts } = useMyAccess()
-  const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [activeTab, setActiveTab] = useState<CalendarTab>("caisse-speciale")
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const month = searchParams.get('month')
+    const parsed = month && /^\d{4}-\d{2}$/.test(month) ? new Date(`${month}-01T12:00:00`) : null
+    return parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date()
+  })
+  const [activeTab, setActiveTab] = useState<CalendarTab>(() => {
+    const tab = searchParams.get('tab')
+    return isCalendarTab(tab) ? tab : 'caisse-speciale'
+  })
   const focusedPaymentKey = searchParams.get('focus') || undefined
   
   // Filtres Caisse Spéciale - Tous activés par défaut
@@ -326,6 +333,7 @@ function CalendrierPageContent() {
                   month={currentMonth}
                   onMonthChange={setCurrentMonth}
                   daysPayments={daysPaymentsCreditFixe}
+                  creditType="FIXE"
                   isLoading={isLoadingCreditFixe}
                   focusedPaymentKey={focusedPaymentKey}
                 />
@@ -338,6 +346,7 @@ function CalendrierPageContent() {
                   month={currentMonth}
                   onMonthChange={setCurrentMonth}
                   daysPayments={daysPaymentsCreditAide}
+                  creditType="AIDE"
                   isLoading={isLoadingCreditAide}
                   focusedPaymentKey={focusedPaymentKey}
                 />

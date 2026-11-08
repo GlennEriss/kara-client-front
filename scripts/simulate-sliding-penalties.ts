@@ -1,9 +1,10 @@
 /**
  * Simulation de l'échéance glissante des pénalités (Crédit Spéciale en mois).
  *
- * Nouvelle règle : un retard déjà constaté reste acquis. Si un mois a été
- * versé avec 9 jours de retard, les mois suivants sont attendus 9 jours après
- * leur date prévue ; seul un retard plus grand augmente ce décalage.
+ * Nouvelle règle : un retard pénalisable reste acquis. Si un mois a été
+ * versé avec 9 jours de retard pénalisable, les mois suivants sont attendus
+ * 9 jours après leur date prévue. Le décalage ne commence ou n'augmente qu'à
+ * partir du 4e jour de retard par rapport à la référence en vigueur.
  * Pénalité = intérêts du mois × jours de retard ÷ 30, au-delà de 3 jours de
  * tolérance.
  *

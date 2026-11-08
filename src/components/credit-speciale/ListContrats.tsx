@@ -3,7 +3,7 @@ import { isCreditContractLocked } from '@/utils/contract-lock'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { ENDED_CREDIT_STATUSES } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
-import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
+import { getCreditContractEndDate, getCreditContractRemainingMonths, getCreditContractStartDates } from '@/services/credit-speciale/creditContractDates'
 import { isWeeklyCredit } from '@/utils/credit-weekly'
 import { canCreditContractBeInFixedPhase, type CreditContractFixedPhase } from '@/utils/credit-speciale-history'
 
@@ -1701,6 +1701,8 @@ const ListContrats = ({
               const initials = `${(contract.clientFirstName || '')[0] || ''}${(contract.clientLastName || '')[0] || ''}`.toUpperCase() || 'CS'
               const hasSignedContract = Boolean(contract.signedContractUrl)
               const scoreValue = contract.score
+              const { startDate, initialStartDate, hasExtension } = getCreditContractStartDates(contract)
+              const remainingMonths = getCreditContractRemainingMonths(contract)
               const repaymentProgress = contract.totalAmount > 0
                 ? Math.min(100, Math.round(((contract.amountPaid || 0) / contract.totalAmount) * 100))
                 : 0
@@ -1745,6 +1747,22 @@ const ListContrats = ({
 
                       {/* Stats 2×2 — même grille que les cartes de caisse */}
                       <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Date de départ</p>
+                          <p className="font-bold text-gray-900 tabular-nums text-sm">
+                            {startDate?.toLocaleDateString('fr-FR') ?? '—'}
+                          </p>
+                          {hasExtension && initialStartDate && (
+                            <p className="mt-1 text-[10px] text-gray-500">Départ initial : {initialStartDate.toLocaleDateString('fr-FR')}</p>
+                          )}
+                        </div>
+                        {remainingMonths !== null && (
+                          <div title="Mensualités prévues aujourd’hui ou à venir dans le cycle en cours">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mois restants</p>
+                            <p className="font-bold text-gray-900 tabular-nums text-sm">{remainingMonths} / {contract.duration}</p>
+                            <p className="mt-1 text-[10px] text-gray-500">Selon l&apos;échéancier actuel</p>
+                          </div>
+                        )}
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Montant</p>
                           <p className="font-bold text-[#234D65] tabular-nums text-sm">
@@ -1960,7 +1978,13 @@ const ListContrats = ({
                           </AvatarFallback>
                         </Avatar>
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-900 break-all">{contract.id}</td>
+                      <td className="px-4 py-3 text-xs text-gray-900">
+                        <p className="font-mono break-all">{contract.id}</p>
+                        <p className="mt-1 text-gray-500">Départ : {getCreditContractStartDates(contract).startDate?.toLocaleDateString('fr-FR') ?? '—'}</p>
+                        {getCreditContractStartDates(contract).hasExtension && (
+                          <p className="text-gray-500">Départ initial : {getCreditContractStartDates(contract).initialStartDate?.toLocaleDateString('fr-FR') ?? '—'}</p>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
                           {getStatusLabel(contract.status)}
@@ -1988,6 +2012,11 @@ const ListContrats = ({
                       </td>
                       <td className="px-4 py-3 text-right text-gray-700">
                         {contract.nextDueAt ? (contract.nextDueAt instanceof Date ? contract.nextDueAt.toLocaleDateString('fr-FR') : new Date(contract.nextDueAt).toLocaleDateString('fr-FR')) : '—'}
+                        {getCreditContractRemainingMonths(contract) !== null && (
+                          <p className="mt-1 text-xs text-gray-500" title="Mensualités prévues aujourd’hui ou à venir dans le cycle en cours">
+                            {getCreditContractRemainingMonths(contract)} mois restants sur {contract.duration}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end">
@@ -2131,6 +2160,8 @@ const ListContrats = ({
               const hasSignedContract = Boolean(contract.signedContractUrl)
               const statusLabel = getStatusLabel(contract.status)
               const creditTypeLabel = getCreditTypeLabel(contract.creditType)
+              const { startDate, initialStartDate, hasExtension } = getCreditContractStartDates(contract)
+              const remainingMonths = getCreditContractRemainingMonths(contract)
 
               return (
                 <div className="flex max-h-[calc(100dvh-2rem)] flex-col bg-gradient-to-b from-white via-white to-slate-50/80 text-sm">
@@ -2276,6 +2307,20 @@ const ListContrats = ({
                           </div>
                           <div className="space-y-3">
                             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Date de départ</p>
+                              <p className="text-base font-semibold text-slate-900">{startDate?.toLocaleDateString('fr-FR') ?? '—'}</p>
+                              {hasExtension && initialStartDate && (
+                                <p className="mt-1 text-xs text-slate-500">Départ initial : {initialStartDate.toLocaleDateString('fr-FR')}</p>
+                              )}
+                            </div>
+                            {remainingMonths !== null && (
+                              <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Mois restants</p>
+                                <p className="text-base font-semibold text-slate-900">{remainingMonths} sur {contract.duration}</p>
+                                <p className="mt-1 text-xs text-slate-500">Mensualités prévues aujourd&apos;hui ou à venir</p>
+                              </div>
+                            )}
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
                               <p className="text-[11px] uppercase tracking-wide text-slate-500">Durée prévue</p>
                               <p className="text-base font-semibold text-slate-900">{contract.duration || 0} mois</p>
                             </div>
@@ -2292,7 +2337,7 @@ const ListContrats = ({
                               </p>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
-                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Date de création</p>
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Date de création initiale</p>
                               <p className="text-base font-semibold text-slate-900">
                                 {contract.createdAt ? new Date(contract.createdAt).toLocaleDateString('fr-FR') : '—'}
                               </p>

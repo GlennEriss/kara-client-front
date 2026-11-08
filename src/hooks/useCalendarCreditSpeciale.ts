@@ -95,16 +95,19 @@ function calculateDayColor(
   return "gray"
 }
 
-export function useCalendarCreditSpeciale(month: Date, creditType: CreditType, enabled: boolean = true) {
+export function useCalendarCreditSpeciale(month: Date, creditType: CreditType, enabled: boolean = true, contractId?: string) {
   return useQuery({
-    queryKey: ["calendar-credit-speciale", creditType, format(month, "yyyy-MM")],
+    queryKey: ["calendar-credit-speciale", creditType, format(month, "yyyy-MM"), ...(contractId ? ['contract', contractId] : [])],
     queryFn: async (): Promise<DayPaymentsCredit[]> => {
       const service = ServiceFactory.getCreditSpecialeService()
       const today = new Date()
       const monthStart = startOfMonth(month)
       const monthEnd = endOfMonth(month)
 
-      const contracts = await service.getContractsWithFilters({ creditType })
+      const focusedContract = contractId ? await service.getContractById(contractId) : null
+      const contracts = contractId
+        ? focusedContract ? [focusedContract] : []
+        : await service.getContractsWithFilters({ creditType })
       const activeContracts = contracts.filter(
         (contract) =>
           ACTIVE_CONTRACT_STATUSES.includes(contract.status) &&

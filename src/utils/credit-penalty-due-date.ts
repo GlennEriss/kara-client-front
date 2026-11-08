@@ -1,12 +1,14 @@
 import type { CreditContract, CreditPayment } from '@/types/types'
 import { addContractMonths } from './contract-months'
 import { getCreditPaymentMonthNumber } from './credit-speciale-history'
+import { LATE_TOLERANCE_DAYS } from './credit-payment-punctuality'
 
 /**
- * Échéance glissante des pénalités (crédit spécial en mois) : un retard déjà
- * constaté reste acquis. Si un mois a été versé avec 9 jours de retard, les
- * mois suivants sont attendus 9 jours après leur date prévue ; seul un retard
- * plus grand augmente ce décalage. Payer en avance ne le réduit pas et
+ * Échéance glissante des pénalités (crédit spécial en mois) : un retard
+ * pénalisable reste acquis. Le décalage ne commence ou n'augmente qu'à partir
+ * du 4e jour de retard par rapport à la référence en vigueur. Si un mois a
+ * été versé avec 9 jours de retard pénalisable, les mois suivants sont attendus
+ * 9 jours après leur date prévue. Payer en avance ne réduit pas le décalage et
  * n'avance jamais une échéance. Les dates affichées dans l'échéancier ne
  * changent pas : cette date ne sert qu'à compter les jours de retard.
  */
@@ -42,7 +44,7 @@ export function getMonthFirstPaymentDate(
   return dates[0]
 }
 
-/** Date de référence d'un mois d'un cycle : le plus grand retard des mois précédents reste toléré. */
+/** Date de référence d'un mois : seuls les retards pénalisables font évoluer le décalage. */
 export function getMonthPenaltyReferenceDate(
   cycleContract: Parameters<typeof getCreditPaymentMonthNumber>[0] & Pick<CreditContract, 'firstPaymentDate'>,
   cyclePayments: CreditPayment[],
@@ -54,7 +56,10 @@ export function getMonthPenaltyReferenceDate(
     const paymentDate = getMonthFirstPaymentDate(cycleContract, cyclePayments, previousMonth)
     if (!paymentDate) continue
     const plannedDueDate = addContractMonths(firstDueDate, previousMonth - 1)
-    toleratedDays = Math.max(toleratedDays, daysBetween(plannedDueDate, paymentDate))
+    const referenceDate = getPenaltyReferenceDate(plannedDueDate, toleratedDays)
+    if (daysBetween(referenceDate, paymentDate) > LATE_TOLERANCE_DAYS) {
+      toleratedDays = daysBetween(plannedDueDate, paymentDate)
+    }
   }
   return getPenaltyReferenceDate(addContractMonths(firstDueDate, month - 1), toleratedDays)
 }
