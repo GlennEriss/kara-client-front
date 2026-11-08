@@ -240,6 +240,18 @@ export const bilansFinanciersHelp: HelpTopic = {
             'Choisissez une période toute faite (3, 6, 12 derniers mois, année en cours, année précédente) ou un intervalle de mois, puis « Générer le bilan ».',
             'Passez d’un onglet à l’autre : Synthèse, puis un onglet par module.',
             'L’interrupteur « Afficher les explications des lignes » montre ou masque le sens de chaque ligne.',
+            'Cliquez sur un montant ou un nombre pour retrouver les personnes, groupes, contrats et dossiers qui le composent. Un clic dans un mois porte sur ce mois ; un clic dans « Total / fin » porte sur la somme de la période pour un flux, ou sur la valeur finale pour un encours.',
+          ],
+        },
+        {
+          type: 'steps',
+          title: 'Retrouver les personnes et contrats d’un montant',
+          items: [
+            'Dans la synthèse ou l’onglet d’un module, cliquez sur la cellule à examiner. Le détail affiche le nom, le matricule ou identifiant, la référence du contrat ou dossier, son statut actuel et sa contribution au montant choisi.',
+            'Utilisez la recherche par nom, matricule ou référence. Dans une synthèse couvrant plusieurs modules, filtrez aussi par module. Les garants rémunérés sur les crédits sont indiqués sous le client concerné.',
+            'Cliquez sur un nom ou une référence pour ouvrir sa fiche dans un nouvel onglet. Si une ancienne fiche n’existe plus, son identifiant et son montant sont conservés, sans inventer de lien ou de personne.',
+            '« Exporter le détail (CSV) » télécharge toutes les lignes correspondant aux filtres, y compris les pages suivantes, avec les colonnes mensuelles. Ce téléchargement complète les exports Excel et PDF du bilan global.',
+            'Le détail est recalculé à son ouverture. Si une opération a changé depuis la génération du bilan, un message demande de régénérer le bilan. Un éventuel écart entre arrondis individuels et total global est signalé séparément.',
           ],
         },
         {
@@ -270,6 +282,7 @@ export const bilansFinanciersHelp: HelpTopic = {
           type: 'definitions',
           items: [
             { term: 'Total / fin', text: 'La somme des mois pour un montant du mois ; la valeur à la fin de la période pour un montant « fin de mois ».' },
+            { term: 'Détail par contrat ou dossier', text: 'Les mêmes moteurs de calcul ventilent la ligne choisie. Les montants négatifs restent visibles, ainsi que les contrats dont le solde est nul sur la période mais qui ont des mouvements mensuels. Le total filtré concerne toutes les pages de résultats, pas seulement la page visible.' },
             { term: 'Épargne et capitaux', text: 'Ce sont des fonds à rendre : ils entrent en trésorerie mais pas dans le résultat.' },
             { term: 'Intérêts perçus', text: 'Crédit spécial : un versement paie au plus les intérêts de son mois. Crédits fixe et aide : l’intérêt unique est réparti au prorata des versements.' },
             { term: 'Reste dû', text: 'Montant prêté + intérêts arrivés à échéance − versements ; nul dès qu’un contrat est soldé, clos ou clôturé en perte.' },

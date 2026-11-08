@@ -26,8 +26,10 @@ import { FINANCIAL_REPORT_GUIDE } from '../entities/financial-report-guide'
 import { formatReportNumber, reportPeriodLabel, TOTAL_COLUMN_LABEL } from '../exports/report-format'
 import { useFinancialReport } from '../hooks/useFinancialReport'
 import { MemberFinancialReportCard } from './MemberFinancialReportCard'
+import type { FinancialDetailSelection } from '../entities/financial-report-details.types'
 
 const FinancialReportExportDialog = dynamic(() => import('./FinancialReportExportDialog'), { ssr: false })
+const FinancialReportDetailDialog = dynamic(() => import('./FinancialReportDetailDialog'), { ssr: false })
 import { addMonthsToKey, currentMonthKey, periodError } from '../utils/report-months'
 
 type Period = { from: MonthKey; to: MonthKey }
@@ -75,14 +77,18 @@ function moduleStats(module: FinancialReportModule): StatStripItem[] {
   return stats
 }
 
-function ReportBlockTable({
+export function ReportBlockTable({
   block,
   report,
   showDescriptions,
+  moduleKey,
+  onInspect,
 }: {
   block: FinancialReportBlock
   report: FinancialReport
   showDescriptions: boolean
+  moduleKey: FinancialReportModule['key']
+  onInspect: (selection: FinancialDetailSelection, amount: number) => void
 }) {
   const cell = (value: number, line: FinancialReportLine) => (
     <span className={cn(value < 0 && 'text-red-600')}>{line.unit === 'count' || value !== 0 ? formatReportNumber(value) : '—'}</span>
@@ -129,9 +135,9 @@ function ReportBlockTable({
                     )}
                   </td>
                   {line.values.map((value, index) => (
-                    <td key={report.months[index]} className="whitespace-nowrap px-3 py-2 text-right align-top">{cell(value, line)}</td>
+                    <td key={report.months[index]} className="whitespace-nowrap px-3 py-2 text-right align-top"><button type="button" className="rounded px-1 text-inherit underline decoration-[#234D65]/25 decoration-dotted underline-offset-4 hover:bg-[#234D65]/10 hover:decoration-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#234D65]" aria-label={`Voir le détail de ${line.label}, ${report.monthLabels[index]}`} title="Voir les personnes et contrats concernés" onClick={() => onInspect({ module: moduleKey, block: block.key, line: line.key, month: report.months[index] }, value)}>{cell(value, line)}</button></td>
                   ))}
-                  <td className="whitespace-nowrap px-3 py-2 text-right align-top font-semibold">{cell(line.total, line)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right align-top font-semibold"><button type="button" className="rounded px-1 text-inherit underline decoration-[#234D65]/40 underline-offset-4 hover:bg-[#234D65]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#234D65]" aria-label={`Voir le détail de ${line.label}, total ou fin de période`} title="Voir les personnes et contrats concernés" onClick={() => onInspect({ module: moduleKey, block: block.key, line: line.key }, line.total)}>{cell(line.total, line)}</button></td>
                 </tr>
               )
             })}
@@ -146,10 +152,12 @@ function ReportModuleView({
   module,
   report,
   showDescriptions,
+  onInspect,
 }: {
   module: FinancialReportModule
   report: FinancialReport
   showDescriptions: boolean
+  onInspect: (selection: FinancialDetailSelection, amount: number) => void
 }) {
   return (
     <div className="space-y-6">
@@ -159,7 +167,7 @@ function ReportModuleView({
       </div>
       <StatStrip stats={moduleStats(module)} />
       {module.blocks.map((block) => (
-        <ReportBlockTable key={block.key} block={block} report={report} showDescriptions={showDescriptions} />
+        <ReportBlockTable key={block.key} block={block} report={report} showDescriptions={showDescriptions} moduleKey={module.key} onInspect={onInspect} />
       ))}
       {module.notes.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
@@ -214,6 +222,7 @@ export default function FinancialReportsPage() {
   const [exportedReport, setExportedReport] = useState<FinancialReport | null>(null)
   const [isExportOpen, setIsExportOpen] = useState(false)
   const [showDescriptions, setShowDescriptions] = useState(true)
+  const [detail, setDetail] = useState<{ report: FinancialReport; selection: FinancialDetailSelection; amount: number } | null>(null)
   // Bilan d'un membre affiché à la place de celui de l'association.
   const [memberReport, setMemberReport] = useState<FinancialReport | null>(null)
   const { data: associationReport, isFetching: isFetchingAssociation, error: associationError, refetch } =
@@ -349,6 +358,7 @@ export default function FinancialReportsPage() {
       <ReportGuide />
 
       {exportedReport && <FinancialReportExportDialog open={isExportOpen} onOpenChange={setIsExportOpen} report={exportedReport} />}
+      {detail && <FinancialReportDetailDialog key={`${detail.report.generatedAt}:${detail.report.subject?.memberId ?? 'association'}:${JSON.stringify(detail.selection)}`} report={detail.report} selection={detail.selection} expectedAmount={detail.amount} onClose={() => setDetail(null)} />}
 
       {error ? (
         <Alert variant="destructive">
@@ -410,7 +420,8 @@ export default function FinancialReportsPage() {
               </button>
             ))}
           </div>
-          <ReportModuleView module={module} report={report} showDescriptions={showDescriptions} />
+          <p className="text-xs text-[#234D65]">Cliquez sur un montant ou un nombre pour voir les personnes et les contrats concernés, rechercher une référence et exporter le détail.</p>
+          <ReportModuleView module={module} report={report} showDescriptions={showDescriptions} onInspect={(selection, amount) => setDetail({ report, selection, amount })} />
         </div>
       )}
     </div>
