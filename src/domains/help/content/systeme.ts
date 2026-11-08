@@ -304,16 +304,16 @@ export const journalisationHelp: HelpTopic = {
 export const groupesHelp: HelpTopic = {
   key: 'groupes',
   title: 'Groupes',
-  category: 'Système',
-  summary: 'Les groupes de membres, qui épargnent ensemble en caisse spéciale et participent ensemble aux charités.',
-  pages: [{ path: '/groups', label: 'Groupes', summary: 'Créer un groupe, y rattacher des membres et lui ouvrir un contrat de caisse.' }],
+  category: 'Membres',
+  summary: 'Créer des groupes de membres et organiser leurs tontines, achats collectifs et autres projets.',
+  pages: [{ path: '/groups', label: 'Groupes', summary: 'Créer un groupe, sélectionner ses membres et suivre ses projets collectifs.' }],
   sections: [
     {
       kind: 'purpose',
       blocks: [
         {
           type: 'text',
-          text: 'Un groupe a un nom, un libellé, une description et ses membres. Il peut avoir son propre contrat de caisse spéciale et contribuer aux évènements de charité.',
+          text: 'Un groupe réunit des membres autour de plusieurs projets. Chaque tontine, achat collectif ou autre projet possède son objectif, ses participants et son état : en préparation, en cours, terminé ou annulé. Le référent du groupe est choisi parmi ses membres. Un groupe peut aussi conserver son contrat de caisse spéciale et participer aux charités.',
         },
       ],
     },
@@ -323,7 +323,22 @@ export const groupesHelp: HelpTopic = {
         {
           type: 'steps',
           title: 'Créer un groupe',
-          items: ['Cliquez sur « Créer un groupe » et donnez-lui un nom.', 'Ouvrez le groupe et ajoutez ses membres.'],
+          items: ['Cliquez sur « Créer un groupe » et indiquez son nom et sa raison d’être.', 'Recherchez les membres par nom, matricule ou téléphone, sélectionnez-en plusieurs et choisissez un référent si vous le souhaitez.', 'Ajoutez un premier projet ou décochez cette option pour le faire plus tard. La création ouvre ensuite la fiche du groupe.'],
+        },
+        {
+          type: 'steps',
+          title: 'Organiser les projets du groupe',
+          items: ['Dans « Projets », cliquez sur « Nouveau projet ».', 'Choisissez Tontine, Achat collectif ou Autre projet, précisez l’objectif et sélectionnez les participants parmi les membres du groupe.', 'Ouvrez un projet pour consulter ses détails ou modifier son état. Le budget éventuel est une estimation ; aucun encaissement ni dépense n’est enregistré dans cette fiche.', 'L’onglet Historique conserve les créations et modifications du groupe et de ses projets.'],
+        },
+        {
+          type: 'steps',
+          title: 'Tirer au sort l’ordre de récupération d’une tontine',
+          items: ['Créez un projet de type Tontine ou Autre projet, puis sélectionnez au moins deux participants. Le projet doit être en préparation ou en cours.', 'Ouvrez le projet et cliquez sur « Tirer au sort l’ordre ». Un aperçu numéroté place chaque participant une seule fois.', 'Vérifiez l’aperçu puis cliquez sur « Enregistrer cet ordre » pour le rendre visible dans l’espace membre. « Annuler le tirage » laisse l’ordre enregistré intact.', 'Le membre voit la liste des passages et sa position personnelle. L’historique des tirages, avec les anciens ordres, la date et l’auteur, reste consultable dans le projet côté admin.', 'Si les participants ou le type du projet changent, refaites le tirage. « Refaire le tirage » demande une nouvelle confirmation et conserve les tirages enregistrés précédemment. Un nouveau tirage peut donner le même ordre par hasard.'],
+        },
+        {
+          type: 'steps',
+          title: 'Retrouver un groupe dans l’espace membre',
+          items: ['Après son ajout par un administrateur, le membre retrouve le groupe dans « Communauté > Mes groupes », même sans abonnement actif.', 'Il ouvre la fiche pour consulter le coordinateur, les membres et tous les projets du groupe. Le repère « Vous participez » et le filtre « Mes participations » distinguent les projets auxquels il est inscrit.', 'Il peut consulter les objectifs, les participants, les statuts, la date cible et le budget estimé. Pour rejoindre un projet ou modifier le groupe, il contacte le coordinateur ou l’association.', 'Le bouton « Actualiser » recharge les changements effectués par l’admin. Les données sont également rechargées au retour sur l’application lorsqu’elles ont plus de 30 secondes.'],
         },
         {
           type: 'steps',
@@ -342,6 +357,11 @@ export const groupesHelp: HelpTopic = {
         {
           type: 'definitions',
           items: [
+            { term: 'Appartenance et participation', text: 'Un membre peut appartenir à plusieurs groupes. Faire partie du groupe ne l’inscrit pas automatiquement à tous ses projets : l’admin choisit les participants de chaque projet.' },
+            { term: 'Accès membre', text: 'Le membre consulte uniquement ses groupes, sans pouvoir créer ou modifier un groupe ou un projet. La liste des membres affiche leurs noms, pas leurs coordonnées privées. L’historique des actions administratives reste dans l’admin.' },
+            { term: 'Retrait du groupe', text: 'Le retrait supprime l’accès du membre au groupe et sa participation aux projets en préparation ou en cours. Les projets terminés ou annulés conservent leurs anciens participants. Si le référent est retiré, choisissez un nouveau référent.' },
+            { term: 'Budget et versements', text: 'Le budget d’un projet est une estimation. Cette fiche ne suit pas les cotisations individuelles, les versements ou les dépenses du projet. Un éventuel contrat de caisse spéciale du groupe conserve son propre suivi financier.' },
+            { term: 'Ordre de récupération', text: 'L’ordre est tiré au sort parmi les participants du projet, puis enregistré par un administrateur. Chaque participant reçoit une position unique. Il ne déclenche aucun paiement et ne calcule pas les dates de passage. Un changement de participants ou de type invalide l’ordre actuel, même si la liste initiale est rétablie ensuite. Les projets terminés ou annulés conservent leur ordre et ne peuvent plus être tirés au sort.' },
             { term: 'Paramètres de la caisse', text: 'Le contrat ne peut être créé que si les paramètres de ce type de caisse sont configurés (Système > Paramètres Caisse).' },
             { term: 'Caisse Libre', text: 'Le total versé par mois doit être d’au moins 100 000 FCFA.' },
             { term: 'Caisse Journalière', text: 'L’objectif du mois est atteint par des versements quotidiens.' },
@@ -356,6 +376,9 @@ export const groupesHelp: HelpTopic = {
           type: 'faq',
           items: [
             { question: 'Pourquoi un membre ne peut-il pas être ajouté ?', answer: 'Vérifiez qu’il existe comme membre approuvé et qu’il n’est pas déjà présent dans le groupe.' },
+            { question: 'Pourquoi le membre ne voit-il pas son groupe ?', answer: 'Vérifiez son appartenance dans l’onglet Membres du groupe, puis demandez-lui d’actualiser « Mes groupes ». Les interfaces admin et membre doivent utiliser le même environnement Firebase et inclure la fonctionnalité Groupes.' },
+            { question: 'Le membre peut-il rejoindre lui-même un projet ou enregistrer un versement ?', answer: 'La participation est attribuée par l’admin. Le membre consulte ses projets et contacte le coordinateur ou l’association pour demander un changement. L’enregistrement des versements de projet n’est pas proposé dans cet espace.' },
+            { question: 'Pourquoi l’ordre de récupération est-il à refaire ?', answer: 'Le type du projet ou ses participants ont changé depuis le tirage. Les anciens ordres sont conservés dans l’historique, mais un nouveau tirage doit être confirmé pour afficher un ordre valide aux membres.' },
             { question: 'Pourquoi la création du contrat de caisse échoue-t-elle ?', answer: 'Le type de caisse choisi doit être configuré et les montants doivent respecter ses règles, notamment le minimum de la Caisse Libre.' },
           ],
         },

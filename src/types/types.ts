@@ -1099,12 +1099,53 @@ export interface SubscriptionCI {
 
 // ================== TYPES POUR LES GROUPES ==================
 
+export type GroupProjectKind = 'TONTINE' | 'PURCHASE' | 'OTHER'
+export type GroupProjectStatus = 'PLANNED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+
+export interface GroupPayoutDraw {
+  id: string
+  participantIds: string[]
+  participantNames: Record<string, string>
+  drawnAt: Date
+  drawnBy: string
+  drawnByName: string
+}
+
+export interface GroupProject {
+  id: string
+  name: string
+  kind: GroupProjectKind
+  status: GroupProjectStatus
+  description: string
+  estimatedBudget?: number
+  targetDate?: string
+  participantIds: string[]
+  participantNames: Record<string, string>
+  payoutDraws?: GroupPayoutDraw[]
+  payoutOrderDrawId?: string | null
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+}
+
+export interface GroupActivity {
+  id: string
+  description: string
+  at: Date
+  byId: string
+  byName: string
+}
+
 export interface Group {
   id: string
   name: string
   label?: string
   description?: string
-  // Un groupe peut être contraint à un seul membre, mais on stocke côté user
+  coordinatorId?: string
+  coordinatorName?: string
+  projects?: GroupProject[]
+  activity?: GroupActivity[]
+  // L'appartenance reste stockée dans users.groupIds.
   // Audit
   createdAt: Date
   createdBy: string

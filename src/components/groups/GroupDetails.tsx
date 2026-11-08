@@ -1,942 +1,795 @@
-"use client"
+"use client";
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { getNationalityName } from '@/constantes/nationality'
-import { listGroups, updateGroup } from '@/db/group.db'
-import { updateUser } from '@/db/user.db'
-import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
-import { useAllMembers } from '@/hooks/useMembers'
-import type { Group, User } from '@/types/types'
-import { ArrowLeft, Calendar, Download, FileText, Filter, IdCard, Mail, Plus, RefreshCw, Search, Trash2, UserCheck, UserPlus, Users } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import React from 'react'
-import { toast } from 'sonner'
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { toast } from "sonner";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Calendar,
+  Download,
+  FolderOpen,
+  History,
+  Loader2,
+  Pencil,
+  Plus,
+  Search,
+  ShoppingBag,
+  Trash2,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getGroupById } from "@/db/group.db";
+import { getMembersByGroup } from "@/db/member.db";
+import { getNationalityName } from "@/constantes/nationality";
+import routes from "@/constantes/routes";
+import { backOr } from "@/lib/backNavigation";
+import { removeGroupMember } from "@/domains/groups/group-service";
+import {
+  activePayoutDraw,
+  supportsPayoutOrder,
+} from "@/domains/groups/payout-order";
+import {
+  isOpenProject,
+  memberName,
+  PROJECT_KINDS,
+  PROJECT_STATUSES,
+} from "@/domains/groups/group-model";
+import { useGroupWorkspace } from "@/domains/groups/useGroupWorkspace";
+import type { GroupProject, User } from "@/types/types";
+import {
+  AddGroupMembersDialog,
+  EditGroupDialog,
+  EditGroupProjectDialog,
+  GroupProjectDetailDialog,
+} from "./GroupWorkspaceDialogs";
 
-interface Props { groupId: string }
+const GroupCaisseContractModal = dynamic(
+  () => import("./GroupCaisseContractModal"),
+  { ssr: false },
+);
+const dateLabel = (value: Date) => new Date(value).toLocaleDateString("fr-FR");
+const statusClass = (status: GroupProject["status"]) =>
+  status === "ACTIVE"
+    ? "bg-blue-50 text-blue-700"
+    : status === "COMPLETED"
+      ? "bg-emerald-50 text-emerald-700"
+      : "bg-gray-100 text-gray-600";
 
-// Composant pour une statistique moderne
-const StatCard = ({
-    title,
-    value,
-    icon: Icon,
-    color,
-    trend,
-    className = ""
-}: {
-    title: string
-    value: number
-    icon: React.ComponentType<any>
-    color: string
-    trend?: string
-    className?: string
-}) => {
-    return (
-        <Card className={`group relative overflow-hidden transition-all duration-500 hover:-translate-y-1 hover:shadow-xl border-0 ${className}`}>
-            {/* Effet de fond animé */}
-            <div
-                className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500"
-                style={{ backgroundColor: color }}
-            />
-            <div
-                className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 rounded-full opacity-10 group-hover:opacity-20 transition-all duration-700 transform translate-x-12 sm:translate-x-16 -translate-y-12 sm:-translate-y-16 group-hover:scale-150"
-                style={{ backgroundColor: color }}
-            />
+export default function GroupDetails({ groupId }: { groupId: string }) {
+  const router = useRouter();
+  const { actor, canManage, refresh, audit } = useGroupWorkspace(groupId);
+  const {
+    data: group,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["group", groupId],
+    queryFn: () => getGroupById(groupId),
+  });
+  const {
+    data: groupMembers = [],
+    isLoading: membersLoading,
+    isError: membersError,
+    refetch: refetchMembers,
+  } = useQuery({
+    queryKey: ["groupMembers", groupId],
+    queryFn: () => getMembersByGroup(groupId),
+  });
+  const [tab, setTab] = useState("overview");
+  const [query, setQuery] = useState("");
+  const [projectFilter, setProjectFilter] = useState("all");
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [createContractOpen, setCreateContractOpen] = useState(false);
+  const [projectEditor, setProjectEditor] = useState<
+    GroupProject | "new" | null
+  >(null);
+  const [projectDetail, setProjectDetail] = useState<string | null>(null);
+  const [toRemove, setToRemove] = useState<User | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  useEffect(() => {
+    setTab("overview");
+    setAddOpen(false);
+    setEditOpen(false);
+    setProjectEditor(null);
+    setProjectDetail(null);
+    setToRemove(null);
+  }, [groupId]);
+  const projects = group?.projects ?? [];
+  const openProjects = projects.filter(isOpenProject);
+  const coordinator = groupMembers.find(
+    (member) => member.id === group?.coordinatorId,
+  );
+  const canEditMembers = canManage && !membersLoading && !membersError;
+  const filteredMembers = groupMembers.filter((member) =>
+    [
+      memberName(member),
+      member.email,
+      member.matricule,
+      ...(member.contacts ?? []),
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(query.trim().toLowerCase()),
+  );
+  const filteredProjects = projects.filter(
+    (project) => projectFilter === "all" || project.status === projectFilter,
+  );
+  const selectedProject = projects.find(
+    (project) => project.id === projectDetail,
+  );
+  const remove = async () => {
+    if (!toRemove || !canManage) return;
+    setIsRemoving(true);
+    try {
+      await removeGroupMember(groupId, toRemove.id, actor);
+      audit(`${memberName(toRemove)} retiré(e) du groupe.`);
+      await refresh();
+      setToRemove(null);
+      toast.success("Membre retiré du groupe.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Impossible de retirer ce membre.",
+      );
+    } finally {
+      setIsRemoving(false);
+    }
+  };
 
-            <CardContent className="p-4 sm:p-6 relative z-10">
-                <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
-                        style={{ backgroundColor: `${color}20` }}
-                    >
-                        <Icon className="w-5 h-5 sm:w-6 sm:h-6" style={{ color }} />
-                    </div>
-                    <div className="text-right">
-                        <div className="text-2xl sm:text-3xl font-bold text-gray-900 group-hover:scale-110 transition-transform duration-300">
-                            {value}
-                        </div>
-                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {title}
-                        </div>
-                    </div>
-                </div>
+  const exportToExcel = async () => {
+    if (filteredMembers.length === 0) {
+      toast.error("Aucun membre à exporter");
+      return;
+    }
 
-                {trend && (
-                    <div className="text-xs text-gray-600 flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                        {trend}
-                    </div>
+    setIsExporting(true);
+    try {
+      // Préparer les données pour l'export
+      const exportData = filteredMembers.map((member: any) => {
+        const toISO = (v: any) => {
+          try {
+            if (!v) return "";
+            const d = v?.toDate
+              ? v.toDate()
+              : v instanceof Date
+                ? v
+                : new Date(v);
+            return isNaN(d.getTime()) ? "" : d.toISOString();
+          } catch {
+            return "";
+          }
+        };
+
+        return {
+          Matricule: member?.matricule || member?.id || "",
+          Prénom: member?.firstName || "",
+          Nom: member?.lastName || "",
+          Email: member?.email || "",
+          Sexe: member?.gender || "",
+          Nationalité: getNationalityName(member?.nationality),
+          Profession: member?.profession || "",
+          Province: member?.address?.province || "",
+          Ville: member?.address?.city || "",
+          Quartier: member?.address?.district || "",
+          Arrondissement: member?.address?.arrondissement || "",
+          Téléphones: Array.isArray(member?.contacts)
+            ? member.contacts.join(" | ")
+            : "",
+          "Possède un véhicule": member?.hasCar ? "Oui" : "Non",
+          "Date d'adhésion": toISO(member?.createdAt),
+          "Dernière modification": toISO(member?.updatedAt),
+          "Nombre de groupes": (member?.groupIds || []).length,
+          "Autres groupes": (member?.groupIds || []).filter(
+            (id: string) => id !== groupId,
+          ).length,
+        };
+      });
+
+      // Créer le fichier CSV avec BOM pour Excel
+      const headers = Object.keys(exportData[0]);
+
+      // Ajouter le BOM UTF-8 pour Excel
+      const BOM = "\uFEFF";
+
+      const csvContent =
+        BOM +
+        [
+          headers.join(";"),
+          ...exportData.map((row: Record<string, any>) =>
+            headers
+              .map((header) => {
+                const value = row[header];
+                // Échapper les points-virgules et guillemets dans les valeurs
+                if (
+                  typeof value === "string" &&
+                  (value.includes(";") || value.includes('"'))
+                ) {
+                  return `"${value.replace(/"/g, '""')}"`;
+                }
+                return value;
+              })
+              .join(";"),
+          ),
+        ].join("\r\n");
+
+      // Créer et télécharger le fichier
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `membres-groupe-${group?.name || "groupe"}-${new Date().toISOString().split("T")[0]}.csv`,
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success("Export réussi !");
+    } catch (error) {
+      console.error("Erreur lors de l'export:", error);
+      toast.error("Erreur lors de l'export");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const projectCards = (items: GroupProject[]) => (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {items.map((project) => (
+        <article
+          key={project.id}
+          className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5"
+        >
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-medium text-gray-500">
+              {PROJECT_KINDS[project.kind]?.label ?? "Projet"}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs ${statusClass(project.status)}`}
+            >
+              {PROJECT_STATUSES[project.status]}
+            </span>
+          </div>
+          <h3 className="break-words !text-base font-semibold text-gray-900">
+            {project.name}
+          </h3>
+          <p className="mt-2 line-clamp-3 min-h-14 text-sm leading-relaxed text-gray-500">
+            {project.description ||
+              "L’objectif et l’organisation restent à préciser."}
+          </p>
+          <div className="my-4 space-y-2 text-xs text-gray-600">
+            <p className="flex items-center gap-2">
+              <Users className="h-3.5 w-3.5" />
+              {project.participantIds.length} participant(s)
+            </p>
+            {supportsPayoutOrder(project.kind) && (
+              <p className="font-medium text-[#234D65]">
+                Ordre de récupération :{" "}
+                {activePayoutDraw(project)
+                  ? "enregistré"
+                  : project.payoutDraws?.length
+                    ? "à refaire"
+                    : "à tirer au sort"}
+              </p>
+            )}
+            {project.estimatedBudget !== undefined && (
+              <p>
+                Budget estimé :{" "}
+                <span className="font-medium">
+                  {project.estimatedBudget.toLocaleString("fr-FR")} FCFA
+                </span>
+              </p>
+            )}
+            {project.targetDate && (
+              <p className="flex items-center gap-2">
+                <Calendar className="h-3.5 w-3.5" />
+                Date cible :{" "}
+                {new Date(`${project.targetDate}T12:00:00`).toLocaleDateString(
+                  "fr-FR",
                 )}
-
-                <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
-                    <div
-                        className="h-2 rounded-full transition-all duration-1000 ease-out"
-                        style={{
-                            backgroundColor: color,
-                            width: value > 0 ? '100%' : '0%'
-                        }}
-                    />
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
-
-export default function GroupDetails({ groupId }: Props) {
-    const router = useRouter()
-    const [group, setGroup] = React.useState<Group | null>(null)
-    const [isLoading, setIsLoading] = React.useState(false)
-    const [query, setQuery] = React.useState('')
-
-    const { data: membersData, refetch } = useAllMembers({}, 1, 500)
-    const members: User[] = (membersData?.data || []) as any
-    const groupMembers = members.filter((m) => (m as any).groupIds?.includes(groupId))
-    const [addOpen, setAddOpen] = React.useState(false)
-    const [createContractOpen, setCreateContractOpen] = React.useState(false)
-    const [toRemove, setToRemove] = React.useState<User | null>(null)
-    const [isRemoving, setIsRemoving] = React.useState(false)
-    const [isExporting, setIsExporting] = React.useState(false)
-
-    React.useEffect(() => {
-        ; (async () => {
-            setIsLoading(true)
-            try {
-                const all = await listGroups()
-                const g = all.find((x) => x.id === groupId) || null
-                setGroup(g)
-            } catch {
-                toast.error('❌ Erreur chargement groupe')
-            } finally {
-                setIsLoading(false)
-            }
-        })()
-    }, [groupId])
-
-    const filteredMembers = groupMembers.filter((m) => {
-        const q = query.trim().toLowerCase()
-        if (!q) return true
-        return (
-            m.firstName.toLowerCase().includes(q) ||
-            m.lastName.toLowerCase().includes(q) ||
-            (m.email || '').toLowerCase().includes(q) ||
-            (m.matricule || '').toLowerCase().includes(q)
-        )
-    })
-
-    const exportToExcel = async () => {
-        if (filteredMembers.length === 0) {
-            toast.error('Aucun membre à exporter')
-            return
-        }
-
-        setIsExporting(true)
-        try {
-            // Préparer les données pour l'export
-            const exportData = filteredMembers.map((member: any) => {
-                const toISO = (v: any) => {
-                    try {
-                        if (!v) return ''
-                        const d = v?.toDate ? v.toDate() : v instanceof Date ? v : new Date(v)
-                        return isNaN(d.getTime()) ? '' : d.toISOString()
-                    } catch {
-                        return ''
-                    }
-                }
-
-                return {
-                    'Matricule': member?.matricule || member?.id || '',
-                    'Prénom': member?.firstName || '',
-                    'Nom': member?.lastName || '',
-                    'Email': member?.email || '',
-                    'Sexe': member?.gender || '',
-                    'Nationalité': getNationalityName(member?.nationality),
-                    'Profession': member?.profession || '',
-                    'Province': member?.address?.province || '',
-                    'Ville': member?.address?.city || '',
-                    'Quartier': member?.address?.district || '',
-                    'Arrondissement': member?.address?.arrondissement || '',
-                    'Téléphones': Array.isArray(member?.contacts) ? member.contacts.join(' | ') : '',
-                    'Possède un véhicule': member?.hasCar ? 'Oui' : 'Non',
-                    'Date d\'adhésion': toISO(member?.createdAt),
-                    'Dernière modification': toISO(member?.updatedAt),
-                    'Nombre de groupes': (member?.groupIds || []).length,
-                    'Autres groupes': (member?.groupIds || []).filter((id: string) => id !== groupId).length,
-                }
-            })
-
-            // Créer le fichier CSV avec BOM pour Excel
-            const headers = Object.keys(exportData[0])
-            
-            // Ajouter le BOM UTF-8 pour Excel
-            const BOM = '\uFEFF'
-            
-            const csvContent = BOM + [
-                headers.join(';'),
-                ...exportData.map((row: Record<string, any>) => 
-                    headers.map(header => {
-                        const value = row[header]
-                        // Échapper les points-virgules et guillemets dans les valeurs
-                        if (typeof value === 'string' && (value.includes(';') || value.includes('"'))) {
-                            return `"${value.replace(/"/g, '""')}"`
-                        }
-                        return value
-                    }).join(';')
-                )
-            ].join('\r\n')
-
-            // Créer et télécharger le fichier
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-            const link = document.createElement('a')
-            const url = URL.createObjectURL(blob)
-            link.setAttribute('href', url)
-            link.setAttribute('download', `membres-groupe-${group?.name || 'groupe'}-${new Date().toISOString().split('T')[0]}.csv`)
-            link.style.visibility = 'hidden'
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-            URL.revokeObjectURL(url)
-
-            toast.success('Export réussi !')
-        } catch (error) {
-            console.error('Erreur lors de l\'export:', error)
-            toast.error('Erreur lors de l\'export')
-        } finally {
-            setIsExporting(false)
-        }
-    }
-
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
-                <div className="container mx-auto">
-                    <Card className="shadow-2xl border-0 overflow-hidden">
-                        <CardContent className="p-8 sm:p-12 lg:p-16 text-center">
-                            <div className="animate-pulse space-y-4">
-                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-[#234D65] to-blue-600 rounded-xl sm:rounded-2xl mx-auto opacity-80" />
-                                <div className="h-6 sm:h-8 bg-gray-200 rounded-lg w-48 sm:w-64 mx-auto" />
-                                <div className="h-3 sm:h-4 bg-gray-100 rounded w-32 sm:w-48 mx-auto" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-        )
-    }
-
+              </p>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            className="mt-auto w-full text-[#234D65]"
+            onClick={() => setProjectDetail(project.id)}
+          >
+            Ouvrir le projet
+            <ArrowUpRight className="h-4 w-4" />
+          </Button>
+        </article>
+      ))}
+    </div>
+  );
+  const emptyProjects = (
+    <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
+      <FolderOpen className="mx-auto mb-3 h-9 w-9 text-[#234D65]" />
+      <h3 className="!text-base font-semibold">
+        Quel sera votre premier projet ?
+      </h3>
+      <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
+        Une tontine, un achat de matériel ou une autre initiative. Choisissez
+        les participants parmi les membres du groupe.
+      </p>
+      {canEditMembers && (
+        <Button
+          className="mt-4 bg-[#234D65] text-white"
+          onClick={() => setProjectEditor("new")}
+        >
+          <Plus className="h-4 w-4" />
+          Créer un projet
+        </Button>
+      )}
+    </div>
+  );
+  if (isLoading)
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-            {/* Éléments de fond décoratifs */}
-            <div className="absolute inset-0">
-                <div className="absolute top-0 left-1/4 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-br from-[#234D65]/10 to-blue-600/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-                <div className="absolute top-0 right-1/4 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-br from-emerald-400/10 to-green-600/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-                <div className="absolute -bottom-8 left-1/3 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-br from-purple-400/10 to-pink-600/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+      <div role="status" className="mx-auto max-w-7xl space-y-5 p-6">
+        <div className="h-40 animate-pulse rounded-2xl bg-gray-100" />
+        <div className="h-72 animate-pulse rounded-2xl bg-gray-100" />
+        <span className="sr-only">Chargement du groupe…</span>
+      </div>
+    );
+  if (isError || !group)
+    return (
+      <div className="mx-auto max-w-xl space-y-4 p-8 text-center">
+        <h1 className="text-xl font-semibold">Groupe indisponible</h1>
+        <p className="text-sm text-gray-500">
+          Il n’a pas pu être chargé ou n’existe plus.
+        </p>
+        <Button variant="outline" onClick={() => refetch()}>
+          Réessayer
+        </Button>
+        <Button onClick={() => router.push(routes.admin.groups)}>
+          Retour aux groupes
+        </Button>
+      </div>
+    );
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+      <Button
+        variant="ghost"
+        className="-ml-3 text-gray-600"
+        onClick={() => backOr(router, routes.admin.groups)}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Tous les groupes
+      </Button>
+      <header className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#234D65]/10">
+              <Users className="h-6 w-6 text-[#234D65]" />
             </div>
-
-            <div className="relative z-10 container mx-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
-                {/* En-tête du groupe */}
-                <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#234D65]/20 to-blue-600/20 rounded-2xl lg:rounded-3xl blur-xl opacity-60" />
-                    <Card className="relative bg-white/80 backdrop-blur-xl rounded-2xl lg:rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#234D65] via-blue-600 to-purple-600" />
-                        <CardContent className="p-6 sm:p-8">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <div className="flex items-center gap-4">
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => router.back()}
-                                        className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl lg:rounded-2xl bg-white/80 hover:bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border-0 flex-shrink-0"
-                                    >
-                                        <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                                    </Button>
-
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-[#234D65] to-blue-600 rounded-xl lg:rounded-2xl flex items-center justify-center">
-                                                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                                            </div>
-                                            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black bg-gradient-to-r from-[#234D65] to-blue-600 bg-clip-text text-transparent leading-tight">
-                                                {group?.name || 'Groupe'}
-                                            </h1>
-                                            {group?.label && (
-                                                <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0 hidden sm:inline-flex">
-                                                    {group.label}
-                                                </Badge>
-                                            )}
-                                        </div>
-
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                                            {group?.label && (
-                                                <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0 sm:hidden self-start">
-                                                    {group.label}
-                                                </Badge>
-                                            )}
-                                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                                                <Calendar className="w-4 h-4" />
-                                                <span>
-                                                    Créé le {group?.createdAt && !isNaN(new Date(group.createdAt as any).getTime())
-                                                        ? new Date(group.createdAt as any).toLocaleDateString('fr-FR', {
-                                                            day: '2-digit',
-                                                            month: 'long',
-                                                            year: 'numeric'
-                                                        })
-                                                        : '—'
-                                                    }
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {group?.description && (
-                                <div className="mt-6 p-4 bg-white/60 rounded-xl border border-white/50">
-                                    <p className="text-gray-700 leading-relaxed">{group.description}</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Statistiques modernes */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-                    <StatCard
-                        title="Membres du groupe"
-                        value={groupMembers.length}
-                        icon={Users}
-                        color="#3b82f6"
-                        trend="actifs dans le groupe"
-                    />
-                    <StatCard
-                        title="Résultats de recherche"
-                        value={filteredMembers.length}
-                        icon={Filter}
-                        color="#10b981"
-                        trend="correspondances trouvées"
-                    />
-                    <StatCard
-                        title="Total"
-                        value={members.length}
-                        icon={UserCheck}
-                        color="#f59e0b"
-                        trend="dans l'organisation"
-                    />
-                </div>
-
-                {/* Barre de recherche et actions */}
-                <Card className="bg-white/70 backdrop-blur-sm rounded-xl lg:rounded-2xl shadow-xl border border-white/50">
-                    <CardContent className="p-4 sm:p-6">
-                        <div className="flex flex-col lg:flex-row gap-4">
-                            <div className="flex-1">
-                                <div className="relative group">
-                                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-[#234D65] transition-colors duration-300" />
-                                    <Input
-                                        placeholder="Rechercher un membre (nom, email, matricule)..."
-                                        value={query}
-                                        onChange={(e) => setQuery(e.target.value)}
-                                        className="pl-12 h-12 border-2 border-gray-200 focus:border-[#234D65] focus:ring-2 focus:ring-[#234D65]/20 bg-white/80 rounded-xl transition-all duration-300"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex flex-col md:flex-row gap-3">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => refetch()}
-                                    className="h-12 px-6 border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 rounded-xl"
-                                >
-                                    <RefreshCw className="w-4 h-4 mr-2" />
-                                    Actualiser
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={exportToExcel}
-                                    disabled={isExporting || filteredMembers.length === 0}
-                                    className="h-12 px-6 border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isExporting ? (
-                                        <>
-                                            <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin mr-2" />
-                                            Export...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Download className="w-4 h-4 mr-2" />
-                                            Exporter Excel
-                                        </>
-                                    )}
-                                </Button>
-                                <Button
-                                    className="h-12 px-6 bg-gradient-to-r from-[#234D65] to-blue-600 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"
-                                    onClick={() => setAddOpen(true)}
-                                >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Ajouter un membre
-                                </Button>
-                                <Button
-                                    className="h-12 px-6 bg-gradient-to-r from-[#CBB171] to-[#D4C084] hover:from-[#D4C084] hover:to-[#CBB171] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"
-                                    onClick={() => setCreateContractOpen(true)}
-                                >
-                                    <FileText className="w-4 h-4 mr-2" />
-                                    Créer un contrat
-                                </Button>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Liste des membres */}
-                <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                            <Users className="w-5 h-5 text-[#234D65]" />
-                            Membres du Groupe ({filteredMembers.length})
-                        </h2>
-                    </div>
-
-                    {filteredMembers.length === 0 ? (
-                        <Card className="bg-white/70 backdrop-blur-sm rounded-xl shadow-xl border border-white/50">
-                            <CardContent className="p-12 text-center">
-                                <div className="w-20 h-20 bg-gradient-to-br from-gray-400 to-gray-500 rounded-full mx-auto mb-6 flex items-center justify-center">
-                                    <Users className="w-10 h-10 text-white" />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                    {query ? 'Aucun membre trouvé' : 'Aucun membre dans ce groupe'}
-                                </h3>
-                                <p className="text-gray-600 mb-6">
-                                    {query
-                                        ? 'Essayez de modifier votre recherche.'
-                                        : 'Commencez par ajouter des membres à ce groupe. Les membres peuvent appartenir à plusieurs groupes simultanément.'
-                                    }
-                                </p>
-                                {!query && (
-                                    <Button
-                                        onClick={() => setAddOpen(true)}
-                                        className="bg-gradient-to-r from-[#234D65] to-blue-600 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                                    >
-                                        <UserPlus className="w-4 h-4 mr-2" />
-                                        Ajouter des membres
-                                    </Button>
-                                )}
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
-                            {filteredMembers.map((m) => (
-                                <Card key={m.id} className="group bg-white/70 backdrop-blur-sm rounded-xl shadow-xl border border-white/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
-                                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-green-600" />
-
-                                    <CardContent className="p-4 sm:p-6">
-                                        <div className="space-y-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-gradient-to-br from-[#234D65] to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                                                    {m.firstName[0]}{m.lastName[0]}
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <h3 className="font-bold text-gray-900 truncate group-hover:text-[#234D65] transition-colors duration-300">
-                                                        {m.firstName} {m.lastName}
-                                                    </h3>
-                                                    <div className="flex items-center gap-1 text-xs text-gray-600">
-                                                        <IdCard className="w-3 h-3" />
-                                                        <span className="truncate">{m.matricule}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                                    <Mail className="w-4 h-4 text-blue-500" />
-                                                    <span className="truncate">{m.email || '—'}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                {/* Afficher les autres groupes si le membre en a */}
-                                                {(m as any).groupIds && (m as any).groupIds.length > 1 && (
-                                                    <div className="flex items-center gap-1 text-xs text-blue-600">
-                                                        <Users className="w-3 h-3" />
-                                                        <span>+{(m as any).groupIds.length - 1} autre{(m as any).groupIds.length > 2 ? 's' : ''} groupe{(m as any).groupIds.length > 2 ? 's' : ''}</span>
-                                                    </div>
-                                                )}
-                                                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                                                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                                                        Membre actif
-                                                    </Badge>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => setToRemove(m)}
-                                                        className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600 transition-colors duration-300"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Modal ajout de membre */}
-                <AddMemberDialog
-                    open={addOpen}
-                    onClose={() => setAddOpen(false)}
-                    groupId={groupId}
-                    allMembers={members}
-                    onAdded={async () => {
-                        await refetch()
-                        toast.success('✅ Membre ajouté au groupe avec succès')
-                    }}
-                />
-
-                {/* Modal création de contrat pour le groupe */}
-                <CreateGroupCaisseContractButton
-                    open={createContractOpen}
-                    onClose={() => setCreateContractOpen(false)}
-                    groupId={groupId}
-                    groupName={group?.name || 'Groupe'}
-                    onCreated={async () => {
-                        toast.success('✅ Contrat créé pour le groupe avec succès')
-                    }}
-                />
-
-                {/* Confirmation suppression membre du groupe */}
-                <Dialog open={!!toRemove} onOpenChange={(open) => { if (!isRemoving && !open) setToRemove(null) }}>
-                    <DialogContent className="sm:max-w-md bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl">
-                        <DialogHeader>
-                            <DialogTitle className="text-xl font-bold text-red-600">
-                                Retirer le membre du groupe
-                            </DialogTitle>
-                            <DialogDescription className="text-gray-600">
-                                Voulez-vous vraiment retirer <strong>{toRemove?.firstName} {toRemove?.lastName}</strong> de ce groupe ?
-                                Cette action peut être annulée en rajoutant le membre.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter className="gap-3">
-                            <Button
-                                variant="outline"
-                                onClick={() => setToRemove(null)}
-                                disabled={isRemoving}
-                                className="h-11 px-6 border-2 rounded-lg"
-                            >
-                                Annuler
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={async () => {
-                                    if (!toRemove) return
-                                    try {
-                                        setIsRemoving(true)
-                                        // Retirer le groupe de la liste des groupes du membre
-                                        const currentGroupIds = (toRemove as any).groupIds || []
-                                        const newGroupIds = currentGroupIds.filter((id: string) => id !== groupId)
-                                        const ok = await updateUser(toRemove.id, { groupIds: newGroupIds })
-                                        if (!ok) throw new Error('fail')
-                                        await updateGroup(groupId, { updatedBy: 'system' })
-                                        await refetch()
-                                        toast.success('✅ Membre retiré du groupe avec succès')
-                                        setToRemove(null)
-                                    } catch {
-                                        toast.error('❌ Impossible de retirer ce membre')
-                                    } finally {
-                                        setIsRemoving(false)
-                                    }
-                                }}
-                                disabled={isRemoving}
-                                className="h-11 px-6 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-lg"
-                            >
-                                {isRemoving ? (
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Retrait...
-                                    </div>
-                                ) : (
-                                    'Retirer'
-                                )}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </div>
-
-            <style jsx>{`
-        @keyframes blob {
-          0% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          33% {
-            transform: translate(30px, -50px) scale(1.1);
-          }
-          66% {
-            transform: translate(-20px, 20px) scale(0.9);
-          }
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
+            <h1 className="break-words text-2xl font-semibold text-[#234D65]">
+              {group.name}
+            </h1>
+            {group.label && (
+              <p className="mt-1 text-xs text-gray-500">{group.label}</p>
+            )}
+            <p className="mt-2 max-w-2xl whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-600">
+              {group.description ||
+                "Un collectif, plusieurs idées à construire ensemble."}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {canEditMembers && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditOpen(true)}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Modifier le groupe
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-[#234D65] text-white"
+                  onClick={() => setProjectEditor("new")}
+                >
+                  <Plus className="h-4 w-4" />
+                  Nouveau projet
+                </Button>
+              </>
+            )}
+          </div>
         </div>
-    )
-}
-
-function AddMemberDialog({
-    open,
-    onClose,
-    groupId,
-    allMembers,
-    onAdded
-}: {
-    open: boolean
-    onClose: () => void
-    groupId: string
-    allMembers: User[]
-    onAdded: () => Promise<void>
-}) {
-    const [search, setSearch] = React.useState('')
-    const [adding, setAdding] = React.useState<Record<string, boolean>>({})
-
-    const candidates = React.useMemo(() => {
-        // Maintenant on peut ajouter des membres qui appartiennent déjà à d'autres groupes
-        // On exclut seulement ceux qui sont déjà dans ce groupe spécifique
-        const base = allMembers.filter((m) => {
-            const memberGroupIds = (m as any).groupIds || []
-            return !memberGroupIds.includes(groupId)
-        })
-        const q = search.trim().toLowerCase()
-        if (!q) return base
-        return base.filter((m) =>
-            m.firstName.toLowerCase().includes(q) ||
-            m.lastName.toLowerCase().includes(q) ||
-            (m.matricule || '').toLowerCase().includes(q) ||
-            (m.email || '').toLowerCase().includes(q)
-        )
-    }, [allMembers, search, groupId])
-
-    const handleAdd = async (userId: string) => {
-        try {
-            setAdding((s) => ({ ...s, [userId]: true }))
-            // Ajouter le groupe à la liste existante des groupes du membre
-            const member = allMembers.find(m => m.id === userId)
-            const currentGroupIds = (member as any)?.groupIds || []
-            const newGroupIds = [...currentGroupIds, groupId]
-            const ok = await updateUser(userId, { groupIds: newGroupIds })
-            if (!ok) throw new Error('Échec de la mise à jour')
-            await onAdded()
-        } catch {
-            toast.error('❌ Impossible d\'ajouter ce membre')
-        } finally {
-            setAdding((s) => ({ ...s, [userId]: false }))
-        }
-    }
-
-    return (
-        <Dialog open={open} onOpenChange={(o) => { if (!Object.values(adding).some(Boolean)) onClose() }}>
-            <DialogContent className="sm:max-w-4xl bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-bold bg-gradient-to-r from-[#234D65] to-blue-600 bg-clip-text text-transparent">
-                        Ajouter un membre au groupe
-                    </DialogTitle>
-                    <DialogDescription className="text-gray-600">
-                        Sélectionnez un ou plusieurs membres et ajoutez-les à ce groupe. Les membres peuvent appartenir à plusieurs groupes simultanément.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                    <div className="relative group">
-                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-[#234D65] transition-colors duration-300" />
-                        <Input
-                            placeholder="Rechercher par nom, matricule ou email..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-12 h-12 border-2 border-gray-200 focus:border-[#234D65] focus:ring-2 focus:ring-[#234D65]/20 rounded-xl transition-all duration-300"
-                        />
-                    </div>
-
-                    <div className="max-h-[60vh] overflow-auto space-y-3 pr-2">
-                        {candidates.length === 0 && (
-                            <div className="text-center py-8">
-                                <div className="w-16 h-16 bg-gradient-to-br from-gray-400 to-gray-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-                                    <Users className="w-8 h-8 text-white" />
-                                </div>
-                                <h3 className="text-lg font-bold text-gray-900 mb-2">
-                                    {search ? 'Aucun membre trouvé' : 'Aucun membre disponible'}
-                                </h3>
-                                <p className="text-gray-600">
-                                    {search
-                                        ? 'Essayez de modifier votre recherche.'
-                                        : 'Tous les membres sont déjà dans ce groupe.'
-                                    }
-                                </p>
-                            </div>
-                        )}
-
-                        {candidates.map((m) => (
-                            <Card key={m.id} className="bg-white/70 backdrop-blur-sm border border-white/50 hover:shadow-lg transition-all duration-300">
-                                <CardContent className="p-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                            <div className="w-10 h-10 bg-gradient-to-br from-[#234D65] to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                                                {m.firstName[0]}{m.lastName[0]}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="font-semibold text-gray-900 truncate">
-                                                    {m.firstName} {m.lastName}
-                                                </div>
-                                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                                    <span className="flex items-center gap-1">
-                                                        <IdCard className="w-3 h-3" />
-                                                        {m.matricule}
-                                                    </span>
-                                                    <span className="flex items-center gap-1 truncate">
-                                                        <Mail className="w-3 h-3" />
-                                                        {m.email || '—'}
-                                                    </span>
-                                                </div>
-                                                {/* Afficher les groupes existants si le membre en a déjà */}
-                                                {(m as any).groupIds && (m as any).groupIds.length > 0 && (
-                                                    <div className="flex items-center gap-1 text-xs text-blue-600">
-                                                        <Users className="w-3 h-3" />
-                                                        <span>Déjà dans {(m as any).groupIds.length} autre{(m as any).groupIds.length > 1 ? 's' : ''} groupe{(m as any).groupIds.length > 1 ? 's' : ''}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <Button
-                                            size="sm"
-                                            className="bg-gradient-to-r from-[#234D65] to-blue-600 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 ml-4 flex-shrink-0"
-                                            onClick={() => handleAdd(m.id)}
-                                            disabled={!!adding[m.id]}
-                                        >
-                                            {adding[m.id] ? (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    Ajout...
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2">
-                                                    <UserPlus className="w-4 h-4" />
-                                                    Ajouter
-                                                </div>
-                                            )}
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-
-                <DialogFooter>
+        <dl className="mt-5 grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-gray-500">Membres</dt>
+            <dd className="mt-1 font-semibold">
+              {membersLoading || membersError ? "—" : groupMembers.length}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500">Projets ouverts</dt>
+            <dd className="mt-1 font-semibold">{openProjects.length}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500">Référent du groupe</dt>
+            <dd className="mt-1 break-words text-sm font-medium">
+              {coordinator
+                ? memberName(coordinator)
+                : group.coordinatorName || "À définir"}
+            </dd>
+          </div>
+        </dl>
+      </header>
+      {membersError && (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700"
+        >
+          Impossible de charger les membres.{" "}
+          <Button variant="outline" size="sm" onClick={() => refetchMembers()}>
+            Réessayer
+          </Button>
+        </div>
+      )}
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="mb-5 w-full justify-start">
+          <TabsTrigger value="overview">Vue d&apos;ensemble</TabsTrigger>
+          <TabsTrigger value="members">
+            Membres
+            {!membersLoading && !membersError
+              ? ` (${groupMembers.length})`
+              : ""}
+          </TabsTrigger>
+          <TabsTrigger value="projects">
+            Projets ({projects.length})
+          </TabsTrigger>
+          <TabsTrigger value="history">Historique</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview" className="space-y-6">
+          {!groupMembers.length && !membersLoading && !membersError && (
+            <div className="flex flex-col gap-3 rounded-xl bg-[#234D65]/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="!text-base font-semibold text-[#234D65]">
+                  Constituez votre collectif
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Ajoutez les personnes qui participeront à la vie du groupe.
+                </p>
+              </div>
+              {canManage && (
+                <Button onClick={() => setAddOpen(true)}>
+                  <UserPlus className="h-4 w-4" />
+                  Ajouter des membres
+                </Button>
+              )}
+            </div>
+          )}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="!text-lg font-semibold text-gray-900">
+                Les projets du groupe
+              </h2>
+              {projects.length > 3 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setTab("projects")}
+                >
+                  Tout voir
+                </Button>
+              )}
+            </div>
+            {projects.length
+              ? projectCards(
+                  [
+                    ...openProjects,
+                    ...projects.filter((project) => !isOpenProject(project)),
+                  ].slice(0, 3),
+                )
+              : emptyProjects}
+          </section>
+          <section className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h2 className="!text-base font-semibold">Membres du groupe</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTab("members")}
+              >
+                Voir les membres
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {groupMembers.slice(0, 6).map((member) => (
+                <span
+                  key={member.id}
+                  className="rounded-full bg-gray-100 px-3 py-2 text-sm text-gray-700"
+                >
+                  {memberName(member)}
+                </span>
+              ))}
+              {membersLoading && (
+                <p className="text-sm text-gray-500">Chargement…</p>
+              )}
+              {!groupMembers.length && !membersLoading && (
+                <p className="text-sm text-gray-500">
+                  Les membres apparaîtront ici.
+                </p>
+              )}
+            </div>
+          </section>
+          {canManage && (
+            <section className="flex flex-col gap-3 rounded-xl border border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="!text-sm font-medium text-gray-700">
+                  Services du groupe
+                </h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Le groupe peut également ouvrir un contrat de caisse spéciale.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCreateContractOpen(true)}
+              >
+                <ShoppingBag className="h-4 w-4" />
+                Créer un contrat de caisse
+              </Button>
+            </section>
+          )}
+        </TabsContent>
+        <TabsContent value="members" className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                aria-label="Rechercher dans les membres du groupe"
+                className="pl-9"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Nom, matricule, téléphone…"
+              />
+            </div>
+            <Button
+              variant="outline"
+              disabled={isExporting || !filteredMembers.length}
+              onClick={exportToExcel}
+            >
+              <Download className="h-4 w-4" />
+              Exporter Excel
+            </Button>
+            {canEditMembers && (
+              <Button onClick={() => setAddOpen(true)}>
+                <UserPlus className="h-4 w-4" />
+                Ajouter des membres
+              </Button>
+            )}
+          </div>
+          {membersLoading ? (
+            <p role="status" className="py-8 text-center text-sm text-gray-500">
+              Chargement des membres…
+            </p>
+          ) : (
+            <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
+              {filteredMembers.map((member) => (
+                <div key={member.id} className="flex items-start gap-3 p-4">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#234D65]/10 text-sm font-semibold text-[#234D65]">{`${member.firstName?.[0] ?? ""}${member.lastName?.[0] ?? ""}`}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-medium text-gray-900">
+                      {memberName(member)}
+                      {member.id === group.coordinatorId && (
+                        <span className="ml-2 rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                          Référent
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-1 break-words text-xs text-gray-500">
+                      {member.matricule || member.id}
+                      {member.contacts?.[0] ? ` · ${member.contacts[0]}` : ""}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {
+                        openProjects.filter((project) =>
+                          project.participantIds.includes(member.id),
+                        ).length
+                      }{" "}
+                      projet(s) ouvert(s)
+                    </p>
+                  </div>
+                  {canManage && (
                     <Button
-                        variant="outline"
-                        onClick={onClose}
-                        disabled={Object.values(adding).some(Boolean)}
-                        className="h-11 px-6 border-2 rounded-lg"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Retirer ${memberName(member)} du groupe`}
+                      onClick={() => setToRemove(member)}
                     >
-                        Fermer
+                      <Trash2 className="h-4 w-4 text-gray-400" />
                     </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-function CreateGroupCaisseContractButton({
-    open,
-    onClose,
-    groupId,
-    groupName,
-    onCreated
-}: {
-    open: boolean
-    onClose: () => void
-    groupId: string
-    groupName: string
-    onCreated: () => Promise<void>
-}) {
-    const router = useRouter()
-    const [amount, setAmount] = React.useState(10000)
-    const [months, setMonths] = React.useState(12)
-    const [caisseType, setCaisseType] = React.useState<
-      | 'STANDARD'
-      | 'JOURNALIERE'
-      | 'LIBRE'
-      | 'STANDARD_CHARITABLE'
-      | 'JOURNALIERE_CHARITABLE'
-      | 'LIBRE_CHARITABLE'
-    >('STANDARD')
-    const [firstPaymentDate, setFirstPaymentDate] = React.useState('')
-    const [loading, setLoading] = React.useState(false)
-
-    // Validation des paramètres de la Caisse Spéciale
-    const { isValid, isLoading: isValidating, error: validationError, settings } = useCaisseSettingsValidation(caisseType)
-
-    const isDaily = caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
-    const isLibre = caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
-
-    React.useEffect(() => {
-        if (isLibre && amount < 100000) {
-            setAmount(100000)
-        }
-    }, [caisseType])
-
-    const onCreate = async () => {
-        try {
-            setLoading(true)
-            
-            // Validation des paramètres de la Caisse Spéciale
-            if (!isValid || isValidating) {
-                toast.error('Les paramètres de la Caisse Spéciale ne sont pas configurés. Impossible de créer un contrat.')
-                return
-            }
-            
-            if (isLibre && amount < 100000) {
-                toast.error('Pour un contrat Libre, le montant mensuel doit être au minimum 100 000 FCFA.')
-                return
-            }
-            if (!firstPaymentDate) {
-                toast.error('Veuillez sélectionner la date du premier versement.')
-                return
-            }
-
-            // Créer le contrat pour le groupe
-            const { subscribe } = await import('@/services/caisse/mutations')
-            await subscribe({ 
-                groupeId: groupId,
-                monthlyAmount: amount, 
-                monthsPlanned: months, 
-                caisseType, 
-                firstPaymentDate
-            })
-            
-            toast.success('Contrat créé pour le groupe')
-            onClose()
-            await onCreated()
-        } catch (e: any) {
-            toast.error(e?.message || 'Création impossible')
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    return (
-        <Dialog open={open} onOpenChange={(o) => !loading && onClose()}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Nouveau contrat Caisse Spéciale - {groupName}</DialogTitle>
-                    <DialogDescription>Définissez le montant, la durée et la caisse pour ce groupe.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-3">
-                    <div>
-                        <label className="block text-sm mb-1">
-                            {caisseType === 'STANDARD' || caisseType === 'STANDARD_CHARITABLE'
-                              ? 'Montant mensuel'
-                              : caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
-                                ? 'Objectif mensuel'
-                                : 'Montant mensuel (minimum 100 000)'}
-                        </label>
-                        <input
-                            type="number"
-                            min={isLibre ? 100000 : 100}
-                            step={100}
-                            className="border rounded p-2 w-full"
-                            value={amount}
-                            onChange={(e) => setAmount(Number(e.target.value))}
-                        />
-                        {isDaily && (
-                            <div className="text-xs text-gray-500 mt-1">L'objectif est atteint par contributions quotidiennes sur le mois.</div>
-                        )}
-                        {isLibre && (
-                            <div className="text-xs text-gray-500 mt-1">Le total versé par mois doit être au moins 100 000 FCFA.</div>
-                        )}
-                    </div>
-                    <div>
-                        <label className="block text-sm mb-1">Durée (mois)</label>
-                        <input type="number" min={1} max={12} className="border rounded p-2 w-full" value={months} onChange={(e) => setMonths(Number(e.target.value))} />
-                    </div>
-                    <div>
-                        <label className="block text-sm mb-1">Caisse</label>
-                        <select
-                          className="border rounded p-2 w-full"
-                          value={caisseType}
-                          onChange={(e) => setCaisseType(e.target.value as any)}
-                        >
-                            <option value="STANDARD">Standard</option>
-                            <option value="JOURNALIERE">Journalière</option>
-                            <option value="LIBRE">Libre</option>
-                            <option value="STANDARD_CHARITABLE">Standard Charitable</option>
-                            <option value="JOURNALIERE_CHARITABLE">Journalière Charitable</option>
-                            <option value="LIBRE_CHARITABLE">Libre Charitable</option>
-                        </select>
-                        
-                        {/* Validation des paramètres */}
-                        {isValidating && (
-                            <div className="text-xs text-blue-600 mt-1">Vérification des paramètres...</div>
-                        )}
-                        
-                        {!isValidating && !isValid && validationError && (
-                            <div className="flex items-start gap-2 p-3 mt-2 bg-red-50 border border-red-200 rounded-md">
-                                <div className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0">⚠️</div>
-                                <div className="text-xs text-red-700">
-                                    <div className="font-medium mb-1">Paramètres manquants</div>
-                                    <div>{validationError}</div>
-                                    <div className="mt-2 text-red-600">
-                                        Veuillez configurer les paramètres de la Caisse Spéciale dans l'administration avant de créer un contrat.
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        
-                        {!isValidating && isValid && settings && (
-                            <div className="flex items-start gap-2 p-3 mt-2 bg-green-50 border border-green-200 rounded-md">
-                                <div className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0">✓</div>
-                                <div className="text-xs text-green-700">
-                                    <div className="font-medium mb-1">Paramètres configurés</div>
-                                    <div>Version active depuis le {new Date(settings.effectiveAt?.toDate?.() || settings.effectiveAt).toLocaleDateString('fr-FR')}</div>
-                                    <div className="mt-2 text-green-600">
-                                        Vous pouvez maintenant créer un contrat avec ce type de caisse.
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <div>
-                        <label className="block text-sm mb-1">Date du premier versement *</label>
-                        <input 
-                            type="date" 
-                            className="border rounded p-2 w-full" 
-                            value={firstPaymentDate} 
-                            onChange={(e) => setFirstPaymentDate(e.target.value)}
-                            min={new Date().toISOString().split('T')[0]}
-                            required
-                        />
-                    </div>
+                  )}
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose} disabled={loading}>Annuler</Button>
-                    <Button 
-                        className="bg-[#CBB171] text-white hover:bg-[#D4C084]" 
-                        onClick={onCreate} 
-                        disabled={loading || !isValid || isValidating}
-                    >
-                        {loading ? 'Création…' : 'Créer pour le groupe'}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
+              ))}
+              {!filteredMembers.length && (
+                <p className="p-8 text-center text-sm text-gray-500">
+                  {query
+                    ? "Aucun membre ne correspond à votre recherche."
+                    : "Ajoutez les premiers membres de ce groupe."}
+                </p>
+              )}
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="projects" className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label className="text-sm text-gray-600">
+              Afficher{" "}
+              <select
+                aria-label="Filtrer les projets par état"
+                className="ml-2 h-10 rounded-md border border-gray-200 bg-white px-3"
+                value={projectFilter}
+                onChange={(event) => setProjectFilter(event.target.value)}
+              >
+                <option value="all">Tous les projets</option>
+                {Object.entries(PROJECT_STATUSES).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {canEditMembers && (
+              <Button onClick={() => setProjectEditor("new")}>
+                <Plus className="h-4 w-4" />
+                Nouveau projet
+              </Button>
+            )}
+          </div>
+          {!projects.length ? (
+            emptyProjects
+          ) : filteredProjects.length ? (
+            projectCards(filteredProjects)
+          ) : (
+            <p className="p-8 text-center text-sm text-gray-500">
+              Aucun projet dans cet état.
+            </p>
+          )}
+        </TabsContent>
+        <TabsContent value="history">
+          <section className="rounded-2xl border border-gray-200 bg-white p-5">
+            <h2 className="mb-5 flex items-center gap-2 !text-base font-semibold">
+              <History className="h-4 w-4" />
+              La vie du groupe
+            </h2>
+            <ol className="space-y-5">
+              {[...(group.activity ?? [])].reverse().map((event) => (
+                <li
+                  key={event.id}
+                  className="border-l-2 border-[#234D65]/20 pl-4"
+                >
+                  <p className="break-words text-sm text-gray-800">
+                    {event.description}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {event.byName} ·{" "}
+                    {new Date(event.at).toLocaleString("fr-FR")}
+                  </p>
+                </li>
+              ))}
+              {!group.activity?.length && (
+                <li className="text-sm text-gray-500">
+                  Groupe créé le {dateLabel(group.createdAt)}. Les prochaines
+                  modifications apparaîtront ici.
+                </li>
+              )}
+            </ol>
+          </section>
+        </TabsContent>
+      </Tabs>
+      {addOpen && (
+        <AddGroupMembersDialog
+          group={group}
+          members={groupMembers}
+          onClose={() => setAddOpen(false)}
+        />
+      )}
+      {editOpen && (
+        <EditGroupDialog
+          group={group}
+          members={groupMembers}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
+      {projectEditor && (
+        <EditGroupProjectDialog
+          key={projectEditor === "new" ? "new" : projectEditor.id}
+          group={group}
+          members={groupMembers}
+          project={projectEditor === "new" ? undefined : projectEditor}
+          onClose={() => setProjectEditor(null)}
+        />
+      )}
+      {selectedProject && (
+        <GroupProjectDetailDialog
+          groupId={group.id}
+          project={selectedProject}
+          members={groupMembers}
+          canManage={canEditMembers}
+          onClose={() => setProjectDetail(null)}
+          onEdit={() => {
+            setProjectEditor(selectedProject);
+            setProjectDetail(null);
+          }}
+        />
+      )}
+      {createContractOpen && (
+        <GroupCaisseContractModal
+          open
+          onClose={() => setCreateContractOpen(false)}
+          groupId={groupId}
+          groupName={group.name}
+          onCreated={async () => {
+            await refresh();
+            toast.success("Contrat de caisse créé pour le groupe.");
+          }}
+        />
+      )}
+      <Dialog
+        open={!!toRemove}
+        onOpenChange={(open) => {
+          if (!open && !isRemoving) setToRemove(null);
+        }}
+      >
+        <DialogContent showCloseButton={!isRemoving}>
+          <DialogHeader>
+            <DialogTitle>
+              Retirer {toRemove ? memberName(toRemove) : "ce membre"} ?
+            </DialogTitle>
+            <DialogDescription>
+              Cette personne sera retirée du groupe et des projets en
+              préparation ou en cours. Les projets terminés conservent leurs
+              participants dans l’historique.
+              {toRemove?.id === group.coordinatorId
+                ? " Le référent du groupe sera à redéfinir."
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={isRemoving}
+              onClick={() => setToRemove(null)}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={isRemoving}
+              onClick={remove}
+            >
+              {isRemoving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Retirer du groupe
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }

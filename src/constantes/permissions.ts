@@ -80,6 +80,12 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     actions: actions('birthdays', [VIEW, EXPORT]),
   },
   {
+    key: 'groups',
+    label: 'Groupes',
+    pathPrefixes: ['/groups'],
+    actions: actions('groups', [VIEW, MANAGE]),
+  },
+  {
     key: 'caisseSpeciale',
     label: 'Caisse Spéciale',
     pathPrefixes: ['/caisse-speciale'],
@@ -172,13 +178,6 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     pathPrefixes: ['/admin'],
     system: true,
     actions: actions('admins', [VIEW, MANAGE]),
-  },
-  {
-    key: 'groups',
-    label: 'Groupes',
-    pathPrefixes: ['/groups'],
-    system: true,
-    actions: actions('groups', [VIEW, MANAGE]),
   },
   {
     key: 'references',

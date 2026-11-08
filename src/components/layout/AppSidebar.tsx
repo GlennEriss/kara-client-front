@@ -100,6 +100,11 @@ const adminMenuItems: SidebarItem[] = [
     icon: Users,
   },
   {
+    title: "Groupes",
+    url: routes.admin.groups,
+    icon: Users,
+  },
+  {
     title: "Caisse Spéciale",
     icon: Wallet,
     children: [
@@ -283,11 +288,6 @@ const systemMenuItems: any[] = [
     title: "Journalisation",
     url: routes.admin.journalisation,
     icon: ScrollText,
-  },
-  {
-    title: "Groupes",
-    url: routes.admin.groups,
-    icon: Users,
   },
   {
     title: "Métiers/Entreprises",
