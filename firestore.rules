@@ -1448,12 +1448,20 @@ service cloud.firestore {
     }
     
     // ==========================================
-    // GROUPES (CHARITY CONTRIBUTION SERVICE)
+    // GROUPES ET PROJETS COLLECTIFS
     // ==========================================
-    // Utilisé par CharityContributionService pour enrichir les contributions
+    // L'appartenance est gérée par l'admin dans users/{uid}.groupIds.
+    // Les membres lisent uniquement leurs groupes, par identifiant. Le portail
+    // membre passe par une API qui vérifie aussi cette appartenance et ne
+    // retourne ni historique administratif ni informations privées des membres.
     
     match /groups/{groupId} {
-      allow read: if isAdmin() || isAuthenticated();
+      allow get: if isAdmin() || (
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        groupId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('groupIds', [])
+      );
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
     

@@ -6,16 +6,16 @@ import { Suspense } from 'react'
 
 export const metadata: Metadata = {
   title: 'Groupes | LE KARA Admin',
-  description: 'Gestion des groupes et des membres associés'
+  description: 'Groupes de membres et projets collectifs'
 }
 
 export default function GroupsPage() {
   return (
-    <div className="max-w-7xl mx-auto space-y-6 p-6">
+    <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 p-4 md:p-6">
       <PageHero
         icon={Users}
-        title="Gestion des Groupes"
-        subtitle="Créez des groupes et rattachez des membres"
+        title="Groupes et projets collectifs"
+        subtitle="Réunissez des membres autour d’une tontine, d’un achat ou d’une idée commune."
       />
 
       {/* useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build */}

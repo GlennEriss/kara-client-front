@@ -3,6 +3,23 @@ import type { Group } from '@/types/types'
 
 const getFirestore = () => import('@/firebase/firestore')
 
+function collectiveFields(data: any) {
+  return {
+    coordinatorId: data.coordinatorId || undefined,
+    coordinatorName: data.coordinatorName || undefined,
+    projects: (data.projects ?? []).map((project: any) => ({
+      ...project,
+      estimatedBudget: typeof project.estimatedBudget === 'number' ? project.estimatedBudget : undefined,
+      targetDate: project.targetDate || undefined,
+      participantIds: project.participantIds ?? [], participantNames: project.participantNames ?? {},
+      payoutDraws: (project.payoutDraws ?? []).map((draw: any) => ({ ...draw, drawnAt: toDateSafe(draw.drawnAt) })),
+      payoutOrderDrawId: project.payoutOrderDrawId ?? null,
+      createdAt: toDateSafe(project.createdAt), updatedAt: toDateSafe(project.updatedAt),
+    })),
+    activity: (data.activity ?? []).map((event: any) => ({ ...event, at: toDateSafe(event.at) })),
+  }
+}
+
 function toDateSafe(v: any): Date {
   try {
     if (!v) return new Date(0)
@@ -23,6 +40,8 @@ export async function createGroup(input: Omit<Group, 'id' | 'createdAt' | 'updat
     name: input.name,
     label: input.label ?? null,
     description: input.description ?? null,
+    coordinatorId: input.coordinatorId ?? null,
+    coordinatorName: input.coordinatorName ?? null,
     createdBy: input.createdBy,
     updatedBy: input.updatedBy ?? input.createdBy,
     createdAt: now,
@@ -35,6 +54,7 @@ export async function createGroup(input: Omit<Group, 'id' | 'createdAt' | 'updat
     name: data.name,
     label: data.label ?? undefined,
     description: data.description ?? undefined,
+    ...collectiveFields(data),
     createdBy: data.createdBy,
     updatedBy: data.updatedBy,
     createdAt: toDateSafe(data.createdAt),
@@ -75,6 +95,7 @@ export async function getGroupById(id: string): Promise<Group | null> {
       name: data.name,
       label: data.label ?? undefined,
       description: data.description ?? undefined,
+      ...collectiveFields(data),
       createdBy: data.createdBy,
       updatedBy: data.updatedBy,
       createdAt: toDateSafe(data.createdAt),
@@ -98,6 +119,7 @@ export async function listGroups(): Promise<Group[]> {
       name: data.name,
       label: data.label ?? undefined,
       description: data.description ?? undefined,
+      ...collectiveFields(data),
       createdBy: data.createdBy,
       updatedBy: data.updatedBy,
       createdAt: toDateSafe(data.createdAt),
@@ -135,6 +157,7 @@ export async function searchGroups(
         name: data.name,
         label: data.label ?? undefined,
         description: data.description ?? undefined,
+        ...collectiveFields(data),
         createdBy: data.createdBy,
         updatedBy: data.updatedBy,
         createdAt: toDateSafe(data.createdAt),
