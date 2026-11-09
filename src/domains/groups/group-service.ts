@@ -24,6 +24,7 @@ import {
   type GroupProjectDraft,
 } from "./group-model";
 import { sameParticipants, supportsPayoutOrder } from "./payout-order";
+import { isGroupGuarantor } from "./group-guarantor";
 
 export interface GroupActor {
   id: string;
@@ -75,6 +76,7 @@ export async function createCollectiveGroup(
     label?: string;
     memberIds: string[];
     coordinatorId?: string;
+    guarantorId?: string;
     project?: GroupProjectDraft;
   },
   actor: GroupActor,
@@ -84,6 +86,14 @@ export async function createCollectiveGroup(
   const ref = doc(groups());
   const memberIds = [...new Set(input.memberIds)];
   await runTransaction(db, async (transaction) => {
+    const guarantor = await transaction.get(doc(users(), input.guarantorId!));
+    if (
+      !guarantor.exists() ||
+      !isGroupGuarantor({ ...guarantor.data(), id: guarantor.id } as User)
+    )
+      throw new Error(
+        "Le garant du groupe doit être un membre Kara identifié.",
+      );
     const members = await Promise.all(
       memberIds.map((id) => transaction.get(doc(users(), id))),
     );
@@ -114,6 +124,11 @@ export async function createCollectiveGroup(
       label: input.label?.trim() || null,
       coordinatorId: input.coordinatorId || null,
       coordinatorName: input.coordinatorId ? names[input.coordinatorId] : null,
+      guarantorId: guarantor.id,
+      guarantorName: memberName({
+        ...guarantor.data(),
+        id: guarantor.id,
+      } as User),
       projects,
       activity: [
         event(
@@ -253,6 +268,7 @@ export async function saveGroupProject(
       (project: GroupProject) => project.id === projectId,
     );
     if (projectId && !previous) throw new Error("Ce projet n’existe plus.");
+    if (previous?.contributionPlan && previous.kind !== draft.kind) throw new Error("Conservez le type de ce projet pour préserver son cycle de cotisations.");
     const names: Record<string, string> = {
       ...(previous?.participantNames ?? {}),
     };
@@ -324,7 +340,7 @@ export async function saveGroupPayoutOrder(
     if (!project) throw new Error("Ce projet n’existe plus.");
     if (!supportsPayoutOrder(project.kind) || !isOpenProject(project))
       throw new Error(
-        "Le tirage est disponible pour les tontines et autres projets en préparation ou en cours.",
+        "Le tirage est disponible pour les caisses collectives et autres projets en préparation ou en cours.",
       );
     if (
       participantIds.length < 2 ||
@@ -379,6 +395,7 @@ export async function updateCollectiveGroup(
     description: string;
     label?: string;
     coordinatorId?: string;
+    guarantorId?: string;
   },
   actor: GroupActor,
 ): Promise<void> {
@@ -390,6 +407,17 @@ export async function updateCollectiveGroup(
       ? await transaction.get(doc(users(), changes.coordinatorId))
       : null;
     if (!group.exists()) throw new Error("Ce groupe n’existe plus.");
+    const guarantorId = changes.guarantorId ?? group.data().guarantorId;
+    if (!guarantorId)
+      throw new Error("Choisissez un membre Kara comme garant du groupe.");
+    const guarantor = await transaction.get(doc(users(), guarantorId));
+    if (
+      !guarantor.exists() ||
+      !isGroupGuarantor({ ...guarantor.data(), id: guarantor.id } as User)
+    )
+      throw new Error(
+        "Le garant du groupe doit être un membre Kara identifié.",
+      );
     if (
       coordinator &&
       (!coordinator.exists() ||
@@ -401,6 +429,11 @@ export async function updateCollectiveGroup(
       description: changes.description.trim(),
       label: changes.label?.trim() || null,
       coordinatorId: changes.coordinatorId || null,
+      guarantorId: guarantor.id,
+      guarantorName: memberName({
+        ...guarantor.data(),
+        id: guarantor.id,
+      } as User),
       coordinatorName: coordinator
         ? memberName({ ...coordinator.data(), id: coordinator.id } as User)
         : null,

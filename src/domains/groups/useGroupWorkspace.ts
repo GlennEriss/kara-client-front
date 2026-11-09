@@ -15,12 +15,36 @@ export function useGroupWorkspace(groupId?: string) {
     name: user?.displayName?.trim() || user?.email || "Administrateur",
   };
   const canManage = can("groups.manage");
+  const creditAccess = {
+    FIXE: {
+      view: can("creditFixe.view"),
+      manage: canManage && can("creditFixe.view") && can("creditFixe.create"),
+    },
+    SPECIALE: {
+      view: can("creditSpeciale.view"),
+      manage:
+        canManage && can("creditSpeciale.view") && can("creditSpeciale.create"),
+    },
+  };
+  const canViewCredits = creditAccess.FIXE.view || creditAccess.SPECIALE.view;
+  const canManageCredits =
+    creditAccess.FIXE.manage || creditAccess.SPECIALE.manage;
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["groups"] }),
       queryClient.invalidateQueries({ queryKey: ["group-member-counts"] }),
       queryClient.invalidateQueries({ queryKey: ["group-candidates"] }),
       queryClient.invalidateQueries({ queryKey: ["allMembers"] }),
+      queryClient.invalidateQueries({ queryKey: ["group-project-credits"] }),
+      queryClient.invalidateQueries({ queryKey: ["group-contributions"] }),
+      queryClient.invalidateQueries({ queryKey: ["group-payouts"] }),
+      queryClient.invalidateQueries({
+        queryKey: ["participant-project-credits"],
+      }),
+      queryClient.invalidateQueries({ queryKey: ["creditDemands"] }),
+      queryClient.invalidateQueries({ queryKey: ["creditDemand"] }),
+      queryClient.invalidateQueries({ queryKey: ["creditContracts"] }),
+      queryClient.invalidateQueries({ queryKey: ["creditContract"] }),
       ...(groupId
         ? [
             queryClient.invalidateQueries({ queryKey: ["group", groupId] }),
@@ -44,5 +68,13 @@ export function useGroupWorkspace(groupId?: string) {
       targetId: id,
       description,
     });
-  return { actor, canManage, refresh, audit };
+  return {
+    actor,
+    canManage,
+    canViewCredits,
+    canManageCredits,
+    creditAccess,
+    refresh,
+    audit,
+  };
 }

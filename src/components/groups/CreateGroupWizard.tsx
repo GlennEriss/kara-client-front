@@ -3,18 +3,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Users, Check, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { createCollectiveGroup } from "@/domains/groups/group-service";
 import {
   emptyProject,
@@ -26,6 +25,10 @@ import { useGroupWorkspace } from "@/domains/groups/useGroupWorkspace";
 import type { User } from "@/types/types";
 import { GroupMemberPicker } from "./GroupMemberPicker";
 import { GroupProjectFields } from "./GroupProjectFields";
+import {
+  GroupGuarantorPicker,
+  type GroupGuarantorChoice,
+} from "./GroupGuarantorPicker";
 
 export function CreateGroupWizard({
   onClose,
@@ -40,6 +43,7 @@ export function CreateGroupWizard({
   const [description, setDescription] = useState("");
   const [members, setMembers] = useState<User[]>([]);
   const [coordinatorId, setCoordinatorId] = useState("");
+  const [guarantor, setGuarantor] = useState<GroupGuarantorChoice | null>(null);
   const [withProject, setWithProject] = useState(true);
   const [project, setProject] = useState<GroupProjectDraft>(emptyProject());
   const [participantsInitialized, setParticipantsInitialized] = useState(false);
@@ -63,6 +67,10 @@ export function CreateGroupWizard({
       setError("Donnez un nom à votre groupe.");
       return;
     }
+    if (step === 1 && !guarantor) {
+      setError("Choisissez un membre Kara comme garant du groupe.");
+      return;
+    }
     if (step === 1 && !participantsInitialized) {
       setProject((previous) => ({
         ...previous,
@@ -81,6 +89,7 @@ export function CreateGroupWizard({
         description,
         memberIds: members.map((member) => member.id),
         coordinatorId: coordinatorId || undefined,
+        guarantorId: guarantor?.id,
         project: withProject ? project : undefined,
       };
       validateGroup(input);
@@ -110,137 +119,156 @@ export function CreateGroupWizard({
         if (!open && !busy) onClose();
       }}
     >
-      <DialogContent className="sm:!max-w-2xl" showCloseButton={!busy}>
-        <DialogHeader>
-          <DialogTitle>Créer un groupe</DialogTitle>
-          <DialogDescription>
-            Réunissez des membres et donnez une première direction à votre
-            projet collectif.
-          </DialogDescription>
-        </DialogHeader>
-        <ol className="grid grid-cols-3 gap-2" aria-label="Étapes de création">
-          {steps.map((label, index) => (
-            <li
-              key={label}
-              aria-current={step === index ? "step" : undefined}
-              className={`flex items-center gap-2 border-b-2 pb-3 text-xs sm:text-sm ${step === index ? "border-[#234D65] font-semibold text-[#234D65]" : "border-gray-100 text-gray-500"}`}
-            >
-              <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${step >= index ? "bg-[#234D65] text-white" : "bg-gray-100"}`}
-              >
-                {step > index ? <Check className="h-3 w-3" /> : index + 1}
-              </span>
-              {label}
-            </li>
-          ))}
-        </ol>
-        <fieldset disabled={busy} className="min-h-48 space-y-4">
-          {step === 0 && (
+      <ModalContent size="lg" showCloseButton={!busy}>
+        <ModalHeader
+          icon={Users}
+          className="[&_[data-slot=dialog-title]]:break-words"
+          title={<>Créer un groupe</>}
+          description={
             <>
-              <div className="space-y-2">
-                <Label htmlFor="group-name">Nom du groupe *</Label>
-                <Input
-                  id="group-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Ex. : Les Entrepreneurs de Libreville"
-                  maxLength={120}
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="group-description">
-                  Votre raison de vous regrouper
-                </Label>
-                <Textarea
-                  id="group-description"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  placeholder="Ex. : s’entraider et financer des équipements pour nos activités."
-                  rows={3}
-                />
-              </div>
-              <p className="rounded-xl bg-gray-50 p-3 text-sm leading-relaxed text-gray-600">
-                Les personnes restent dans le groupe au fil des projets. Vous
-                pourrez préparer une tontine, puis un achat collectif avec les
-                mêmes membres ou seulement une partie d&apos;entre eux.
-              </p>
+              Réunissez des membres et donnez une première direction à votre
+              projet collectif.
             </>
-          )}
-          {step === 1 && (
-            <>
-              <GroupMemberPicker value={members} onChange={selectMembers} />
-              {!!members.length && (
-                <div className="space-y-2">
-                  <Label htmlFor="group-coordinator">
-                    Référent du groupe (facultatif)
-                  </Label>
-                  <select
-                    id="group-coordinator"
-                    className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm"
-                    value={coordinatorId}
-                    onChange={(event) => setCoordinatorId(event.target.value)}
-                  >
-                    <option value="">À définir plus tard</option>
-                    {members.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {memberName(member)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {!members.length && (
-                <p className="text-sm text-gray-500">
-                  Vous pouvez aussi constituer le groupe maintenant et ajouter
-                  ses membres plus tard.
-                </p>
-              )}
-            </>
-          )}
-          {step === 2 && (
-            <>
-              <label className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 text-sm font-medium">
-                <Checkbox
-                  checked={withProject}
-                  onCheckedChange={(checked) =>
-                    setWithProject(checked === true)
-                  }
-                />
-                Ajouter un premier projet
-              </label>
-              {withProject ? (
-                <GroupProjectFields
-                  value={project}
-                  onChange={setProject}
-                  members={members}
-                  showStatus={false}
-                />
-              ) : (
-                <p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
-                  Le groupe sera prêt avec ses {members.length} membre(s). Vous
-                  pourrez créer son premier projet depuis sa fiche.
-                </p>
-              )}
-              <div className="border-t border-gray-100 pt-3 text-sm text-gray-600">
-                <span className="font-semibold text-gray-900">{name}</span> ·{" "}
-                {members.length} membre(s)
-                {coordinatorId
-                  ? ` · Référent : ${memberName(members.find((member) => member.id === coordinatorId)!)}`
-                  : ""}
-              </div>
-            </>
-          )}
-        </fieldset>
-        {error && (
-          <p
-            role="alert"
-            className="rounded-lg bg-red-50 p-3 text-sm text-red-700"
+          }
+        />
+        <ModalBody key={step}>
+          <ol
+            className="grid grid-cols-3 gap-2"
+            aria-label="Étapes de création"
           >
-            {error}
-          </p>
-        )}
-        <DialogFooter className="gap-2 sm:justify-between">
+            {steps.map((label, index) => (
+              <li
+                key={label}
+                aria-current={step === index ? "step" : undefined}
+                className={`flex items-center gap-2 border-b-2 pb-3 text-xs sm:text-sm ${step === index ? "border-[#234D65] font-semibold text-[#234D65]" : "border-gray-100 text-gray-500"}`}
+              >
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${step >= index ? "bg-[#234D65] text-white" : "bg-gray-100"}`}
+                >
+                  {step > index ? <Check className="h-3 w-3" /> : index + 1}
+                </span>
+                {label}
+              </li>
+            ))}
+          </ol>
+          <fieldset disabled={busy} className="min-h-48 space-y-4">
+            {step === 0 && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="group-name">Nom du groupe *</Label>
+                  <Input
+                    id="group-name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Ex. : Les Entrepreneurs de Libreville"
+                    maxLength={120}
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="group-description">
+                    Votre raison de vous regrouper
+                  </Label>
+                  <Textarea
+                    id="group-description"
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    placeholder="Ex. : s’entraider et financer des équipements pour nos activités."
+                    rows={3}
+                  />
+                </div>
+                <p className="rounded-xl bg-gray-50 p-3 text-sm leading-relaxed text-gray-600">
+                  Les personnes restent dans le groupe au fil des projets. Vous
+                  pourrez préparer une caisse collective, puis un achat
+                  collectif avec les mêmes membres ou seulement une partie
+                  d&apos;entre eux.
+                </p>
+              </>
+            )}
+            {step === 1 && (
+              <>
+                <GroupMemberPicker value={members} onChange={selectMembers} />
+                <GroupGuarantorPicker
+                  value={guarantor}
+                  onChange={setGuarantor}
+                />
+                <p className="text-xs text-gray-500">
+                  Le garant doit être membre de Kara. Il peut appartenir à un
+                  autre groupe ; son rôle est distinct de celui du référent.
+                </p>
+                {!!members.length && (
+                  <div className="space-y-2">
+                    <Label htmlFor="group-coordinator">
+                      Référent du groupe (facultatif)
+                    </Label>
+                    <select
+                      id="group-coordinator"
+                      className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm"
+                      value={coordinatorId}
+                      onChange={(event) => setCoordinatorId(event.target.value)}
+                    >
+                      <option value="">À définir plus tard</option>
+                      {members.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {memberName(member)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {!members.length && (
+                  <p className="text-sm text-gray-500">
+                    Vous pouvez aussi constituer le groupe maintenant et ajouter
+                    ses membres plus tard.
+                  </p>
+                )}
+              </>
+            )}
+            {step === 2 && (
+              <>
+                <label className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 text-sm font-medium">
+                  <Checkbox
+                    checked={withProject}
+                    onCheckedChange={(checked) =>
+                      setWithProject(checked === true)
+                    }
+                  />
+                  Ajouter un premier projet
+                </label>
+                {withProject ? (
+                  <GroupProjectFields
+                    value={project}
+                    onChange={setProject}
+                    members={members}
+                    showStatus={false}
+                  />
+                ) : (
+                  <p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
+                    Le groupe sera prêt avec ses {members.length} membre(s).
+                    Vous pourrez créer son premier projet depuis sa fiche.
+                  </p>
+                )}
+                <div className="border-t border-gray-100 pt-3 text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">{name}</span> ·{" "}
+                  {members.length} membre(s)
+                  {guarantor && ` · Garant : ${guarantor.name}`}
+                  {coordinatorId
+                    ? ` · Référent : ${memberName(members.find((member) => member.id === coordinatorId)!)}`
+                    : ""}
+                </div>
+              </>
+            )}
+          </fieldset>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-lg bg-red-50 p-3 text-sm text-red-700"
+            >
+              {error}
+            </p>
+          )}
+        </ModalBody>
+        <ModalFooter className="gap-2 sm:justify-between">
           <Button
             type="button"
             variant="outline"
@@ -283,8 +311,8 @@ export function CreateGroupWizard({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   );
 }

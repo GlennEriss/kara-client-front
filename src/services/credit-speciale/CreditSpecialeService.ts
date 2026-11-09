@@ -197,7 +197,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         // Générer l'ID au format: MK_DEMANDE_{PREFIX}_matricule_date_heure
         const demandPrefix = this.getDemandIdPrefixByCreditType(data.creditType);
-        const customId = `${demandPrefix}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+        const customId = `${demandPrefix}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}${data.groupProject?.contributionId ? `_${crypto.randomUUID().slice(0, 8)}` : ""}`;
 
         // Calculer le score initial basé sur l'historique des crédits précédents
         const initialScore = await this.calculateInitialScore(data.clientId);
@@ -312,6 +312,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!demand) {
             throw new Error('Demande introuvable');
         }
+
+        if (demand.groupProject?.contributionId) throw new Error('Détachez d’abord cette demande non affectée de sa cotisation pour préserver le suivi.');
 
         // Cascade : si la demande a généré un contrat, on supprime le contrat et
         // TOUTES ses données liées, puis la demande. (Réservé au superAdmin par les
@@ -506,10 +508,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const timeFormatted = `${hours}${minutes}`;
 
         const contractPrefix = this.getContractIdPrefixByCreditType(demand.creditType);
-        const customContractId = `${contractPrefix}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+        const customContractId = `${contractPrefix}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}${demand.groupProject?.contributionId ? `_${crypto.randomUUID().slice(0, 8)}` : ""}`;
 
         const contract: Omit<CreditContract, 'id' | 'createdAt' | 'updatedAt'> = {
             demandId: demand.id,
+            ...(demand.groupProject ? { groupProject: demand.groupProject } : {}),
             clientId: demand.clientId,
             clientFirstName: demand.clientFirstName,
             clientLastName: demand.clientLastName,
@@ -707,6 +710,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
+        if (contract.groupProject?.contributionId) throw new Error('Détachez d’abord ce contrat non affecté de sa cotisation pour préserver le suivi.');
         assertContractUnlocked(isCreditContractLocked(contract.status));
         const demandId = contract.demandId;
 

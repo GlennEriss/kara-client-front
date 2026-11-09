@@ -8,7 +8,7 @@ export default function ImportCaisseSpecialeRoute() {
       <PageHero
         icon={FileSpreadsheet}
         title="Import Excel — Caisse Spéciale"
-        subtitle="Importe les contrats (feuille GESTION TONTINE ACTIF), vérifie le résumé, puis lance l'import."
+        subtitle="Importe les contrats de caisse spéciale actifs, vérifie le résumé, puis lance l'import."
       />
       <ExcelImportPage scope="caisse-speciale" />
     </div>

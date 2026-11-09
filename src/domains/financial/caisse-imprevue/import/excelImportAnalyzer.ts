@@ -949,7 +949,7 @@ export function analyzeSheet(
       totals: { active: 0, finished: 0, canceled: 0, paidVersements: 0, supports: 0, earlyRefunds: 0 },
       howItWillBeImported: [
         "Cette feuille n'est pas reconnue par l'import.",
-        'Feuilles supportées : "GESTION ENTRAIDE ACTIF", "ADHESION VOLET ENTRAIDE", "GESTION TONTINE ACTIF".',
+        'Feuilles prises en charge : contrats d’entraide actifs, adhésions d’entraide et contrats de caisse spéciale actifs.',
       ],
       detectedColumns: header,
     }
@@ -994,9 +994,9 @@ export function analyzeSheet(
   const howItWillBeImported =
     sheetType === 'CS_CLOSED'
       ? [
-          'Lignes INACTIF uniquement → 1 contrat Caisse Spéciale clôturé (collection caisseContracts). Les ACTIF sont ignorés (voir GESTION TONTINE ACTIF).',
+          'Lignes INACTIF uniquement → 1 contrat Caisse Spéciale clôturé (collection caisseContracts). Les lignes actives sont traitées dans l’import des contrats actifs.',
           'OBSERVATION « RETRAIT ANTICIPE » → statut RESCINDED ; sinon CLOSED (clôture normale).',
-          'TYPE TONTINE : MENSUEL → STANDARD, LIBRE → LIBRE, JOURNALIER → JOURNALIERE.',
+          'Type de caisse : MENSUEL → STANDARD, LIBRE → LIBRE, JOURNALIER → JOURNALIERE.',
           'MOIS 1..12 / MONTANT → paiements PAID (montant + nom du mois) ; durée = DÉBUT → FIN ENTRAIDE.',
           'DATE REMISE / MONTANT COTISATION → remboursement (caisseContracts/{id}/refunds) : RESCINDED → EARLY, CLOSED → FINAL ; motif = AUTRES REMARQUE.',
           'OBSERVATION, garant, contrat signé, fin, docs clôture → bloc `entraide`. Membre créé s’il n’existe pas. Ligne brute conservée (migration.raw).',

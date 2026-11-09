@@ -50,6 +50,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import ContractCreationModal from './ContractCreationModal'
 import ShopPurchaseDemandSummary from './ShopPurchaseDemandSummary'
+import { CreditProjectBadge } from '@/components/groups/CreditProjectBadge'
 import CreditSimulationModal from './CreditSimulationModal'
 import DeleteCreditDemandModal from './DeleteCreditDemandModal'
 import EditCreditDemandModal from './EditCreditDemandModal'
@@ -451,6 +452,7 @@ export default function CreditDemandDetail({
               </div>
 
               {demand.shopPurchase && <ShopPurchaseDemandSummary purchase={demand.shopPurchase} />}
+              <CreditProjectBadge link={demand.groupProject} />
 
               {demand.adminComments && (
                 <div

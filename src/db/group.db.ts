@@ -7,6 +7,8 @@ function collectiveFields(data: any) {
   return {
     coordinatorId: data.coordinatorId || undefined,
     coordinatorName: data.coordinatorName || undefined,
+    guarantorId: data.guarantorId || undefined,
+    guarantorName: data.guarantorName || undefined,
     projects: (data.projects ?? []).map((project: any) => ({
       ...project,
       estimatedBudget: typeof project.estimatedBudget === 'number' ? project.estimatedBudget : undefined,
@@ -42,6 +44,8 @@ export async function createGroup(input: Omit<Group, 'id' | 'createdAt' | 'updat
     description: input.description ?? null,
     coordinatorId: input.coordinatorId ?? null,
     coordinatorName: input.coordinatorName ?? null,
+    guarantorId: input.guarantorId ?? null,
+    guarantorName: input.guarantorName ?? null,
     createdBy: input.createdBy,
     updatedBy: input.updatedBy ?? input.createdBy,
     createdAt: now,

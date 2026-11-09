@@ -211,12 +211,12 @@ export function buildCreditModule(
   creditType: CreditType,
   sources: FinancialReportSources,
   context: FinancialReportContext,
-  options: { contractId?: string } = {}
+  options: { contractId?: string; contractIds?: ReadonlySet<string> } = {}
 ): FinancialReportModule {
   const { months } = context
   const info = MODULE_INFO[creditType]
   const contracts = sources.creditContracts.filter(
-    (contract) => contract.creditType === creditType && !NOT_DISBURSED_STATUSES.has(contract.status) && (!options.contractId || contract.id === options.contractId)
+    (contract) => contract.creditType === creditType && !NOT_DISBURSED_STATUSES.has(contract.status) && (!options.contractId || contract.id === options.contractId) && (!options.contractIds || options.contractIds.has(contract.id))
   )
   const contractById = new Map(sources.creditContracts.map((contract) => [contract.id, contract]))
   const childStartByParent = new Map<string, MonthKey | null>()

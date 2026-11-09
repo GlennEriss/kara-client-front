@@ -153,12 +153,29 @@ export const creditSpecialeHelp: HelpTopic = {
               term: 'Achat en boutique',
               text: 'Achat chez une boutique partenaire remboursé en 2 ou 3 mensualités égales, avec un taux appliqué une fois. L’association paie le vendeur, moins la remise de la boutique.',
             },
+            {
+              term: 'Financement d’un projet de groupe',
+              text: 'Depuis la fiche du projet de groupe, créez une demande pour un participant ou rattachez un contrat de crédit spécial existant après avoir sélectionné « Crédit spécial » dans le type de financement. Le crédit fixe est proposé par défaut pour les projets au budget défini ; les contrats spéciaux déjà liés conservent leur type et leurs conditions. La demande conserve ce lien lors de sa transformation en contrat. Chaque crédit garde son emprunteur, ses échéances, ses remboursements et ses pénalités. Le groupe et le projet sont indiqués dans les fiches de demande et de contrat. L’appartenance au groupe ne rend pas automatiquement emprunteur ou garant.',
+            },
+            {
+              term: 'Recettes et consolidation du projet',
+              text: 'Les intérêts encaissés sont distingués du remboursement du capital. Le bénéfice tient compte des charges, notamment des commissions versées aux garants. Le projet regroupe les contrats, fonds remis, remboursements et restes dus, sans créer de seconde dette ni compter deux fois les mêmes encaissements. Les frais de gestion de projet restent à définir et à développer.',
+            },
+            {
+              term: 'Caisse collective et financement individuel',
+              text: 'L’ordre de récupération d’une caisse collective ne crée pas de crédit. Un financement lié au projet correspond à une véritable avance accordée à un participant, avec son propre contrat de crédit fixe ou spécial. Les cotisations de la caisse collective restent distinctes des remboursements du crédit.',
+            },
           ],
         },
         {
           type: 'note',
           tone: 'info',
           text: 'Une déclaration à 0 FCFA enregistrée à temps ne crée pas de pénalité : elle dit seulement que rien n’a été versé ce mois-là. Les intérêts, eux, continuent de courir.',
+        },
+        {
+          type: 'note',
+          tone: 'info',
+          text: 'Un rattachement ou un détachement change uniquement le lien avec le projet : il ne modifie pas la dette ni les versements du contrat. Retirer un participant du groupe ne détache pas automatiquement son crédit. Dans le portail membre, seuls ses propres contrats et demandes sont visibles dans le projet.',
         },
       ],
     },
@@ -206,6 +223,10 @@ export const creditSpecialeHelp: HelpTopic = {
             {
               question: 'Pourquoi le manque à gagner change-t-il avec le temps ?',
               answer: 'Il est généré à chaque échéance de partie fixe arrivée. Il utilise la dette au début du mois ; un remboursement modifie donc les mois suivants. Les échéances futures ne sont jamais ajoutées par avance.',
+            },
+            {
+              question: 'Comment financer un achat collectif avec le crédit spécial ?',
+              answer: 'Dans Groupes, ouvrez le projet et choisissez le participant à financer. Créez une demande préremplie ou rattachez son contrat de crédit spécial existant. Par exemple : cinq contrats de 100 000 FCFA pour un achat de 500 000 FCFA. Chaque emprunteur conserve son contrat et le projet présente le récapitulatif des financements. Les demandes et contrats en préparation ne sont pas comptés comme des fonds remis.',
             },
           ],
         },

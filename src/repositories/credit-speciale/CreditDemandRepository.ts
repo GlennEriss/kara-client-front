@@ -22,7 +22,10 @@ export class CreditDemandRepository implements ICreditDemandRepository {
             const demandId = customId || doc(collection(db, firebaseCollectionNames.creditDemands || "creditDemands")).id;
             const demandRef = doc(db, firebaseCollectionNames.creditDemands || "creditDemands", demandId);
 
-            await setDoc(demandRef, {
+            if (cleanData.groupProject) {
+                const { createLinkedCreditRecord } = await import('@/domains/groups/project-credit-service');
+                await createLinkedCreditRecord('creditDemands', demandId, cleanData);
+            } else await setDoc(demandRef, {
                 ...cleanData,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),

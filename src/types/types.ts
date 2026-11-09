@@ -1118,6 +1118,8 @@ export interface GroupProject {
   status: GroupProjectStatus
   description: string
   estimatedBudget?: number
+  contributionPlan?: import('@/domains/groups/contribution-model').ContributionPlan
+  payoutFee?: import('@/domains/groups/payout-model').PayoutFee
   targetDate?: string
   participantIds: string[]
   participantNames: Record<string, string>
@@ -1143,6 +1145,8 @@ export interface Group {
   description?: string
   coordinatorId?: string
   coordinatorName?: string
+  guarantorId?: string
+  guarantorName?: string
   projects?: GroupProject[]
   activity?: GroupActivity[]
   // L'appartenance reste stockée dans users.groupIds.
@@ -1701,9 +1705,23 @@ export interface SignedQuittanceUploadData {
 /**
  * Type pour une demande de crédit
  */
+export interface GroupCreditProjectLink {
+  groupId: string
+  projectId: string
+  collectiveRequestId?: string
+  contributionId?: string
+  contributionPeriod?: string
+  groupName?: string
+  projectName?: string
+  linkedAt?: Date
+  linkedBy?: string
+  linkedByName?: string
+}
+
 export interface CreditDemand {
   id: string
   clientId: string
+  groupProject?: GroupCreditProjectLink | null
   clientFirstName: string
   clientLastName: string
   clientContacts: string[]
@@ -1894,6 +1912,7 @@ export interface CreditContract {
   demandId: string
   parentContractId?: string // Référence au contrat parent (si augmentation de crédit)
   clientId: string
+  groupProject?: GroupCreditProjectLink | null
   /** Cycles de crédit conservés dans le même contrat (augmentation = nouveau cycle). */
   creditCycles?: CreditContractCycle[]
   /** Mois de repos enregistrés (échéances reportées sans pénalité) */

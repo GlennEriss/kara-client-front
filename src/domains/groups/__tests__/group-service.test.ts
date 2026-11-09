@@ -147,6 +147,7 @@ describe("création du collectif", () => {
       {
         name: " Les Entrepreneurs ",
         description: "Entraide",
+        guarantorId: "m2",
         memberIds: ["m1", "m2", "m1"],
         coordinatorId: "m2",
         project,
@@ -176,7 +177,12 @@ describe("création du collectif", () => {
   });
   it("permet de créer un groupe vide sans projet", async () => {
     const id = await createCollectiveGroup(
-      { name: "Nouveau collectif", description: "", memberIds: [] },
+      {
+        name: "Nouveau collectif",
+        description: "",
+        guarantorId: "m2",
+        memberIds: [],
+      },
       actor,
     );
     expect(memory.data.get(`groups/${id}`)?.projects).toEqual([]);
@@ -188,6 +194,7 @@ describe("création du collectif", () => {
         {
           name: "Collectif",
           description: "",
+          guarantorId: "m2",
           memberIds: ["m1"],
           coordinatorId: "m2",
         },
@@ -196,7 +203,13 @@ describe("création du collectif", () => {
     ).rejects.toThrow("référent");
     await expect(
       createCollectiveGroup(
-        { name: "Collectif", description: "", memberIds: ["m2"], project },
+        {
+          name: "Collectif",
+          description: "",
+          guarantorId: "m2",
+          memberIds: ["m2"],
+          project,
+        },
         actor,
       ),
     ).rejects.toThrow("participants");
@@ -207,7 +220,12 @@ describe("création du collectif", () => {
     for (const id of ["absent", "admin"])
       await expect(
         createCollectiveGroup(
-          { name: "Collectif", description: "", memberIds: ["m1", id] },
+          {
+            name: "Collectif",
+            description: "",
+            guarantorId: "m2",
+            memberIds: ["m1", id],
+          },
           actor,
         ),
       ).rejects.toThrow("plus disponible");
@@ -223,6 +241,7 @@ describe("membres et projets", () => {
       projects: [],
       coordinatorId: "m1",
       coordinatorName: "Jeanne",
+      guarantorId: "m2",
     });
     memory.data.set("users/m1", member("Jeanne", ["g1", "autre-groupe"]));
   });
@@ -241,7 +260,7 @@ describe("membres et projets", () => {
     await addGroupMembers("g1", ["m2"], actor);
     await saveGroupProject(
       "g1",
-      { ...emptyProject(["m2"]), name: "Tontine", kind: "TONTINE" },
+      { ...emptyProject(["m2"]), name: "Caisse collective", kind: "TONTINE" },
       actor,
     );
     await saveGroupProject(
@@ -439,7 +458,7 @@ describe("ordre de récupération", () => {
     expect(current().payoutOrderDrawId).toBeNull();
     await expect(
       saveGroupPayoutOrder("g1", id, ["m1", "m2"], null, actor),
-    ).rejects.toThrow("tontines");
+    ).rejects.toThrow("caisses collectives");
   });
 });
 

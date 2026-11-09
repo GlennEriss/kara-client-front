@@ -34,6 +34,12 @@ vi.mock("@/domains/groups/group-service", () => ({
 }));
 vi.mock("@/domains/groups/useGroupWorkspace", () => ({
   useGroupWorkspace: () => ({
+    canViewCredits: false,
+    canManageCredits: false,
+    creditAccess: {
+      FIXE: { view: false, manage: false },
+      SPECIALE: { view: false, manage: false },
+    },
     actor: { id: "admin-1", name: "Admin" },
     canManage: mock.canManage,
     refresh: mock.refresh,
@@ -114,6 +120,9 @@ describe("création guidée du groupe", () => {
     fireEvent.change(screen.getByLabelText("Référent du groupe (facultatif)"), {
       target: { value: "m2" },
     });
+    fireEvent.click(
+      await screen.findByRole("button", { name: /^Nadia ONDO MK002/ }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Continuer" }));
     fireEvent.change(screen.getByLabelText("Nom du projet *"), {
       target: { value: "Achat du congélateur" },
@@ -144,6 +153,9 @@ describe("création guidée du groupe", () => {
       target: { value: "Collectif en préparation" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Continuer" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /^Nadia ONDO MK002/ }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Continuer" }));
     fireEvent.click(
       screen.getByRole("checkbox", { name: "Ajouter un premier projet" }),
@@ -165,6 +177,9 @@ describe("création guidée du groupe", () => {
       target: { value: "Mon groupe" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Continuer" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /^Nadia ONDO MK002/ }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Continuer" }));
     fireEvent.click(
       screen.getByRole("checkbox", { name: "Ajouter un premier projet" }),

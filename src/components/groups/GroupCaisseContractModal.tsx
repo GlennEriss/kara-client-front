@@ -1,15 +1,15 @@
 "use client";
+import { Wallet } from "lucide-react";
 
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@/components/ui/modal";
 import { useCaisseSettingsValidation } from "@/hooks/useCaisseSettingsValidation";
 import { toast } from "sonner";
 
@@ -105,144 +105,150 @@ export default function GroupCaisseContractModal({
         if (!next && !loading) onClose();
       }}
     >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            Nouveau contrat Caisse Spéciale - {groupName}
-          </DialogTitle>
-          <DialogDescription>
-            Définissez le montant, la durée et la caisse pour ce groupe.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm mb-1">
-              {caisseType === "STANDARD" || caisseType === "STANDARD_CHARITABLE"
-                ? "Montant mensuel"
-                : caisseType === "JOURNALIERE" ||
-                    caisseType === "JOURNALIERE_CHARITABLE"
-                  ? "Objectif mensuel"
-                  : "Montant mensuel (minimum 100 000)"}
-            </label>
-            <input
-              type="number"
-              min={isLibre ? 100000 : 100}
-              step={100}
-              className="border rounded p-2 w-full"
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-            />
-            {isDaily && (
-              <div className="text-xs text-gray-500 mt-1">
-                L'objectif est atteint par contributions quotidiennes sur le
-                mois.
-              </div>
-            )}
-            {isLibre && (
-              <div className="text-xs text-gray-500 mt-1">
-                Le total versé par mois doit être au moins 100 000 FCFA.
-              </div>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Durée (mois)</label>
-            <input
-              type="number"
-              min={1}
-              max={12}
-              className="border rounded p-2 w-full"
-              value={months}
-              onChange={(e) => setMonths(Number(e.target.value))}
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Caisse</label>
-            <select
-              className="border rounded p-2 w-full"
-              value={caisseType}
-              onChange={(e) => setCaisseType(e.target.value as any)}
-            >
-              <option value="STANDARD">Standard</option>
-              <option value="JOURNALIERE">Journalière</option>
-              <option value="LIBRE">Libre</option>
-              <option value="STANDARD_CHARITABLE">Standard Charitable</option>
-              <option value="JOURNALIERE_CHARITABLE">
-                Journalière Charitable
-              </option>
-              <option value="LIBRE_CHARITABLE">Libre Charitable</option>
-            </select>
-
-            {/* Validation des paramètres */}
-            {isValidating && (
-              <div className="text-xs text-blue-600 mt-1">
-                Vérification des paramètres...
-              </div>
-            )}
-
-            {!isValidating && !isValid && validationError && (
-              <div className="flex items-start gap-2 p-3 mt-2 bg-red-50 border border-red-200 rounded-md">
-                <div className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0">
-                  ⚠️
+      <ModalContent size="md" showCloseButton={!loading}>
+        <ModalHeader
+          icon={Wallet}
+          className="[&_[data-slot=dialog-title]]:break-words"
+          title={<>Nouveau contrat Caisse Spéciale - {groupName}</>}
+          description={
+            <>Définissez le montant, la durée et la caisse pour ce groupe.</>
+          }
+        />
+        <ModalBody>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm mb-1">
+                {caisseType === "STANDARD" ||
+                caisseType === "STANDARD_CHARITABLE"
+                  ? "Montant mensuel"
+                  : caisseType === "JOURNALIERE" ||
+                      caisseType === "JOURNALIERE_CHARITABLE"
+                    ? "Objectif mensuel"
+                    : "Montant mensuel (minimum 100 000)"}
+              </label>
+              <input
+                type="number"
+                min={isLibre ? 100000 : 100}
+                step={100}
+                className="border rounded p-2 w-full"
+                value={amount}
+                onChange={(e) => setAmount(Number(e.target.value))}
+              />
+              {isDaily && (
+                <div className="text-xs text-gray-500 mt-1">
+                  L'objectif est atteint par contributions quotidiennes sur le
+                  mois.
                 </div>
-                <div className="text-xs text-red-700">
-                  <div className="font-medium mb-1">Paramètres manquants</div>
-                  <div>{validationError}</div>
-                  <div className="mt-2 text-red-600">
-                    Veuillez configurer les paramètres de la Caisse Spéciale
-                    dans l'administration avant de créer un contrat.
+              )}
+              {isLibre && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Le total versé par mois doit être au moins 100 000 FCFA.
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Durée (mois)</label>
+              <input
+                type="number"
+                min={1}
+                max={12}
+                className="border rounded p-2 w-full"
+                value={months}
+                onChange={(e) => setMonths(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Caisse</label>
+              <select
+                className="border rounded p-2 w-full"
+                value={caisseType}
+                onChange={(e) => setCaisseType(e.target.value as any)}
+              >
+                <option value="STANDARD">Standard</option>
+                <option value="JOURNALIERE">Journalière</option>
+                <option value="LIBRE">Libre</option>
+                <option value="STANDARD_CHARITABLE">Standard Charitable</option>
+                <option value="JOURNALIERE_CHARITABLE">
+                  Journalière Charitable
+                </option>
+                <option value="LIBRE_CHARITABLE">Libre Charitable</option>
+              </select>
+
+              {/* Validation des paramètres */}
+              {isValidating && (
+                <div className="text-xs text-blue-600 mt-1">
+                  Vérification des paramètres...
+                </div>
+              )}
+
+              {!isValidating && !isValid && validationError && (
+                <div className="flex items-start gap-2 p-3 mt-2 bg-red-50 border border-red-200 rounded-md">
+                  <div className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0">
+                    ⚠️
+                  </div>
+                  <div className="text-xs text-red-700">
+                    <div className="font-medium mb-1">Paramètres manquants</div>
+                    <div>{validationError}</div>
+                    <div className="mt-2 text-red-600">
+                      Veuillez configurer les paramètres de la Caisse Spéciale
+                      dans l'administration avant de créer un contrat.
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {!isValidating && isValid && settings && (
-              <div className="flex items-start gap-2 p-3 mt-2 bg-green-50 border border-green-200 rounded-md">
-                <div className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0">
-                  ✓
-                </div>
-                <div className="text-xs text-green-700">
-                  <div className="font-medium mb-1">Paramètres configurés</div>
-                  <div>
-                    Version active depuis le{" "}
-                    {new Date(
-                      settings.effectiveAt?.toDate?.() || settings.effectiveAt,
-                    ).toLocaleDateString("fr-FR")}
+              {!isValidating && isValid && settings && (
+                <div className="flex items-start gap-2 p-3 mt-2 bg-green-50 border border-green-200 rounded-md">
+                  <div className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0">
+                    ✓
                   </div>
-                  <div className="mt-2 text-green-600">
-                    Vous pouvez maintenant créer un contrat avec ce type de
-                    caisse.
+                  <div className="text-xs text-green-700">
+                    <div className="font-medium mb-1">
+                      Paramètres configurés
+                    </div>
+                    <div>
+                      Version active depuis le{" "}
+                      {new Date(
+                        settings.effectiveAt?.toDate?.() ||
+                          settings.effectiveAt,
+                      ).toLocaleDateString("fr-FR")}
+                    </div>
+                    <div className="mt-2 text-green-600">
+                      Vous pouvez maintenant créer un contrat avec ce type de
+                      caisse.
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            <div>
+              <label className="block text-sm mb-1">
+                Date du premier versement *
+              </label>
+              <input
+                type="date"
+                className="border rounded p-2 w-full"
+                value={firstPaymentDate}
+                onChange={(e) => setFirstPaymentDate(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+                required
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm mb-1">
-              Date du premier versement *
-            </label>
-            <input
-              type="date"
-              className="border rounded p-2 w-full"
-              value={firstPaymentDate}
-              onChange={(e) => setFirstPaymentDate(e.target.value)}
-              min={new Date().toISOString().split("T")[0]}
-              required
-            />
-          </div>
-        </div>
-        <DialogFooter>
+        </ModalBody>
+        <ModalFooter>
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Annuler
           </Button>
           <Button
-            className="bg-[#CBB171] text-white hover:bg-[#D4C084]"
+            className="bg-[#234D65] text-white hover:bg-[#1b3d50]"
             onClick={onCreate}
             disabled={loading || !isValid || isValidating}
           >
             {loading ? "Création…" : "Créer pour le groupe"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   );
 }
