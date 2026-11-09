@@ -11,17 +11,20 @@ import type {
   SourceRecord,
 } from "../entities/financial-report-sources.types";
 import type {
+  FinancialContractReport,
   FinancialDetailParty,
   FinancialDetailRow,
   FinancialDetailSelection,
   FinancialReportDetails,
 } from "../entities/financial-report-details.types";
+import { buildCollectiveFundsModule } from "./collective-funds";
 import { buildAdhesionsModule } from "./adhesions";
 import { buildCaisseImprevueModule } from "./caisse-imprevue";
 import { buildCaisseSpecialeModule } from "./caisse-speciale";
 import { buildCreditModule } from "./credits";
 import { buildPlacementsModule } from "./placements";
 import { buildSynthesisModule } from "./synthesis";
+import { toReportDate } from "../utils/report-months";
 import { monthKeyOf } from "../utils/report-months";
 
 const text = (value: unknown): string =>
@@ -155,6 +158,33 @@ function* entities(sources: FinancialReportSources): Generator<Entity> {
       sources: scoped,
     };
   }
+  for (const record of sources.groupContributions ?? [])
+    yield {
+      id: `contribution:${record.parentId}:${record.id}`,
+      module: "caisses_collectives",
+      record: {
+        ...record,
+        groupId: record.parentId,
+        sourceLabel: `${text(record.projectName) || "Cotisation"} · ${text(record.period)}`,
+        status: "Cotisation enregistrée",
+      },
+      exists: true,
+      sources: { ...emptySources(), groupContributions: [record] },
+    };
+  for (const record of sources.groupPayouts ?? [])
+    yield {
+      id: `remise:${record.id}`,
+      module: "caisses_collectives",
+      record: {
+        ...record,
+        memberId: record.beneficiaryId,
+        memberName: record.beneficiaryName,
+        sourceLabel: `${text(record.projectName)} · ${text(record.period)} · Brut ${record.grossAmount} / Redevance ${record.feeAmount} / Net ${record.netAmount} FCFA`,
+        status: "Remise enregistrée",
+      },
+      exists: true,
+      sources: { ...emptySources(), groupPayouts: [record] },
+    };
   for (const record of sources.membershipRequests)
     yield {
       id: record.id,
@@ -183,11 +213,21 @@ function sourceHref(entity: Entity): string | undefined {
       return routes.admin.placementDetails(id);
     case "adhesions":
       return routes.admin.membershipRequestDetails(id);
+    case "caisses_collectives":
+      return routes.admin.groupDetails(
+        encodeURIComponent(text(entity.record.groupId)),
+      );
   }
 }
 
 function owner(entity: Entity): FinancialDetailParty {
   const c = entity.record;
+  if (entity.module === "caisses_collectives")
+    return {
+      id: text(c.memberId),
+      name: text(c.memberName) || "Membre",
+      kind: "member",
+    };
   if (entity.module === "adhesions") {
     const identity =
       c.identity && typeof c.identity === "object"
@@ -235,33 +275,11 @@ export function buildFinancialReportDetails(
   const index = selection.month ? report.months.indexOf(selection.month) : -1;
   if (selection.month && index < 0)
     throw new Error("Le mois choisi ne fait pas partie du bilan.");
-  const context = { months: report.months, now: new Date(report.generatedAt) };
   const rows: FinancialDetailRow[] = [];
   for (const entity of entities(sources)) {
     if (selection.module !== "synthesis" && selection.module !== entity.module)
       continue;
-    let scoped: FinancialReportModule;
-    switch (entity.module) {
-      case "caisse_speciale":
-        scoped = buildCaisseSpecialeModule(entity.sources, context);
-        break;
-      case "caisse_imprevue":
-        scoped = buildCaisseImprevueModule(entity.sources, context);
-        break;
-      case "placements":
-        scoped = buildPlacementsModule(entity.sources, context);
-        break;
-      case "adhesions":
-        scoped = buildAdhesionsModule(entity.sources, context);
-        break;
-      default:
-        scoped = buildCreditModule(
-          entity.creditType!,
-          entity.sources,
-          context,
-          { contractId: entity.id },
-        );
-    }
+    let scoped = moduleForEntity(entity, report);
     const title = scoped.title;
     if (selection.module === "synthesis")
       scoped = buildSynthesisModule([scoped], report.months.length);
@@ -281,6 +299,12 @@ export function buildFinancialReportDetails(
       continue;
     const c = entity.record;
     const relatedParties: FinancialDetailParty[] = [];
+    if (entity.module === "caisses_collectives")
+      relatedParties.push({
+        id: text(c.groupId),
+        name: text(c.groupName) || "Groupe",
+        kind: "group",
+      });
     for (const payment of entity.sources.guarantorPayments) {
       const month = monthKeyOf(payment.paymentDate);
       if (
@@ -306,7 +330,9 @@ export function buildFinancialReportDetails(
       module: entity.module,
       moduleTitle: title,
       sourceId: entity.id,
-      sourceLabel: text(c.contractNumber ?? c.reference ?? c.code) || entity.id,
+      sourceLabel:
+        text(c.sourceLabel ?? c.contractNumber ?? c.reference ?? c.code) ||
+        entity.id,
       sourceHref: sourceHref(entity),
       status: entity.exists
         ? text(c.status) || "Non renseigné"
@@ -340,4 +366,166 @@ export function buildFinancialReportDetails(
     reconciliationDifference: amount - allocatedAmount || 0,
     rows,
   };
+}
+
+function moduleForEntity(
+  entity: Entity,
+  report: FinancialReport,
+): FinancialReportModule {
+  const context = {
+    months: report.months,
+    now: new Date(report.generatedAt),
+    individual: !!report.subject,
+  };
+  let scoped: FinancialReportModule;
+  switch (entity.module) {
+    case "caisse_speciale":
+      scoped = buildCaisseSpecialeModule(entity.sources, context);
+      break;
+    case "caisse_imprevue":
+      scoped = buildCaisseImprevueModule(entity.sources, context);
+      break;
+    case "placements":
+      scoped = buildPlacementsModule(entity.sources, context);
+      break;
+    case "caisses_collectives":
+      scoped = buildCollectiveFundsModule(entity.sources, context);
+      break;
+    case "adhesions":
+      scoped = buildAdhesionsModule(entity.sources, context);
+      break;
+    default:
+      scoped = buildCreditModule(entity.creditType!, entity.sources, context, {
+        contractId: entity.id,
+      });
+  }
+  return scoped;
+}
+function contractFacts(entity: Entity): FinancialContractReport["facts"] {
+  const c = entity.record;
+  const facts: FinancialContractReport["facts"] = [];
+  const addDate = (label: string, value: unknown) => {
+    const date = toReportDate(value);
+    if (date)
+      facts.push({
+        label,
+        value: date.toLocaleDateString("fr-FR", {
+          timeZone: "Africa/Libreville",
+        }),
+      });
+  };
+  addDate("Création", c.createdAt);
+  addDate(
+    "Début / remise des fonds",
+    c.disbursementDate ?? c.startDate ?? c.handoverDate,
+  );
+  addDate("Première échéance", c.firstPaymentDate);
+  addDate("Fin prévue", c.endDate);
+  if (c.duration && Number.isFinite(Number(c.duration)))
+    facts.push({ label: "Durée prévue", value: `${c.duration} mois` });
+  const money = (label: string, value: unknown) => {
+    if (value !== null && value !== undefined && Number.isFinite(Number(value)))
+      facts.push({
+        label,
+        value: `${Number(value).toLocaleString("fr-FR")} FCFA`,
+      });
+  };
+  if (entity.creditType) {
+    money("Montant du contrat", c.amount);
+    money("Mensualité enregistrée", c.monthlyPaymentAmount);
+  } else if (entity.module === "placements") money("Capital placé", c.amount);
+  else if (
+    entity.module === "caisse_speciale" ||
+    entity.module === "caisse_imprevue"
+  )
+    money("Versement mensuel prévu", c.monthlyAmount);
+  const link = c.groupProject as Record<string, unknown> | undefined;
+  if (link?.projectName)
+    facts.push({ label: "Projet du groupe", value: text(link.projectName) });
+  if (c.period) facts.push({ label: "Mois concerné", value: text(c.period) });
+  return facts;
+}
+/** Complete dossiers, including flow/stock history; an inactive contract with no
+ * financial value anywhere in the period is deliberately not a contributing dossier. */
+export function buildFinancialReportContracts(
+  sources: FinancialReportSources,
+  report: FinancialReport,
+): FinancialContractReport[] {
+  const result: FinancialContractReport[] = [];
+  for (const entity of entities(sources)) {
+    const module = moduleForEntity(entity, report);
+    if (
+      !module.blocks.some((b) =>
+        b.lines.some((l) => l.values.some((v) => v !== 0)),
+      )
+    )
+      continue;
+    const c = entity.record;
+    const relatedParties: FinancialDetailParty[] = [];
+    const add = (party: FinancialDetailParty) => {
+      if (
+        party.id &&
+        !relatedParties.some((p) => p.kind === party.kind && p.id === party.id)
+      )
+        relatedParties.push(party);
+    };
+    if (c.guarantorId)
+      add({
+        id: text(c.guarantorId),
+        name:
+          name(c.guarantorLastName, c.guarantorFirstName) ||
+          "Garant non identifié",
+        kind: "member",
+      });
+    for (const payment of entity.sources.guarantorPayments)
+      add({
+        id: payment.guarantorId,
+        name:
+          payment.guarantorId === c.guarantorId
+            ? name(c.guarantorLastName, c.guarantorFirstName) ||
+              "Garant non identifié"
+            : "Garant non identifié",
+        kind: "member",
+      });
+    const link = c.groupProject as Record<string, unknown> | undefined;
+    const groupId =
+      entity.module === "caisses_collectives"
+        ? text(c.groupId)
+        : text(link?.groupId);
+    if (groupId)
+      add({
+        id: groupId,
+        name: text(c.groupName ?? link?.groupName) || "Groupe",
+        kind: "group",
+      });
+    result.push({
+      key: `${entity.module}:${entity.id}`,
+      module: entity.module,
+      moduleTitle: module.title,
+      sourceId: entity.id,
+      sourceLabel:
+        text(c.sourceLabel ?? c.contractNumber ?? c.reference ?? c.code) ||
+        entity.id,
+      sourceHref: sourceHref(entity),
+      sourceKind:
+        entity.module === "adhesions"
+          ? "Dossier"
+          : entity.module === "caisses_collectives"
+            ? "Opération"
+            : "Contrat",
+      status: entity.exists
+        ? text(c.status) || "Non renseigné"
+        : "Contrat introuvable",
+      party: owner(entity),
+      relatedParties,
+      facts: contractFacts(entity),
+      blocks: module.blocks,
+    });
+  }
+  return result.sort(
+    (a, b) =>
+      a.moduleTitle.localeCompare(b.moduleTitle, "fr") ||
+      a.party.name.localeCompare(b.party.name, "fr") ||
+      a.sourceId.localeCompare(b.sourceId),
+  );
 }

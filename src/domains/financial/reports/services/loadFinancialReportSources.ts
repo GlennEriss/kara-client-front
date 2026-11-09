@@ -52,6 +52,8 @@ export async function loadFinancialReportSources(db: Firestore, reader = new Fir
     placementCommissions,
     placementEarlyExits,
     membershipRequests,
+    groupPayouts,
+    groupContributions,
   ] = await Promise.all([
     readCollection(reader, names.caisseContracts),
     readChildren(reader, names.caisseContracts, 'payments'),
@@ -68,6 +70,8 @@ export async function loadFinancialReportSources(db: Firestore, reader = new Fir
     readChildren(reader, names.placements, 'commissions'),
     readChildren(reader, names.placements, 'earlyExit'),
     readCollection(reader, names.membershipRequests),
+    readCollection(reader, 'groupPayouts'),
+    readChildren(reader, 'groups', 'contributions'),
   ])
 
   return {
@@ -86,5 +90,7 @@ export async function loadFinancialReportSources(db: Firestore, reader = new Fir
     placementCommissions,
     placementEarlyExits,
     membershipRequests,
+    groupPayouts,
+    groupContributions,
   }
 }

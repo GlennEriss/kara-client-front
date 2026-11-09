@@ -1,8 +1,18 @@
+import type { FinancialContractReport } from '../entities/financial-report-details.types'
+import { financialStatusLabel } from '../utils/contract-report'
 import type { Borders, Fill, Font, Row, Workbook, Worksheet } from 'exceljs'
 import { FINANCIAL_REPORT_GUIDE } from '../entities/financial-report-guide'
-import type { FinancialReport, FinancialReportLine } from '../entities/financial-report.types'
+import type {
+  FinancialReport,
+  FinancialReportLine,
+} from '../entities/financial-report.types'
 import { REPORT_MINIMAL_LEGEND, type ReportTextLevel } from './export-options'
-import { reportFileName, reportPeriodLabel, reportTitle, TOTAL_COLUMN_LABEL } from './report-format'
+import {
+  reportFileName,
+  reportPeriodLabel,
+  reportTitle,
+  TOTAL_COLUMN_LABEL,
+} from './report-format'
 
 const BRAND = 'FF234D65'
 const BAND = 'FFEEF2F6'
@@ -13,20 +23,38 @@ const MUTED = 'FF64748B'
 const AMOUNT_FORMAT = '#,##0;[Red]-#,##0'
 const COUNT_FORMAT = '#,##0'
 
-const solid = (argb: string): Fill => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } })
+const solid = (argb: string): Fill => ({
+  type: 'pattern',
+  pattern: 'solid',
+  fgColor: { argb },
+})
 const thin = { style: 'thin' as const, color: { argb: GRID } }
-const GRID_BORDERS: Partial<Borders> = { top: thin, left: thin, bottom: thin, right: thin }
+const GRID_BORDERS: Partial<Borders> = {
+  top: thin,
+  left: thin,
+  bottom: thin,
+  right: thin,
+}
 
 /** Feuille Excel : 31 caractères au plus, sans `: \ / ? * [ ]`. */
-const sheetName = (title: string) => title.replace(/[:\\/?*[\]]/g, ' ').slice(0, 31)
+const sheetName = (title: string) =>
+  title.replace(/[:\\/?*[\]]/g, ' ').slice(0, 31)
 
 /** Excel n'ajuste pas à l'ouverture la hauteur d'une ligne dont le texte passe à la ligne. */
-const wrappedHeight = (text: string, columnWidth: number) => Math.max(15, Math.ceil(text.length / (columnWidth * 1.1)) * 13)
+const wrappedHeight = (text: string, columnWidth: number) =>
+  Math.max(15, Math.ceil(text.length / (columnWidth * 1.1)) * 13)
 
 const lineLabel = (line: FinancialReportLine) =>
-  line.kind === 'stock' && line.level !== 'info' ? `${line.label} (fin de mois)` : line.label
+  line.kind === 'stock' && line.level !== 'info'
+    ? `${line.label} (fin de mois)`
+    : line.label
 
-function styleRow(row: Row, fromColumn: number, toColumn: number, style: { font?: Partial<Font>; fill?: Fill; border?: boolean }) {
+function styleRow(
+  row: Row,
+  fromColumn: number,
+  toColumn: number,
+  style: { font?: Partial<Font>; fill?: Fill; border?: boolean },
+) {
   for (let column = fromColumn; column <= toColumn; column++) {
     const cell = row.getCell(column)
     if (style.font) cell.font = { ...cell.font, ...style.font }
@@ -35,11 +63,23 @@ function styleRow(row: Row, fromColumn: number, toColumn: number, style: { font?
   }
 }
 
-function addGuideSheet(workbook: Workbook, report: FinancialReport, generatedOn: string) {
-  const sheet = workbook.addWorksheet('Mode d’emploi', { properties: { tabColor: { argb: BRAND } } })
+function addGuideSheet(
+  workbook: Workbook,
+  report: FinancialReport,
+  generatedOn: string,
+) {
+  const sheet = workbook.addWorksheet('Mode d’emploi', {
+    properties: { tabColor: { argb: BRAND } },
+  })
   sheet.columns = [{ width: 30 }, { width: 110 }]
-  sheet.addRow([`${reportTitle(report)} — mode d’emploi`]).font = { bold: true, size: 14, color: { argb: BRAND } }
-  sheet.addRow([`Période : ${reportPeriodLabel(report)} · montants en FCFA · généré le ${generatedOn}`]).font = { color: { argb: MUTED } }
+  sheet.addRow([`${reportTitle(report)} — mode d’emploi`]).font = {
+    bold: true,
+    size: 14,
+    color: { argb: BRAND },
+  }
+  sheet.addRow([
+    `Période : ${reportPeriodLabel(report)} · montants en FCFA · généré le ${generatedOn}`,
+  ]).font = { color: { argb: MUTED } }
   sheet.addRow([])
   for (const entry of FINANCIAL_REPORT_GUIDE) {
     const row = sheet.addRow([entry.title, entry.text])
@@ -49,7 +89,10 @@ function addGuideSheet(workbook: Workbook, report: FinancialReport, generatedOn:
     row.height = wrappedHeight(entry.text, 110)
   }
   sheet.addRow([])
-  sheet.addRow(['Onglets du bilan']).font = { bold: true, color: { argb: BRAND } }
+  sheet.addRow(['Onglets du bilan']).font = {
+    bold: true,
+    color: { argb: BRAND },
+  }
   for (const module of report.modules) {
     const row = sheet.addRow([module.title, module.description])
     row.getCell(1).font = { bold: true }
@@ -57,7 +100,13 @@ function addGuideSheet(workbook: Workbook, report: FinancialReport, generatedOn:
   }
 }
 
-function addModuleSheet(workbook: Workbook, report: FinancialReport, moduleIndex: number, textLevel: ReportTextLevel, generatedOn: string) {
+function addModuleSheet(
+  workbook: Workbook,
+  report: FinancialReport,
+  moduleIndex: number,
+  textLevel: ReportTextLevel,
+  generatedOn: string,
+) {
   const module = report.modules[moduleIndex]
   const withExplanations = textLevel === 'full'
   const withDescriptions = textLevel !== 'none'
@@ -73,7 +122,14 @@ function addModuleSheet(workbook: Workbook, report: FinancialReport, moduleIndex
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
+      margins: {
+        left: 0.4,
+        right: 0.4,
+        top: 0.5,
+        bottom: 0.5,
+        header: 0.3,
+        footer: 0.3,
+      },
     },
     headerFooter: { oddFooter: `&L${module.title}&RPage &P / &N` },
   })
@@ -84,17 +140,44 @@ function addModuleSheet(workbook: Workbook, report: FinancialReport, moduleIndex
     ...(withExplanations ? [{ width: 70 }] : []),
   ]
 
-  sheet.addRow([`${reportTitle(report)} — ${module.title}`]).font = { bold: true, size: 14, color: { argb: BRAND } }
-  sheet.addRow([`Période : ${reportPeriodLabel(report)} · montants en FCFA · généré le ${generatedOn}`]).font = { color: { argb: MUTED } }
-  if (withDescriptions) sheet.addRow([module.description]).font = { italic: true, color: { argb: MUTED } }
-  if (textLevel === 'minimal') sheet.addRow([REPORT_MINIMAL_LEGEND]).font = { italic: true, size: 9, color: { argb: MUTED } }
+  sheet.addRow([`${reportTitle(report)} — ${module.title}`]).font = {
+    bold: true,
+    size: 14,
+    color: { argb: BRAND },
+  }
+  sheet.addRow([
+    `Période : ${reportPeriodLabel(report)} · montants en FCFA · généré le ${generatedOn}`,
+  ]).font = { color: { argb: MUTED } }
+  if (withDescriptions)
+    sheet.addRow([module.description]).font = {
+      italic: true,
+      color: { argb: MUTED },
+    }
+  if (textLevel === 'minimal')
+    sheet.addRow([REPORT_MINIMAL_LEGEND]).font = {
+      italic: true,
+      size: 9,
+      color: { argb: MUTED },
+    }
   sheet.addRow([])
 
   // Un seul en-tête, figé avec la colonne des libellés et répété à l'impression.
-  const header = sheet.addRow(['Libellé', ...report.monthLabels, TOTAL_COLUMN_LABEL, ...(withExplanations ? ['Explication'] : [])])
-  styleRow(header, 1, lastColumn, { font: { bold: true, color: { argb: 'FFFFFFFF' } }, fill: solid(BRAND), border: true })
+  const header = sheet.addRow([
+    'Libellé',
+    ...report.monthLabels,
+    TOTAL_COLUMN_LABEL,
+    ...(withExplanations ? ['Explication'] : []),
+  ])
+  styleRow(header, 1, lastColumn, {
+    font: { bold: true, color: { argb: 'FFFFFFFF' } },
+    fill: solid(BRAND),
+    border: true,
+  })
   header.eachCell((cell, column) => {
-    cell.alignment = { horizontal: column === 1 || column > totalColumn ? 'left' : 'center', vertical: 'middle' }
+    cell.alignment = {
+      horizontal: column === 1 || column > totalColumn ? 'left' : 'center',
+      vertical: 'middle',
+    }
   })
   header.height = 20
   sheet.views = [{ state: 'frozen', xSplit: 1, ySplit: header.number }]
@@ -105,26 +188,54 @@ function addModuleSheet(workbook: Workbook, report: FinancialReport, moduleIndex
 
   for (const block of module.blocks) {
     const title = sheet.addRow([block.title.toUpperCase()])
-    styleRow(title, 1, lastColumn, { font: { bold: true, color: { argb: BRAND } }, fill: solid(BAND) })
+    styleRow(title, 1, lastColumn, {
+      font: { bold: true, color: { argb: BRAND } },
+      fill: solid(BAND),
+    })
     title.height = 18
-    if (withDescriptions) sheet.addRow([block.description]).font = { italic: true, size: 9, color: { argb: MUTED } }
+    if (withDescriptions)
+      sheet.addRow([block.description]).font = {
+        italic: true,
+        size: 9,
+        color: { argb: MUTED },
+      }
 
     for (const line of block.lines) {
-      const row = sheet.addRow([lineLabel(line), ...line.values, null, ...(withExplanations ? [line.description] : [])])
+      const row = sheet.addRow([
+        lineLabel(line),
+        ...line.values,
+        null,
+        ...(withExplanations ? [line.description] : []),
+      ])
       // Total en formule : la somme des mois, ou la valeur du dernier mois pour une ligne « fin de mois ».
       row.getCell(totalColumn).value = {
-        formula: line.kind === 'flow' ? `SUM(${firstMonthLetter}${row.number}:${lastMonthLetter}${row.number})` : `${lastMonthLetter}${row.number}`,
+        formula:
+          line.kind === 'flow'
+            ? `SUM(${firstMonthLetter}${row.number}:${lastMonthLetter}${row.number})`
+            : `${lastMonthLetter}${row.number}`,
         result: line.total,
       }
       for (let column = firstMonthColumn; column <= totalColumn; column++) {
-        row.getCell(column).numFmt = line.unit === 'count' ? COUNT_FORMAT : AMOUNT_FORMAT
+        row.getCell(column).numFmt =
+          line.unit === 'count' ? COUNT_FORMAT : AMOUNT_FORMAT
       }
       row.getCell(totalColumn).font = { bold: true }
       styleRow(row, 1, lastColumn, { border: true })
       row.getCell(1).alignment = { wrapText: true, vertical: 'top' }
-      if (line.level === 'subtotal') styleRow(row, 1, totalColumn, { font: { bold: true }, fill: solid(SUBTOTAL) })
-      if (line.level === 'total') styleRow(row, 1, totalColumn, { font: { bold: true }, fill: solid(TOTAL) })
-      if (line.level === 'info') styleRow(row, 1, totalColumn, { font: { italic: true, color: { argb: MUTED } } })
+      if (line.level === 'subtotal')
+        styleRow(row, 1, totalColumn, {
+          font: { bold: true },
+          fill: solid(SUBTOTAL),
+        })
+      if (line.level === 'total')
+        styleRow(row, 1, totalColumn, {
+          font: { bold: true },
+          fill: solid(TOTAL),
+        })
+      if (line.level === 'info')
+        styleRow(row, 1, totalColumn, {
+          font: { italic: true, color: { argb: MUTED } },
+        })
       let height = wrappedHeight(lineLabel(line), 48)
       if (withExplanations) {
         const explanation = row.getCell(totalColumn + 1)
@@ -138,7 +249,10 @@ function addModuleSheet(workbook: Workbook, report: FinancialReport, moduleIndex
   }
 
   if (withExplanations && module.notes.length > 0) {
-    sheet.addRow(['Bases de calcul']).font = { bold: true, color: { argb: BRAND } }
+    sheet.addRow(['Bases de calcul']).font = {
+      bold: true,
+      color: { argb: BRAND },
+    }
     const width = 48 + report.months.length * 13 + 15
     for (const note of module.notes) {
       const row = sheet.addRow([`• ${note}`])
@@ -151,9 +265,15 @@ function addModuleSheet(workbook: Workbook, report: FinancialReport, moduleIndex
 }
 
 /** Classeur du bilan : mis en forme, totaux en formules, prêt à imprimer. */
-export async function buildFinancialReportWorkbook(report: FinancialReport, textLevel: ReportTextLevel = 'full'): Promise<Workbook> {
+export async function buildFinancialReportWorkbook(
+  report: FinancialReport,
+  textLevel: ReportTextLevel = 'full',
+  contracts: FinancialContractReport[] = [],
+): Promise<Workbook> {
   const ExcelJS = await import('exceljs')
-  const WorkbookClass = ExcelJS.Workbook ?? (ExcelJS as unknown as { default: typeof ExcelJS }).default.Workbook
+  const WorkbookClass =
+    ExcelJS.Workbook ??
+    (ExcelJS as unknown as { default: typeof ExcelJS }).default.Workbook
   const workbook = new WorkbookClass()
   const generatedOn = new Date(report.generatedAt).toLocaleDateString('fr-FR')
   workbook.creator = 'LE KARA'
@@ -161,15 +281,30 @@ export async function buildFinancialReportWorkbook(report: FinancialReport, text
   workbook.title = `${reportTitle(report)} ${reportPeriodLabel(report)}`
 
   if (textLevel === 'full') addGuideSheet(workbook, report, generatedOn)
-  report.modules.forEach((_, index) => addModuleSheet(workbook, report, index, textLevel, generatedOn))
+  report.modules.forEach((_, index) =>
+    addModuleSheet(workbook, report, index, textLevel, generatedOn),
+  )
+  if (contracts.length) addContractSheets(workbook, report, contracts)
   return workbook
 }
 
 /** Télécharge le bilan au format Excel. */
-export async function exportFinancialReportExcel(report: FinancialReport, textLevel: ReportTextLevel = 'full'): Promise<void> {
-  const workbook = await buildFinancialReportWorkbook(report, textLevel)
+export async function exportFinancialReportExcel(
+  report: FinancialReport,
+  textLevel: ReportTextLevel = 'full',
+  contracts: FinancialContractReport[] = [],
+): Promise<void> {
+  const workbook = await buildFinancialReportWorkbook(
+    report,
+    textLevel,
+    contracts,
+  )
   const buffer = await workbook.xlsx.writeBuffer()
-  const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+  const url = URL.createObjectURL(
+    new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }),
+  )
   const link = document.createElement('a')
   link.href = url
   link.download = reportFileName(report, 'xlsx')
@@ -177,4 +312,185 @@ export async function exportFinancialReportExcel(report: FinancialReport, textLe
   link.click()
   link.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/** One inventory and a monthly audit table: no aggregation hides a contract. */
+function addContractSheets(
+  workbook: Workbook,
+  report: FinancialReport,
+  contracts: FinancialContractReport[],
+) {
+  const inventory = workbook.addWorksheet('Contrats et dossiers')
+  inventory.columns = [
+    { width: 24 },
+    { width: 30 },
+    { width: 24 },
+    { width: 42 },
+    { width: 22 },
+    { width: 38 },
+    { width: 18 },
+    { width: 18 },
+    { width: 18 },
+    { width: 70 },
+  ]
+  const header = inventory.addRow([
+    'Module',
+    'Personne / groupe',
+    'Matricule / identifiant',
+    'Contrat / dossier',
+    'Statut actuel',
+    'Personnes / groupes associés',
+    'Entrées / affectations',
+    'Sorties',
+    'Résultat',
+    'Informations du dossier',
+  ])
+  styleRow(header, 1, 10, {
+    font: { bold: true, color: { argb: 'FFFFFFFF' } },
+    fill: solid(BRAND),
+  })
+  header.alignment = { wrapText: true, vertical: 'middle' }
+  header.height = 32
+  inventory.views = [{ state: 'frozen', xSplit: 2, ySplit: 1 }]
+  inventory.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: 10 },
+  }
+  const figure = (c: FinancialContractReport, b: string, l: string) =>
+    c.blocks.find((x) => x.key === b)?.lines.find((x) => x.key === l)?.total ??
+    0
+  const href = (path?: string) =>
+    path && typeof window !== 'undefined'
+      ? new URL(path, window.location.origin).toString()
+      : undefined
+  for (const c of contracts) {
+    const row = inventory.addRow([
+      c.moduleTitle,
+      c.party.name,
+      c.party.matricule || c.party.id || '',
+      c.sourceLabel,
+      financialStatusLabel(c.status),
+      c.relatedParties.map((p) => p.name).join(', '),
+      figure(c, 'treasury', 'in_total'),
+      figure(c, 'treasury', 'out_total'),
+      figure(c, 'result', 'net'),
+      c.facts.map((f) => `${f.label} : ${f.value}`).join(' · '),
+    ])
+    row.alignment = { wrapText: true, vertical: 'top' }
+    row.height = Math.max(
+      30,
+      ...[1, 2, 3, 4, 5, 6, 10].map((col) =>
+        wrappedHeight(
+          String(row.getCell(col).value ?? ''),
+          Number(inventory.getColumn(col).width) || 20,
+        ),
+      ),
+    )
+    for (const col of [7, 8, 9]) row.getCell(col).numFmt = AMOUNT_FORMAT
+    const source = href(c.sourceHref),
+      party = href(c.party.href)
+    if (source)
+      row.getCell(4).value = { text: c.sourceLabel, hyperlink: source }
+    if (party) row.getCell(2).value = { text: c.party.name, hyperlink: party }
+  }
+  let sheet: Worksheet
+  let number = 0
+  const createSheet = () => {
+    number++
+    sheet = workbook.addWorksheet(
+      number === 1 ? 'Détail par contrat' : `Détail par contrat ${number}`,
+    )
+    sheet.columns = [
+      { width: 24 },
+      { width: 30 },
+      { width: 24 },
+      { width: 42 },
+      { width: 22 },
+      { width: 38 },
+      { width: 25 },
+      { width: 48 },
+      { width: 24 },
+      { width: 12 },
+      ...report.months.map(() => ({ width: 14 })),
+      { width: 18 },
+    ]
+    const row = sheet.addRow([
+      'Module',
+      'Personne / groupe',
+      'Matricule / identifiant',
+      'Contrat / dossier',
+      'Statut actuel',
+      'Personnes / groupes associés',
+      'Partie',
+      'Indicateur',
+      'Nature',
+      'Unité',
+      ...report.monthLabels,
+      'Total / fin',
+    ])
+    styleRow(row, 1, report.months.length + 11, {
+      font: { bold: true, color: { argb: 'FFFFFFFF' } },
+      fill: solid(BRAND),
+    })
+    row.alignment = { wrapText: true, vertical: 'middle' }
+    row.height = 32
+    sheet.views = [{ state: 'frozen', xSplit: 4, ySplit: 1 }]
+    sheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: report.months.length + 11 },
+    }
+    sheet.pageSetup = {
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      printTitlesRow: '1:1',
+    }
+  }
+  createSheet()
+  for (const c of contracts)
+    for (const block of c.blocks)
+      for (const line of block.lines) {
+        if (sheet!.rowCount >= 1000000) createSheet()
+        const row = sheet!.addRow([
+          c.moduleTitle,
+          c.party.name,
+          c.party.matricule || c.party.id || '',
+          c.sourceLabel,
+          financialStatusLabel(c.status),
+          c.relatedParties.map((p) => p.name).join(', '),
+          block.title,
+          line.label,
+          line.kind === 'stock'
+            ? 'Situation en fin de mois'
+            : 'Mouvement du mois',
+          line.unit === 'count' ? 'Nombre' : 'FCFA',
+          ...line.values,
+          null,
+        ])
+        row.alignment = { wrapText: true, vertical: 'top' }
+        row.height = Math.max(
+          25,
+          ...Array.from({ length: 10 }, (_, i) =>
+            wrappedHeight(
+              String(row.getCell(i + 1).value ?? ''),
+              Number(sheet!.getColumn(i + 1).width) || 20,
+            ),
+          ),
+        )
+        const total = 11 + report.months.length,
+          last = sheet!.getColumn(total - 1).letter
+        row.getCell(total).value = {
+          formula:
+            line.kind === 'stock'
+              ? `${last}${row.number}`
+              : `SUM(K${row.number}:${last}${row.number})`,
+          result: line.total,
+        }
+        for (let col = 11; col <= total; col++)
+          row.getCell(col).numFmt =
+            line.unit === 'count' ? COUNT_FORMAT : AMOUNT_FORMAT
+        if (line.level === 'total' || line.level === 'subtotal')
+          styleRow(row, 1, total, { font: { bold: true }, fill: solid(BAND) })
+      }
 }

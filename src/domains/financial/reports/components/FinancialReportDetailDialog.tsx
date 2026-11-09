@@ -24,6 +24,7 @@ import type {
 import { useFinancialReportDetails } from "../hooks/useFinancialReportDetails";
 import { exportFinancialReportDetailsCsv } from "../exports/exportFinancialReportDetailsCsv";
 import { formatReportNumber } from "../exports/report-format";
+import { financialStatusLabel } from "../utils/contract-report";
 import { monthLabel } from "../utils/report-months";
 
 const normalize = (value: string) =>
@@ -31,29 +32,6 @@ const normalize = (value: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-const statusLabel = (value: string) =>
-  ({
-    ACTIVE: "En cours",
-    ACTIF: "En cours",
-    PARTIAL: "Partiel",
-    PAID: "Payé",
-    REPAID: "Remboursé",
-    CLOSED: "Clôturé",
-    DISCHARGED: "Soldé",
-    DRAFT: "Brouillon",
-    PENDING: "En attente",
-    APPROVED: "Approuvé",
-    REJECTED: "Rejeté",
-    EARLYEXIT: "Sortie anticipée",
-    CANCELED: "Annulé",
-    CANCELLED: "Annulé",
-    COMPLETED: "Terminé",
-    WRITTEN_OFF: "Clôturé en perte",
-    OVERDUE: "En retard",
-    TRANSFORMED: "Transformé",
-    BLOCKED: "Bloqué",
-    EXTENDED: "Remplacé après rajout",
-  })[value.toUpperCase()] ?? value;
 
 function Party({ party }: { party: FinancialDetailParty }) {
   return (
@@ -114,7 +92,7 @@ export default function FinancialReportDetailDialog({
               row.sourceId,
               row.sourceLabel,
               row.moduleTitle,
-              statusLabel(row.status),
+              financialStatusLabel(row.status),
               ...row.relatedParties.map(
                 (p) => `${p.name} ${p.id ?? ""} ${p.matricule ?? ""}`,
               ),
@@ -345,7 +323,7 @@ export default function FinancialReportDetailDialog({
                               {row.relatedParties.length > 0 && (
                                 <div className="mt-2 space-y-1 border-t pt-2">
                                   <p className="text-xs text-gray-500">
-                                    Garants concernés
+                                    Personnes / groupes associés
                                   </p>
                                   {row.relatedParties.map((p, i) => (
                                     <Party key={p.id ?? i} party={p} />
@@ -358,7 +336,9 @@ export default function FinancialReportDetailDialog({
                                 {row.moduleTitle}
                                 {row.module === "adhesions"
                                   ? " · Dossier"
-                                  : " · Contrat"}
+                                  : row.module === "caisses_collectives"
+                                    ? " · Opération"
+                                    : " · Contrat"}
                               </p>
                               {row.sourceHref ? (
                                 <Link
@@ -380,12 +360,28 @@ export default function FinancialReportDetailDialog({
                               )}
                             </td>
                             <td className="px-3 py-3 text-xs text-gray-600">
-                              {statusLabel(row.status)}
+                              {financialStatusLabel(row.status)}
                             </td>
                             <td
                               className={`whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums ${row.amount < 0 ? "text-red-600" : ""}`}
                             >
                               {amount(row.amount)}
+                              <details className="mt-2 text-left font-normal">
+                                <summary className="cursor-pointer text-xs text-[#234D65]">
+                                  Par mois
+                                </summary>
+                                <dl className="mt-2 space-y-1 text-xs">
+                                  {row.values.map((n, i) => (
+                                    <div
+                                      key={details.months[i]}
+                                      className="flex justify-between gap-4"
+                                    >
+                                      <dt>{details.monthLabels[i]}</dt>
+                                      <dd>{amount(n)}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
+                              </details>
                             </td>
                           </tr>
                         ))}

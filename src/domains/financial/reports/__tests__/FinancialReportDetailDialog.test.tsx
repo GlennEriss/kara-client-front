@@ -217,3 +217,30 @@ describe("consultation du détail financier", () => {
     expect(mock.refresh).toHaveBeenCalled();
   });
 });
+
+it("traduit le retard avec pénalité et permet sa recherche en français", () => {
+  mock.query.mockReturnValue({
+    data: {
+      ...details,
+      rows: [{ ...details.rows[0], status: "LATE_WITH_PENALTY" }],
+    },
+    isPending: false,
+    isError: false,
+    isFetching: false,
+  });
+  render(
+    <FinancialReportDetailDialog
+      report={report}
+      selection={selection}
+      expectedAmount={details.amount}
+      onClose={() => {}}
+    />,
+  );
+  expect(screen.getByText("En retard avec pénalité")).toBeInTheDocument();
+  expect(screen.queryByText("LATE_WITH_PENALTY")).not.toBeInTheDocument();
+  fireEvent.change(
+    screen.getByLabelText("Rechercher une personne ou un contrat"),
+    { target: { value: "retard avec penalite" } },
+  );
+  expect(screen.getByText("En retard avec pénalité")).toBeInTheDocument();
+});

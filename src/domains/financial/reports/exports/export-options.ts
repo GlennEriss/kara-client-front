@@ -18,18 +18,25 @@ export interface ReportExportOptions {
   textLevel: ReportTextLevel
   modules: FinancialReportModuleKey[]
   blocks: FinancialReportBlockKey[]
+  includeContracts?: boolean
 }
 
-export const REPORT_TEXT_LEVELS: Array<{ value: ReportTextLevel; label: string; description: string }> = [
+export const REPORT_TEXT_LEVELS: Array<{
+  value: ReportTextLevel
+  label: string
+  description: string
+}> = [
   {
     value: 'full',
     label: 'Complet',
-    description: 'Guide de lecture, explication de chaque partie et de chaque ligne, bases de calcul.',
+    description:
+      'Guide de lecture, explication de chaque partie et de chaque ligne, bases de calcul.',
   },
   {
     value: 'minimal',
     label: 'Minimal',
-    description: 'Une phrase sous chaque partie et une courte légende de lecture.',
+    description:
+      'Une phrase sous chaque partie et une courte légende de lecture.',
   },
   {
     value: 'none',
@@ -38,7 +45,12 @@ export const REPORT_TEXT_LEVELS: Array<{ value: ReportTextLevel; label: string; 
   },
 ]
 
-export const REPORT_BLOCK_KEYS: FinancialReportBlockKey[] = ['treasury', 'result', 'outstanding', 'risks']
+export const REPORT_BLOCK_KEYS: FinancialReportBlockKey[] = [
+  'treasury',
+  'result',
+  'outstanding',
+  'risks',
+]
 
 /** Légende du niveau minimal : juste ce qu'il faut pour lire les colonnes. */
 export const REPORT_MINIMAL_LEGEND =
@@ -46,21 +58,37 @@ export const REPORT_MINIMAL_LEGEND =
 
 export const DEFAULT_REPORT_EXPORT_OPTIONS: ReportExportOptions = {
   format: 'pdf',
+  includeContracts: true,
   textLevel: 'full',
-  modules: ['synthesis', 'caisse_speciale', 'caisse_imprevue', 'credit_speciale', 'credit_fixe', 'credit_aide', 'placements', 'adhesions'],
+  modules: [
+    'synthesis',
+    'caisse_speciale',
+    'caisse_imprevue',
+    'credit_speciale',
+    'credit_fixe',
+    'credit_aide',
+    'placements',
+    'adhesions',
+    'caisses_collectives',
+  ],
   blocks: REPORT_BLOCK_KEYS,
 }
 
 /** Le bilan réduit aux onglets et aux parties choisis ; un onglet sans partie restante disparaît. */
 export function selectReportContent(
   report: FinancialReport,
-  options: Pick<ReportExportOptions, 'modules' | 'blocks'>
+  options: Pick<ReportExportOptions, 'modules' | 'blocks'>,
 ): FinancialReport {
   return {
     ...report,
     modules: report.modules
       .filter((module) => options.modules.includes(module.key))
-      .map((module) => ({ ...module, blocks: module.blocks.filter((block) => options.blocks.includes(block.key)) }))
+      .map((module) => ({
+        ...module,
+        blocks: module.blocks.filter((block) =>
+          options.blocks.includes(block.key),
+        ),
+      }))
       .filter((module) => module.blocks.length > 0),
   }
 }
@@ -74,14 +102,24 @@ export function loadReportExportOptions(): ReportExportOptions {
     if (!raw) return DEFAULT_REPORT_EXPORT_OPTIONS
     const saved = JSON.parse(raw) as Partial<ReportExportOptions>
     return {
-      format: saved.format === 'excel' || saved.format === 'pdf' ? saved.format : DEFAULT_REPORT_EXPORT_OPTIONS.format,
-      textLevel: REPORT_TEXT_LEVELS.some((level) => level.value === saved.textLevel)
+      includeContracts: saved.includeContracts !== false,
+      format:
+        saved.format === 'excel' || saved.format === 'pdf'
+          ? saved.format
+          : DEFAULT_REPORT_EXPORT_OPTIONS.format,
+      textLevel: REPORT_TEXT_LEVELS.some(
+        (level) => level.value === saved.textLevel,
+      )
         ? (saved.textLevel as ReportTextLevel)
         : DEFAULT_REPORT_EXPORT_OPTIONS.textLevel,
       modules: Array.isArray(saved.modules)
-        ? DEFAULT_REPORT_EXPORT_OPTIONS.modules.filter((key) => saved.modules!.includes(key))
+        ? DEFAULT_REPORT_EXPORT_OPTIONS.modules.filter((key) =>
+            saved.modules!.includes(key),
+          )
         : DEFAULT_REPORT_EXPORT_OPTIONS.modules,
-      blocks: Array.isArray(saved.blocks) ? REPORT_BLOCK_KEYS.filter((key) => saved.blocks!.includes(key)) : REPORT_BLOCK_KEYS,
+      blocks: Array.isArray(saved.blocks)
+        ? REPORT_BLOCK_KEYS.filter((key) => saved.blocks!.includes(key))
+        : REPORT_BLOCK_KEYS,
     }
   } catch {
     return DEFAULT_REPORT_EXPORT_OPTIONS

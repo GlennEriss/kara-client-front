@@ -14,11 +14,23 @@ export const FINANCIAL_REPORT_GUIDE: Array<{ title: string; text: string }> = [
   },
   {
     title: 'Synthèse et onglets',
-    text: 'La synthèse additionne tous les modules. Chaque onglet détaille un module, ligne par ligne, avec ses bases de calcul en bas de page.',
+    text: 'La synthèse additionne tous les modules. Chaque onglet détaille un module, ligne par ligne, avec ses bases de calcul en bas de page. Les annexes par contrat expliquent ces mêmes chiffres : ne pas additionner la synthèse à ses modules ou à ses annexes.',
+  },
+  {
+    title: 'Transferts internes',
+    text: 'Une cotisation affectée par crédit fixe figure en sortie du crédit et en entrée de la caisse collective. Les totaux bruts comprennent ces deux mouvements, sans créer de bénéfice supplémentaire. Les sous-totaux, totaux et lignes pour information ne doivent pas être ajoutés une seconde fois aux lignes qu’ils reprennent.',
+  },
+  {
+    title: 'Caisses collectives',
+    text: 'Les cotisations sont des fonds à remettre, pas des recettes. Seule la redevance retenue à la remise effective est un produit. Le net remis constitue la sortie de trésorerie ; la retenue ne crée pas une seconde entrée. Une prise en charge par crédit fixe est une affectation interne compensant le décaissement du crédit.',
   },
   {
     title: 'Lire une ligne',
     text: 'En gras : sous-totaux et totaux. En italique : lignes données pour information, jamais additionnées. En rouge : montants négatifs. « — » : aucun mouvement dans le mois.',
+  },
+  {
+    title: 'Contrats et dossiers',
+    text: 'La vue Contrats et dossiers permet de retrouver chaque membre, référence et chiffre mensuel. L’export détaillé ajoute un inventaire et les annexes contractuelles. Les informations et statuts du dossier sont actuels ; les montants portent sur la période du bilan.',
   },
   {
     title: 'D’où viennent les chiffres',

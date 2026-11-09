@@ -109,3 +109,8 @@ describe("API détail financier", () => {
     expect(mock.enrich).not.toHaveBeenCalled();
   });
 });
+
+it('autorise aussi le détail des caisses collectives',async()=>{
+  mock.build.mockReturnValue({modules:[{key:'caisses_collectives',blocks:[{key:'result',lines:[{key:'income_fees'}]}]}]});
+  expect((await GET(request({module:'caisses_collectives',block:'result',line:'income_fees'}))).status).toBe(200);
+});

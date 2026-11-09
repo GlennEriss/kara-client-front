@@ -15,14 +15,13 @@ type Identity = { id: string; name: string; matricule?: string };
 
 /** Resolve only people/groups that actually contribute to the opened line.
  * Neither the entire member directory nor private contact fields are read. */
-export async function enrichFinancialReportDetails(
-  db: Firestore,
-  details: FinancialReportDetails,
-): Promise<FinancialReportDetails> {
-  const parties = details.rows.flatMap((row) => [
-    row.party,
-    ...row.relatedParties,
-  ]);
+export async function enrichFinancialReportParties<
+  Row extends {
+    party: FinancialDetailParty;
+    relatedParties: FinancialDetailParty[];
+  },
+>(db: Firestore, rows: Row[]): Promise<Row[]> {
+  const parties = rows.flatMap((row) => [row.party, ...row.relatedParties]);
   const members = new Set(
     parties
       .filter((p) => p.kind !== "group" && p.id && validId(p.id))
@@ -102,12 +101,18 @@ export async function enrichFinancialReportDetails(
         }
       : party;
   };
+  return rows.map((row) => ({
+    ...row,
+    party: enrich(row.party),
+    relatedParties: row.relatedParties.map(enrich),
+  }));
+}
+export async function enrichFinancialReportDetails(
+  db: Firestore,
+  details: FinancialReportDetails,
+): Promise<FinancialReportDetails> {
   return {
     ...details,
-    rows: details.rows.map((row) => ({
-      ...row,
-      party: enrich(row.party),
-      relatedParties: row.relatedParties.map(enrich),
-    })),
+    rows: await enrichFinancialReportParties(db, details.rows),
   };
 }

@@ -2,6 +2,7 @@ import { FINANCIAL_REPORT_MAX_MONTHS, type FinancialReport, type FinancialReport
 import type { FinancialReportSources } from '../entities/financial-report-sources.types'
 import { isEmptyModule } from '../utils/member-report'
 import { listMonths, monthLabel } from '../utils/report-months'
+import { buildCollectiveFundsModule } from './collective-funds'
 import { buildAdhesionsModule } from './adhesions'
 import { buildCaisseImprevueModule } from './caisse-imprevue'
 import { buildCaisseSpecialeModule } from './caisse-speciale'
@@ -21,7 +22,7 @@ export function buildFinancialReport(
 ): FinancialReport {
   const now = period.now ?? new Date()
   const months = listMonths(period.from, period.to, options.maxMonths ?? FINANCIAL_REPORT_MAX_MONTHS)
-  const context = { months, now }
+  const context = { months, now, individual: !!options.subject }
 
   const allModules = [
     buildCaisseSpecialeModule(sources, context),
@@ -31,6 +32,7 @@ export function buildFinancialReport(
     buildCreditModule('AIDE', sources, context),
     buildPlacementsModule(sources, context),
     buildAdhesionsModule(sources, context),
+    buildCollectiveFundsModule(sources, context),
   ]
   const modules = options.subject ? allModules.filter((module) => !isEmptyModule(module)) : allModules
   const synthesis = buildSynthesisModule(modules, months.length)

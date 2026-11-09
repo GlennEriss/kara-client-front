@@ -69,6 +69,16 @@ export async function loadMemberFinancialReportSources(
     if (dossier.exists) membershipRequests.push(toRecord(dossier))
   }
 
+  const viewerIds = [...new Set([memberId, userDoc.data()?.matricule].filter((id): id is string => typeof id === 'string' && !!id))];
+  const groupIds = (Array.isArray(userDoc.data()?.groupIds) ? userDoc.data()!.groupIds : []).filter((id: unknown): id is string => typeof id === 'string' && !!id && !id.includes('/'));
+  const [groupPayouts, contributionLists] = await Promise.all([
+    readWhereIn(db, 'groupPayouts', 'beneficiaryId', viewerIds),
+    Promise.all(groupIds.map(async (groupId: string) => {
+      const snapshot = await db.collection('groups').doc(groupId).collection('contributions').where('memberId', 'in', viewerIds).get();
+      return snapshot.docs.map(doc => ({ ...toRecord(doc), parentId: groupId }));
+    })),
+  ]);
+  const groupContributions = contributionLists.flat();
   const creditIds = creditContracts.map((contract) => contract.id)
   const [
     caisseSpecialePayments,
@@ -117,6 +127,8 @@ export async function loadMemberFinancialReportSources(
       placementCommissions,
       placementEarlyExits,
       membershipRequests,
+      groupPayouts,
+      groupContributions,
     },
   }
 }

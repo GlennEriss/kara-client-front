@@ -26,6 +26,7 @@ import { FINANCIAL_REPORT_GUIDE } from '../entities/financial-report-guide'
 import { formatReportNumber, reportPeriodLabel, TOTAL_COLUMN_LABEL } from '../exports/report-format'
 import { useFinancialReport } from '../hooks/useFinancialReport'
 import { MemberFinancialReportCard } from './MemberFinancialReportCard'
+import FinancialReportContractsDialog from './FinancialReportContractsDialog'
 import type { FinancialDetailSelection } from '../entities/financial-report-details.types'
 
 const FinancialReportExportDialog = dynamic(() => import('./FinancialReportExportDialog'), { ssr: false })
@@ -224,6 +225,7 @@ export default function FinancialReportsPage() {
   const [showDescriptions, setShowDescriptions] = useState(true)
   const [detail, setDetail] = useState<{ report: FinancialReport; selection: FinancialDetailSelection; amount: number } | null>(null)
   // Bilan d'un membre affiché à la place de celui de l'association.
+  const [showContracts, setShowContracts] = useState(false)
   const [memberReport, setMemberReport] = useState<FinancialReport | null>(null)
   const { data: associationReport, isFetching: isFetchingAssociation, error: associationError, refetch } =
     useFinancialReport(isSuperAdmin ? period : null)
@@ -358,6 +360,7 @@ export default function FinancialReportsPage() {
       <ReportGuide />
 
       {exportedReport && <FinancialReportExportDialog open={isExportOpen} onOpenChange={setIsExportOpen} report={exportedReport} />}
+      {showContracts && report && <FinancialReportContractsDialog key={`${report.generatedAt}:${report.subject?.memberId ?? 'association'}`} report={report} initialModule={module?.key} onClose={() => setShowContracts(false)} />}
       {detail && <FinancialReportDetailDialog key={`${detail.report.generatedAt}:${detail.report.subject?.memberId ?? 'association'}:${JSON.stringify(detail.selection)}`} report={detail.report} selection={detail.selection} expectedAmount={detail.amount} onClose={() => setDetail(null)} />}
 
       {error ? (
@@ -420,6 +423,7 @@ export default function FinancialReportsPage() {
               </button>
             ))}
           </div>
+          <Button type="button" variant="outline" onClick={() => setShowContracts(true)}>Voir les contrats et dossiers</Button>
           <p className="text-xs text-[#234D65]">Cliquez sur un montant ou un nombre pour voir les personnes et les contrats concernés, rechercher une référence et exporter le détail.</p>
           <ReportModuleView module={module} report={report} showDescriptions={showDescriptions} onInspect={(selection, amount) => setDetail({ report, selection, amount })} />
         </div>

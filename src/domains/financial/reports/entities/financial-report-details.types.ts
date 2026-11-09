@@ -54,3 +54,18 @@ export interface FinancialReportDetails {
   reconciliationDifference: number;
   rows: FinancialDetailRow[];
 }
+
+/** Financial amounts use exactly the same monthly engines as the aggregate report. */
+export interface FinancialContractReport extends Omit<
+  FinancialDetailRow,
+  "values" | "amount"
+> {
+  sourceKind: "Contrat" | "Dossier" | "Opération";
+  facts: { label: string; value: string }[];
+  blocks: import("./financial-report.types").FinancialReportBlock[];
+}
+export interface FinancialReportContracts {
+  report: import("./financial-report.types").FinancialReport;
+  contracts: FinancialContractReport[];
+  loadedAt: string;
+}

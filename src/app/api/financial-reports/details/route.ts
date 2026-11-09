@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
       "credit_aide",
       "placements",
       "adhesions",
+      "caisses_collectives",
     ].includes(module) ||
     !["treasury", "result", "outstanding", "risks"].includes(block) ||
     !/^[a-z_]+$/.test(line)

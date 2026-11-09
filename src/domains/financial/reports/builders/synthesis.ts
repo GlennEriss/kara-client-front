@@ -50,6 +50,8 @@ export function buildSynthesisModule(modules: FinancialReportModule[], size: num
       'Épargne des membres de la caisse spéciale, à leur rendre.', { kind: 'stock' }),
     makeLine('ci_funds', 'Épargne détenue — Caisse imprévue', values('caisse_imprevue', 'outstanding', 'funds_held'),
       'Épargne des membres de la caisse imprévue, à leur rendre.', { kind: 'stock' }),
+    makeLine('collective_funds', 'Fonds à remettre — Caisses collectives', values('caisses_collectives', 'outstanding', 'funds_held'),
+      'Cotisations réglées, moins les montants bruts des remises déjà enregistrées.', { kind: 'stock' }),
     makeLine('placements_capital', 'Capitaux à restituer — Placements', values('placements', 'outstanding', 'capital_to_return'),
       'Capitaux confiés par les bienfaiteurs, à leur rendre.', { kind: 'stock' }),
   ]
@@ -63,7 +65,7 @@ export function buildSynthesisModule(modules: FinancialReportModule[], size: num
       makeBlock('treasury', [
         ...inLines,
         makeLine('in_total', 'Total des entrées', inTotal,
-          'Tout l’argent entré dans l’association, tous modules confondus.', { level: 'subtotal' }),
+          'Entrées et affectations comptabilisées, tous modules confondus. Les transferts internes sont repris dans les deux sens.', { level: 'subtotal' }),
         ...outLines,
         makeLine('out_total', 'Total des sorties', outTotal,
           'Tout l’argent sorti de l’association, tous modules confondus.', { level: 'subtotal' }),
@@ -102,7 +104,7 @@ export function buildSynthesisModule(modules: FinancialReportModule[], size: num
       ]),
     ],
     notes: [
-      'Trésorerie : l’argent réellement entré et sorti chaque mois. Le solde cumulé part de zéro au début de la période.',
+      'Trésorerie : entrées et sorties comptabilisées chaque mois. Les cotisations affectées par crédit fixe apparaissent en sortie du crédit et en entrée de la caisse collective : ce transfert interne ne change pas le solde global. Les totaux bruts incluent ces affectations dans les deux sens. Le solde cumulé part de zéro au début de la période.',
       'Résultat : ce que l’association gagne (intérêts perçus, pénalités, adhésions…) moins ce qu’elle paie (bonus, commissions, pertes). L’épargne des membres et les capitaux des placements n’en font pas partie.',
       'Encours : les montants à la fin de chaque mois. Les sommes dues à l’association sont des créances ; l’épargne et les capitaux confiés sont des fonds à restituer.',
     ],

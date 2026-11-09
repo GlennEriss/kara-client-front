@@ -1,3 +1,4 @@
+import { financialStatusLabel } from "../utils/contract-report";
 import type {
   FinancialDetailRow,
   FinancialReportDetails,
@@ -23,7 +24,7 @@ export function financialDetailsCsv(
     "Matricule / identifiant",
     "Contrat / dossier",
     "Statut",
-    "Garants concernés",
+    "Personnes / groupes associés",
     ...details.monthLabels,
     details.selection.month
       ? `Montant ${details.selection.month}`
@@ -41,7 +42,7 @@ export function financialDetailsCsv(
         row.party.name,
         row.party.matricule || row.party.id || "",
         row.sourceLabel,
-        row.status,
+        financialStatusLabel(row.status),
         row.relatedParties.map((p) => p.name).join(", "),
         ...row.values,
         row.amount,
