@@ -1,7 +1,7 @@
 import { after, before, test } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing'
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { collection, query, where, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore'
 
 let env
 before(async () => {
@@ -15,13 +15,54 @@ before(async () => {
       setDoc(doc(db, 'users/alice'), { groupIds: ['own'], matricule: 'M001' }),
       setDoc(doc(db, 'users/bob'), { groupIds: ['other'] }),
       setDoc(doc(db, 'users/legacy'), { matricule: 'M003' }),
+      setDoc(doc(db, 'groups/own/contributions/alice-month'), { memberId: 'alice', projectId: 'p1', period: '2026-11', amount: 10000, payments: [] }),
+      setDoc(doc(db, 'groups/own/contributions/bob-month'), { memberId: 'bob', projectId: 'p1', period: '2026-11', amount: 10000, payments: [] }),
+      setDoc(doc(db, 'groups/other/contributions/alice-other'), { memberId: 'alice', projectId: 'p1', period: '2026-11', amount: 10000, payments: [] }),
       setDoc(doc(db, 'groups/own'), { name: 'Mon groupe', projects: [] }),
       setDoc(doc(db, 'groups/other'), { name: 'Autre groupe', projects: [] }),
       setDoc(doc(db, 'admins/manager'), { roles: ['Admin'] }),
+      setDoc(doc(db, 'creditContracts/alice-credit'), { clientId: 'alice', creditType: 'SPECIALE', status: 'ACTIVE' }),
+      setDoc(doc(db, 'creditContracts/alice-fixed'), { clientId: 'alice', creditType: 'FIXE', status: 'ACTIVE' }),
+      setDoc(doc(db, 'creditContracts/bob-fixed'), { clientId: 'bob', creditType: 'FIXE', status: 'ACTIVE' }),
+      setDoc(doc(db, 'creditContracts/bob-credit'), { clientId: 'bob', creditType: 'SPECIALE', status: 'ACTIVE' }),
     ])
   })
 })
 after(async () => { await env?.cleanup() })
+
+test('les crédits du projet restent privés : seul l’emprunteur ou un admin peut lire le contrat', async () => {
+  const db = env.authenticatedContext('alice', { role: 'Adherant' }).firestore()
+  await assertSucceeds(getDoc(doc(db, 'creditContracts/alice-credit')))
+  await assertFails(getDoc(doc(db, 'creditContracts/bob-credit')))
+  await assertFails(updateDoc(doc(db, 'creditContracts/alice-credit'), { groupProject: { groupId: 'own', projectId: 'p1' } }))
+})
+test('un membre peut demander un crédit mais ne peut pas s’attribuer un financement de projet', async () => {
+  const db = env.authenticatedContext('alice', { role: 'Adherant' }).firestore()
+  const demand = { clientId: 'alice', clientFirstName: 'Alice', clientLastName: 'Ondo', creditType: 'SPECIALE', amount: 100000, desiredDate: '2026-11-10', cause: 'Financement de matériel pour mon activité', status: 'PENDING', createdBy: 'alice', createdAt: Timestamp.now(), updatedAt: Timestamp.now() }
+  await assertSucceeds(setDoc(doc(db, 'creditDemands/own-request'), demand))
+  await assertFails(setDoc(doc(db, 'creditDemands/forged-project-request'), { ...demand, groupProject: { groupId: 'own', projectId: 'p1' } }))
+  await assertFails(updateDoc(doc(db, 'creditDemands/own-request'), { status: 'CANCELED', groupProject: { groupId: 'own', projectId: 'p1' } }))
+  const admin = env.authenticatedContext('claim-admin', { role: 'Admin' }).firestore()
+  await assertSucceeds(setDoc(doc(admin, 'creditDemands/project-request'), { ...demand, createdBy: 'claim-admin', groupProject: { groupId: 'own', projectId: 'p1' } }))
+  await assertSucceeds(updateDoc(doc(admin, 'creditContracts/alice-credit'), { groupProject: { groupId: 'own', projectId: 'p1' } }))
+})
+
+test('les crédits fixes du projet restent privés : seul l’emprunteur ou un admin peut lire le contrat', async () => {
+  const db = env.authenticatedContext('alice', { role: 'Adherant' }).firestore()
+  await assertSucceeds(getDoc(doc(db, 'creditContracts/alice-fixed')))
+  await assertFails(getDoc(doc(db, 'creditContracts/bob-fixed')))
+  await assertFails(updateDoc(doc(db, 'creditContracts/alice-fixed'), { groupProject: { groupId: 'own', projectId: 'p1' } }))
+})
+test('un membre peut demander un crédit fixe mais ne peut pas s’attribuer un financement de projet', async () => {
+  const db = env.authenticatedContext('alice', { role: 'Adherant' }).firestore()
+  const demand = { clientId: 'alice', clientFirstName: 'Alice', clientLastName: 'Ondo', creditType: 'FIXE', amount: 100000, desiredDate: '2026-11-10', cause: 'Financement de matériel pour mon activité', status: 'PENDING', createdBy: 'alice', createdAt: Timestamp.now(), updatedAt: Timestamp.now() }
+  await assertSucceeds(setDoc(doc(db, 'creditDemands/own-fixed-request'), demand))
+  await assertFails(setDoc(doc(db, 'creditDemands/forged-fixed-project-request'), { ...demand, groupProject: { groupId: 'own', projectId: 'p1' } }))
+  await assertFails(updateDoc(doc(db, 'creditDemands/own-fixed-request'), { status: 'CANCELED', groupProject: { groupId: 'own', projectId: 'p1' } }))
+  const admin = env.authenticatedContext('claim-admin', { role: 'Admin' }).firestore()
+  await assertSucceeds(setDoc(doc(admin, 'creditDemands/fixed-project-request'), { ...demand, createdBy: 'claim-admin', groupProject: { groupId: 'own', projectId: 'p1' } }))
+  await assertSucceeds(updateDoc(doc(admin, 'creditContracts/alice-fixed'), { groupProject: { groupId: 'own', projectId: 'p1' } }))
+})
 
 test('un membre lit son groupe mais pas un groupe étranger', async () => {
   const db = env.authenticatedContext('alice', { role: 'Adherant' }).firestore()
@@ -64,3 +105,32 @@ test('un admin conserve la liste et la gestion des groupes, via claim ou documen
     await assertSucceeds(deleteDoc(doc(db, 'groups/admin-created')))
   }
 })
+
+
+test('cotisations : un membre lit uniquement ses mois dans ses groupes et ne peut rien écrire', async () => {
+ const db = env.authenticatedContext('alice', {role: 'Adherant'}).firestore()
+ await assertSucceeds(getDoc(doc(db,'groups/own/contributions/alice-month')))
+ await assertSucceeds(getDocs(query(collection(db,'groups/own/contributions'),where('memberId','==','alice'))))
+ await assertFails(getDoc(doc(db,'groups/own/contributions/bob-month')))
+ await assertFails(getDoc(doc(db,'groups/other/contributions/alice-other')))
+ await assertFails(getDocs(collection(db,'groups/own/contributions')))
+ await assertFails(updateDoc(doc(db,'groups/own/contributions/alice-month'),{payments:[{amount:10000,source:'CREDIT_FIXE'}]}))
+ await assertFails(setDoc(doc(db,'groups/own/contributions/forged'),{memberId:'alice',amount:10000,payments:[]}))
+ await assertFails(deleteDoc(doc(db,'groups/own/contributions/alice-month')))
+ const admin = env.authenticatedContext('claim-admin',{role:'Admin'}).firestore()
+ await assertSucceeds(updateDoc(doc(admin,'groups/own/contributions/alice-month'),{updatedBy:'claim-admin'}))
+})
+
+
+test('les remises sont privées, réservées à l’admin et immuables après enregistrement', async () => {
+  const admin = env.authenticatedContext('manager').firestore();
+  const alice = env.authenticatedContext('alice', { role:'Adherant' }).firestore();
+  const record = { groupId:'own',projectId:'p1',beneficiaryId:'alice',grossAmount:50000,feeAmount:1000,netAmount:49000,note:'Note administrative' };
+  await assertSucceeds(setDoc(doc(admin,'groupPayouts/receipt'),record));
+  await assertSucceeds(getDoc(doc(admin,'groupPayouts/receipt')));
+  await assertFails(getDoc(doc(alice,'groupPayouts/receipt')));
+  await assertFails(getDocs(collection(alice,'groupPayouts')));
+  await assertFails(setDoc(doc(alice,'groupPayouts/forged'),record));
+  await assertFails(updateDoc(doc(admin,'groupPayouts/receipt'),{feeAmount:2000}));
+  await assertFails(deleteDoc(doc(admin,'groupPayouts/receipt')));
+});

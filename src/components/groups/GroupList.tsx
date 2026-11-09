@@ -19,14 +19,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatsCard } from "@/components/ui/stats-card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { ModalContent, ModalHeader, ModalFooter } from "@/components/ui/modal";
 import routes from "@/constantes/routes";
 import { listGroups } from "@/db/group.db";
 import {
@@ -111,7 +105,8 @@ export default function GroupList() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-xl text-sm leading-relaxed text-gray-600">
           Des personnes qui s&apos;unissent, des projets qui prennent forme.
-          Retrouvez vos tontines, achats collectifs et autres initiatives.
+          Retrouvez vos caisses collectives, achats collectifs et autres
+          initiatives.
         </p>
         {canManage && (
           <Button
@@ -234,7 +229,7 @@ export default function GroupList() {
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-500">
             {groups.length
               ? "Essayez un autre nom ou affichez tous les types de projets."
-              : "Réunissez des membres pour organiser une tontine, préparer un achat ou avancer sur une idée commune."}
+              : "Réunissez des membres pour organiser une caisse collective, préparer un achat ou avancer sur une idée commune."}
           </p>
           {canManage && !groups.length && (
             <Button
@@ -340,15 +335,21 @@ export default function GroupList() {
           if (!open && !deleting) setToDelete(null);
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Supprimer ce groupe vide ?</DialogTitle>
-            <DialogDescription>
-              Le groupe « {toDelete?.name} » sera supprimé. Un groupe possédant
-              des membres, projets ou contrats ne peut pas être supprimé ici.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+        <ModalContent size="md" showCloseButton={!deleting}>
+          <ModalHeader
+            icon={Trash2}
+            tone="destructive"
+            className="[&_[data-slot=dialog-title]]:break-words"
+            title={<>Supprimer ce groupe vide ?</>}
+            description={
+              <>
+                Le groupe « {toDelete?.name} » sera supprimé. Un groupe
+                possédant des membres, projets ou contrats ne peut pas être
+                supprimé ici.
+              </>
+            }
+          />
+          <ModalFooter>
             <Button
               variant="outline"
               onClick={() => setToDelete(null)}
@@ -360,8 +361,8 @@ export default function GroupList() {
               {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
               Supprimer
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
     </div>
   );

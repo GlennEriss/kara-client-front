@@ -99,7 +99,7 @@ describe('bilan financier', () => {
     expect(report.months[0]).toBe('2025-09')
     expect(report.monthLabels[0]).toBe('sept. 2025')
     expect(report.modules.map((module) => module.key)).toEqual([
-      'synthesis', 'caisse_speciale', 'caisse_imprevue', 'credit_speciale', 'credit_fixe', 'credit_aide', 'placements', 'adhesions',
+      'synthesis', 'caisse_speciale', 'caisse_imprevue', 'credit_speciale', 'credit_fixe', 'credit_aide', 'placements', 'adhesions', 'caisses_collectives',
     ])
   })
 

@@ -47,6 +47,17 @@ describe('sources financières : mêmes chiffres avec moins de lectures', () => 
     expect(buildFinancialReport(actual, options)).toEqual(buildFinancialReport(reference, options))
   })
 
+  it('lit les remises et seulement les cotisations sous les groupes, sans confondre les dons', async () => {
+    const { db,groups,collections }=fixture();
+    const row=(parent:string,id:string) => ({id,data:()=>({memberId:'alice',payments:[{amount:10000,date:'2026-11-01',source:'CASH'}]}),ref:{parent:{parent:{id:'g1',parent:{id:parent}}}}});
+    groups.set('contributions',[row('groups','cotisation'),row('charity-events','don')] as never);
+    collections.set('groupPayouts',[{id:'r1',data:()=>({groupId:'g1',feeAmount:1000})} as never]);
+    const sources=await loadFinancialReportSources(db);
+    expect(sources.groupContributions).toHaveLength(1);
+    expect(sources.groupContributions![0]).toMatchObject({id:'cotisation',parentId:'g1'});
+    expect(sources.groupPayouts).toEqual([{id:'r1',groupId:'g1',feeAmount:1000}]);
+  });
+
   it('partage les lectures avec les alertes de la même requête et relit les données à la requête suivante', async () => {
     const { db, read } = fixture()
     const scope = new FirestoreReadScope(db)

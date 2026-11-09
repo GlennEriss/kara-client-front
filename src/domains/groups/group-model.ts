@@ -10,9 +10,9 @@ export const PROJECT_KINDS: Record<
   { label: string; description: string; placeholder: string }
 > = {
   TONTINE: {
-    label: "Tontine",
+    label: "Caisse collective",
     description: "Organiser une épargne à plusieurs.",
-    placeholder: "Ex. : Tontine des commerçants",
+    placeholder: "Ex. : Caisse collective des commerçants",
   },
   PURCHASE: {
     label: "Achat collectif",
@@ -80,6 +80,7 @@ export function validateGroup(input: {
   name: string;
   memberIds: string[];
   coordinatorId?: string;
+  guarantorId?: string;
   project?: GroupProjectDraft;
 }): void {
   if (!input.name.trim()) throw new Error("Donnez un nom au groupe.");
@@ -96,4 +97,6 @@ export function validateGroup(input: {
         "Les participants du projet doivent faire partie du groupe.",
       );
   }
+  if (!input.guarantorId)
+    throw new Error("Choisissez un membre Kara comme garant du groupe.");
 }

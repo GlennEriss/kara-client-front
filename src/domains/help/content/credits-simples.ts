@@ -76,6 +76,7 @@ export const creditFixeHelp: HelpTopic = {
         {
           type: 'definitions',
           items: [
+            { term: 'Projet de groupe', text: 'Dans Groupes, ouvrez un projet en préparation ou en cours, sélectionnez un participant puis le type de financement. Le crédit fixe est présélectionné et recommandé pour un achat au budget défini. « Demande collective de crédit fixe » répartit le montant de l’achat à parts égales, modifiables, et crée une demande en attente par participant après récapitulatif. Le garant du groupe, membre Kara, est repris sur chaque demande ; un autre garant est exigé pour sa propre part s’il emprunte. Vous pouvez aussi créer une demande individuelle préremplie ou rattacher un contrat fixe existant après confirmation. Le contrat reste individuel ; le lien au projet est conservé de la demande au contrat. Le projet rassemble les fonds remis, remboursements et intérêts encaissés. Dans son espace, le membre suit uniquement sa participation et ses versements directement dans le groupe, avec le vocabulaire associatif du portail et sans lien vers une fiche de crédit.' },
             { term: 'Intérêt unique', text: 'Montant × taux (jusqu’à 50 %), appliqué une fois. Total à rembourser = montant + intérêt.' },
             { term: 'Durée', text: 'De 1 à 14 mois ; montant de 1 000 à 10 000 000 FCFA.' },
             { term: 'Manque à gagner', text: '10 % du reste dû pour chaque échéance déjà arrivée au-delà de la durée prévue, tant que le contrat n’est pas soldé. Les mois futurs ne sont pas comptés.' },

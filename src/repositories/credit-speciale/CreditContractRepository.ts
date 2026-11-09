@@ -105,7 +105,10 @@ export class CreditContractRepository implements ICreditContractRepository {
             const contractId = customId || doc(collection(db, firebaseCollectionNames.creditContracts || "creditContracts")).id;
             const contractRef = doc(db, firebaseCollectionNames.creditContracts || "creditContracts", contractId);
 
-            await setDoc(contractRef, {
+            if (cleanData.groupProject) {
+                const { createLinkedCreditRecord } = await import('@/domains/groups/project-credit-service');
+                await createLinkedCreditRecord('creditContracts', contractId, cleanData);
+            } else await setDoc(contractRef, {
                 ...cleanData,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),

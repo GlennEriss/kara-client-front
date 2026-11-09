@@ -9,6 +9,7 @@ import MissedEarningsReceiptModal from './MissedEarningsReceiptModal'
 import CreditWriteOffModal from './CreditWriteOffModal'
 import CreditWriteOffSection from './CreditWriteOffSection'
 import ShopPurchaseSection from './ShopPurchaseSection'
+import { CreditProjectBadge } from '@/components/groups/CreditProjectBadge'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import { canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
@@ -2278,6 +2279,7 @@ export default function CreditContractDetail({
           <ShopPurchaseSection contract={contract} canManage={isSuperAdmin || can('creditSpeciale.payment')} />
         )}
 
+        <CreditProjectBadge link={contract.groupProject} />
         {/* Onglets */}
         <Card className="border-0 shadow-xl">
           <CardContent className="p-0">

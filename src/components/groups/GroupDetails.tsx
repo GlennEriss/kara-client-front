@@ -23,14 +23,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { ModalContent, ModalHeader, ModalFooter } from "@/components/ui/modal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getGroupById } from "@/db/group.db";
 import { getMembersByGroup } from "@/db/member.db";
@@ -330,8 +324,8 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
         Quel sera votre premier projet ?
       </h3>
       <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-        Une tontine, un achat de matériel ou une autre initiative. Choisissez
-        les participants parmi les membres du groupe.
+        Une caisse collective, un achat de matériel ou une autre initiative.
+        Choisissez les participants parmi les membres du groupe.
       </p>
       {canEditMembers && (
         <Button
@@ -434,6 +428,13 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
               {coordinator
                 ? memberName(coordinator)
                 : group.coordinatorName || "À définir"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500">Garant du groupe</dt>
+            <dd className="mt-1 break-words text-sm font-medium">
+              {group.guarantorName ||
+                "À renseigner dans les informations du groupe"}
             </dd>
           </div>
         </dl>
@@ -729,6 +730,7 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
       {selectedProject && (
         <GroupProjectDetailDialog
           groupId={group.id}
+          group={group}
           project={selectedProject}
           members={groupMembers}
           canManage={canEditMembers}
@@ -757,21 +759,26 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
           if (!open && !isRemoving) setToRemove(null);
         }}
       >
-        <DialogContent showCloseButton={!isRemoving}>
-          <DialogHeader>
-            <DialogTitle>
-              Retirer {toRemove ? memberName(toRemove) : "ce membre"} ?
-            </DialogTitle>
-            <DialogDescription>
-              Cette personne sera retirée du groupe et des projets en
-              préparation ou en cours. Les projets terminés conservent leurs
-              participants dans l’historique.
-              {toRemove?.id === group.coordinatorId
-                ? " Le référent du groupe sera à redéfinir."
-                : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+        <ModalContent size="md" showCloseButton={!isRemoving}>
+          <ModalHeader
+            icon={Users}
+            tone="warning"
+            className="[&_[data-slot=dialog-title]]:break-words"
+            title={
+              <>Retirer {toRemove ? memberName(toRemove) : "ce membre"} ?</>
+            }
+            description={
+              <>
+                Cette personne sera retirée du groupe et des projets en
+                préparation ou en cours. Les projets terminés conservent leurs
+                participants dans l’historique.
+                {toRemove?.id === group.coordinatorId
+                  ? " Le référent du groupe sera à redéfinir."
+                  : ""}
+              </>
+            }
+          />
+          <ModalFooter>
             <Button
               variant="outline"
               disabled={isRemoving}
@@ -787,8 +794,8 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
               {isRemoving && <Loader2 className="h-4 w-4 animate-spin" />}
               Retirer du groupe
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
     </div>
   );

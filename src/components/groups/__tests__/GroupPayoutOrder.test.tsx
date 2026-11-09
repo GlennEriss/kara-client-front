@@ -28,7 +28,7 @@ vi.mock("@/domains/groups/useGroupWorkspace", () => ({
 }));
 const project: GroupProject = {
   id: "p1",
-  name: "Tontine mensuelle",
+  name: "Caisse collective mensuelle",
   kind: "TONTINE",
   status: "PLANNED",
   description: "",

@@ -23,6 +23,8 @@ import { Calendar, CheckCircle, Loader2, Search, User } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
+import type { GroupCreditProjectLink, User as Member } from '@/types/types'
+import { isGroupGuarantor } from '@/domains/groups/group-guarantor'
 
 interface CreateCreditDemandModalProps {
   isOpen: boolean
@@ -30,6 +32,13 @@ interface CreateCreditDemandModalProps {
   initialClientId?: string
   initialCreditType?: 'SPECIALE' | 'FIXE' | 'AIDE'
   lockCreditType?: boolean
+  initialClient?: Member
+  initialGuarantorId?: string
+  initialAmount?: number
+  initialCause?: string
+  lockAmount?: boolean
+  groupProject?: GroupCreditProjectLink
+  onCreated?: () => void
 }
 
 export default function CreateCreditDemandModal({ 
@@ -38,10 +47,19 @@ export default function CreateCreditDemandModal({
   initialClientId,
   initialCreditType,
   lockCreditType = false,
+  initialClient,
+  initialGuarantorId,
+  initialAmount,
+  initialCause,
+  lockAmount = false,
+  groupProject,
+  onCreated,
 }: CreateCreditDemandModalProps) {
   const { create } = useCreditDemandMutations()
   const { data: membersData } = useAllMembers({}, 1, 1000)
-  const members = membersData?.data || []
+  const [prefilledGuarantor, setPrefilledGuarantor] = useState<Member | null>(null)
+  const suppliedMembers = [initialClient, prefilledGuarantor].filter((m): m is Member => !!m)
+  const members = [...suppliedMembers, ...(membersData?.data || []).filter(m => !suppliedMembers.some(s => s.id === m.id))]
   
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(initialClientId)
   const [selectedGuarantorId, setSelectedGuarantorId] = useState<string | undefined>()
@@ -57,6 +75,8 @@ export default function CreateCreditDemandModal({
       status: 'PENDING',
       clientContacts: [],
       guarantorIsMember: false,
+      ...(initialAmount !== undefined ? {amount: initialAmount} : {}),
+      ...(initialCause ? {cause: initialCause} : {}),
     },
   })
 
@@ -65,6 +85,33 @@ export default function CreateCreditDemandModal({
       form.setValue('creditType', initialCreditType, { shouldValidate: true })
     }
   }, [form, initialCreditType, isOpen])
+
+  useEffect(() => {
+    if (isOpen && initialClient) {
+      setSelectedClientId(initialClient.id)
+      form.setValue('clientId', initialClient.id)
+      form.setValue('clientFirstName', initialClient.firstName || '')
+      form.setValue('clientLastName', initialClient.lastName || '')
+      form.setValue('clientContacts', initialClient.contacts || [])
+    }
+  }, [form, initialClient, isOpen])
+
+  useEffect(() => {
+    let cancelled = false
+    if (isOpen && initialGuarantorId) {
+      void getUserById(initialGuarantorId).then(member => {
+        if (cancelled || !member || !isGroupGuarantor(member) || form.getValues('guarantorId')) return
+        setPrefilledGuarantor(member)
+        setSelectedGuarantorId(member.id)
+        form.setValue('guarantorId', member.id)
+        form.setValue('guarantorFirstName', member.firstName || '')
+        form.setValue('guarantorLastName', member.lastName || '')
+        form.setValue('guarantorRelation', 'Autre')
+        form.setValue('guarantorIsMember', true)
+      }).catch(() => { /* The usual guarantor selector remains available. */ })
+    }
+    return () => { cancelled = true }
+  }, [form, initialGuarantorId, isOpen])
 
   const selectedCreditType = form.watch('creditType')
   const isSimpleCredit = selectedCreditType === 'FIXE' || selectedCreditType === 'AIDE'
@@ -153,13 +200,19 @@ export default function CreateCreditDemandModal({
         toast.error('Vous devez être connecté pour créer une demande')
         return
       }
+      if (groupProject && data.clientId !== initialClient?.id) {
+        toast.error('Choisissez le participant depuis la fiche du projet.')
+        return
+      }
       
       await create.mutateAsync({
         ...data,
         monthlyPaymentAmount: (data.creditType === 'FIXE' || data.creditType === 'AIDE' || data.shopPurchase) ? undefined : data.monthlyPaymentAmount,
         createdBy: user.uid,
         guarantorIsMember: data.guarantorIsMember ?? false,
+        ...(groupProject ? { groupProject: { ...groupProject, linkedByName: user.displayName || user.email || 'Administrateur' } } : {}),
       })
+      onCreated?.()
       form.reset()
       setSelectedClientId(undefined)
       setSelectedGuarantorId(undefined)
@@ -183,12 +236,12 @@ export default function CreateCreditDemandModal({
           <div className="flex items-start justify-between gap-3 pr-8">
             <div>
               <DialogTitle className="text-base">
-                {lockCreditType && initialCreditType === 'SPECIALE'
-                  ? 'Nouvelle demande de crédit spéciale'
+                {lockCreditType && initialCreditType
+                  ? `Nouvelle demande de ${creditTypeLabel.toLowerCase()}`
                   : 'Nouvelle demande de crédit'}
               </DialogTitle>
               <DialogDescription className="mt-0.5">
-                {lockCreditType && initialCreditType === 'SPECIALE'
+                {lockCreditType && initialCreditType
                   ? 'Remplissez les informations du client, du crédit et du garant.'
                   : 'Créez une nouvelle demande de crédit spéciale, fixe ou aide.'}
               </DialogDescription>
@@ -202,6 +255,7 @@ export default function CreateCreditDemandModal({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
             <ModalBody className="space-y-5">
+              {groupProject && <div className="rounded-xl border border-[#234D65]/20 bg-[#234D65]/5 p-3 text-sm text-[#234D65]">Financement individuel du projet <strong>{groupProject.projectName || groupProject.projectId}</strong>. Le participant sélectionné conserve son propre contrat et ses remboursements.</div>}
               {/* Type de crédit (masqué si verrouillé) */}
               {!lockCreditType ? (
                 <Card className="border border-slate-200/80 bg-white shadow-sm">
@@ -222,13 +276,13 @@ export default function CreateCreditDemandModal({
                             </FormControl>
                             <SelectContent className="rounded-xl border border-slate-200">
                               <SelectItem value="SPECIALE">Spéciale (≤7 mois)</SelectItem>
-                              <SelectItem value="FIXE">Fixe (illimité)</SelectItem>
+                              <SelectItem value="FIXE">Fixe (≤14 mois)</SelectItem>
                               <SelectItem value="AIDE">Aide (≤3 mois)</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormDescription>
                             {field.value === 'SPECIALE' && 'Crédit spéciale : durée maximale de 7 mois'}
-                            {field.value === 'FIXE' && "Crédit fixe : durée illimitée jusqu'au remboursement complet"}
+                            {field.value === 'FIXE' && "Crédit fixe : intérêt calculé une seule fois, échéancier de 1 à 14 mois"}
                             {field.value === 'AIDE' && 'Crédit aide : durée maximale de 3 mois'}
                           </FormDescription>
                           <FormMessage />
@@ -257,7 +311,7 @@ export default function CreateCreditDemandModal({
                   <h3 className="text-lg font-bold text-slate-900">Client</h3>
 
                   <div className="space-y-4">
-                    <div>
+                    <div hidden={!!groupProject}>
                       <label className="mb-2 block text-sm font-medium text-slate-700">Rechercher un membre</label>
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -341,6 +395,7 @@ export default function CreateCreditDemandModal({
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                               disabled={isShopPurchase}
+                              readOnly={lockAmount}
                               className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
                             />
                           </FormControl>

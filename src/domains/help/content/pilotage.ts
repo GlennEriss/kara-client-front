@@ -222,7 +222,7 @@ export const bilansFinanciersHelp: HelpTopic = {
         {
           type: 'definitions',
           items: [
-            { term: 'Trésorerie', text: 'L’argent réellement entré et sorti chaque mois.' },
+            { term: 'Trésorerie', text: 'Les entrées et sorties enregistrées chaque mois. Les totaux bruts comprennent aussi les affectations internes entre modules, présentées dans les deux sens ; elles ne constituent pas une nouvelle recette.' },
             { term: 'Résultat', text: 'Ce que l’association gagne (intérêts perçus, pénalités, adhésions…) moins ce qu’elle paie (bonus, commissions, pertes).' },
             { term: 'Encours et créances', text: 'À la fin de chaque mois : ce que les membres doivent encore, et ce que l’association doit rendre (épargne, capitaux des placements).' },
             { term: 'Pertes et risques', text: 'Le manque à gagner généré par les échéances déjà arrivées, les pertes comptables des crédits clôturés en perte, les pénalités impayées et les échéances en retard. Les mois futurs ne sont pas comptés.' },
@@ -240,7 +240,24 @@ export const bilansFinanciersHelp: HelpTopic = {
             'Choisissez une période toute faite (3, 6, 12 derniers mois, année en cours, année précédente) ou un intervalle de mois, puis « Générer le bilan ».',
             'Passez d’un onglet à l’autre : Synthèse, puis un onglet par module.',
             'L’interrupteur « Afficher les explications des lignes » montre ou masque le sens de chaque ligne.',
+            'Cliquez sur un montant ou un nombre pour retrouver les personnes, groupes, contrats et dossiers qui le composent. Un clic dans un mois porte sur ce mois ; un clic dans « Total / fin » porte sur la somme de la période pour un flux, ou sur la valeur finale pour un encours.',
           ],
+        },
+        {
+          type: 'steps',
+          title: 'Retrouver les personnes et contrats d’un montant',
+          items: [
+            'Dans la synthèse ou l’onglet d’un module, cliquez sur la cellule à examiner. Le détail affiche le nom, le matricule ou identifiant, la référence du contrat ou dossier, son statut actuel et sa contribution au montant choisi.',
+            'Utilisez la recherche par nom, matricule ou référence. Dans une synthèse couvrant plusieurs modules, filtrez aussi par module. Les garants rémunérés sur les crédits sont indiqués sous le client concerné.',
+            'Cliquez sur un nom ou une référence pour ouvrir sa fiche dans un nouvel onglet. Si une ancienne fiche n’existe plus, son identifiant et son montant sont conservés, sans inventer de lien ou de personne.',
+            '« Exporter le détail (CSV) » télécharge toutes les lignes correspondant aux filtres, y compris les pages suivantes, avec les colonnes mensuelles. Ce téléchargement complète les exports Excel et PDF du bilan global.',
+            'Le détail est recalculé à son ouverture. Si une opération a changé depuis la génération du bilan, un message demande de régénérer le bilan. Un éventuel écart entre arrondis individuels et total global est signalé séparément.',
+          ],
+        },
+        {
+          type: 'steps',
+          title: 'Consulter tous les contrats et dossiers du bilan',
+          items: ['Après génération, cliquez sur « Voir les contrats et dossiers ». La vue reprend le module ouvert ; choisissez « Tous les modules » pour parcourir le bilan entier.', 'Recherchez par nom, matricule ou référence et filtrez par module ou statut. Chaque dossier affiche le membre ou groupe, sa référence, son statut actuel, les personnes associées et ses entrées, sorties et résultat sur la période.', '« Détail mensuel » ouvre les informations du dossier enregistrées (dates, durée, montants selon le type) et les tableaux de trésorerie, résultat, encours et risques calculés pour ce contrat. Les lignes à zéro sont masquées par défaut et peuvent être affichées.', '« Ouvrir la fiche » donne accès au contrat complet. Le bilan conserve aussi les montants d’un ancien contrat disparu, avec la mention Contrat introuvable, sans fabriquer de fiche.', '« Détail complet (CSV) » exporte tous les dossiers filtrés, au-delà de la page affichée, avec chaque indicateur et ses valeurs mensuelles. Un encours correspond à la fin du mois ; il ne faut pas additionner ses mois.'],
         },
         {
           type: 'steps',
@@ -258,6 +275,10 @@ export const bilansFinanciersHelp: HelpTopic = {
           items: [
             'Cliquez sur « Exporter (Excel ou PDF) ».',
             'Choisissez le format, le niveau d’explication (complet, minimal ou sans texte), les onglets et les parties à inclure.',
+            'L’option « Inclure les membres et le détail par contrat » est activée par défaut : Excel ajoute les feuilles Contrats et dossiers et Détail par contrat ; PDF ajoute les fiches détaillées des contrats en annexe. Vous pouvez décocher cette option pour exporter seulement les tableaux agrégés.',
+            'Les annexes suivent les modules et parties choisis. Si la synthèse est sélectionnée, elles incluent les dossiers de tous les modules qui la composent. Les filtres de recherche de la fenêtre de consultation ne limitent pas cet export global ; utilisez son export CSV pour télécharger seulement les résultats filtrés.',
+            'Les dossiers sont relus avant l’export détaillé. Si les montants ont changé depuis la génération, l’export est interrompu avec une invitation à régénérer le bilan, pour ne pas mélanger anciens totaux et nouvelles annexes.',
+            'Dans le PDF, les périodes longues sont réparties sur des tableaux de six mois au plus. La dernière colonne reste le total de toute la période, ou la situation à sa fin. Dans Excel, les en-têtes sont figés et les filtres des annexes permettent de retrouver un membre ou un contrat.',
             'Vos choix sont retenus pour le prochain export.',
           ],
         },
@@ -269,8 +290,13 @@ export const bilansFinanciersHelp: HelpTopic = {
         {
           type: 'definitions',
           items: [
+            { term: 'Statuts des dossiers', text: 'Les statuts sont présentés en français dans la page et les exports. « En retard avec pénalité » signale un retard avec pénalité appliquée ; « En retard sans pénalité » distingue le retard sans pénalité. « Remboursement final en attente » et « Remboursement anticipé en attente » indiquent les opérations restant à finaliser. Le statut est celui du dossier actuellement, tandis que les chiffres portent sur la période choisie.' },
             { term: 'Total / fin', text: 'La somme des mois pour un montant du mois ; la valeur à la fin de la période pour un montant « fin de mois ».' },
+            { term: 'Détail par contrat ou dossier', text: 'Les mêmes moteurs de calcul ventilent la ligne choisie. Les montants négatifs restent visibles, ainsi que les contrats dont le solde est nul sur la période mais qui ont des mouvements mensuels. Le total filtré concerne toutes les pages de résultats, pas seulement la page visible.' },
             { term: 'Épargne et capitaux', text: 'Ce sont des fonds à rendre : ils entrent en trésorerie mais pas dans le résultat.' },
+            { term: 'Synthèse, modules et contrats', text: 'Ces vues présentent les mêmes opérations à des niveaux différents. Les contrats expliquent les montants d’un module, et les modules composent la synthèse. Il ne faut pas additionner la synthèse à ses modules ou à ses annexes. Les sous-totaux, totaux et lignes pour information ne s’ajoutent pas une seconde fois aux lignes qu’ils reprennent.' },
+            { term: 'Transferts internes', text: 'Une cotisation prise en charge par crédit fixe figure en sortie du crédit et en entrée de la caisse collective. Ces deux mouvements figurent dans les totaux bruts, sans créer de bénéfice supplémentaire. Les intérêts effectivement perçus restent dans le module du crédit.' },
+            { term: 'Caisses collectives et redevances', text: 'Les cotisations restent des fonds à remettre aux bénéficiaires. Seule la redevance retenue à la remise effective est une recette de Kara. Pour 50 000 FCFA de caisse et 1 000 FCFA de redevance, le net remis est de 49 000 FCFA ; la retenue ne crée pas une seconde entrée de trésorerie. Les fonds restant à remettre diminuent du montant brut de 50 000 FCFA.' },
             { term: 'Intérêts perçus', text: 'Crédit spécial : un versement paie au plus les intérêts de son mois. Crédits fixe et aide : l’intérêt unique est réparti au prorata des versements.' },
             { term: 'Reste dû', text: 'Montant prêté + intérêts arrivés à échéance − versements ; nul dès qu’un contrat est soldé, clos ou clôturé en perte.' },
             { term: 'Période', text: '36 mois au plus, sans mois futur. Le bilan est recalculé à chaque génération à partir de toutes les données.' },

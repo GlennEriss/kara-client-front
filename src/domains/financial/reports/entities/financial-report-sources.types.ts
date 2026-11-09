@@ -31,10 +31,13 @@ export interface FinancialReportSources {
   placementEarlyExits: ChildRecord[]
   /** Demandes d'adhésion, avec leur tableau `payments`. */
   membershipRequests: SourceRecord[]
+  groupPayouts?: SourceRecord[]
+  groupContributions?: ChildRecord[]
 }
 
 export interface FinancialReportContext {
   months: string[]
   /** Date du calcul : rien n'est compté après elle. */
   now: Date
+  individual?: boolean
 }

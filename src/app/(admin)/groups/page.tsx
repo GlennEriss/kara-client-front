@@ -15,7 +15,7 @@ export default function GroupsPage() {
       <PageHero
         icon={Users}
         title="Groupes et projets collectifs"
-        subtitle="Réunissez des membres autour d’une tontine, d’un achat ou d’une idée commune."
+        subtitle="Réunissez des membres autour d’une caisse collective, d’un achat ou d’une idée commune."
       />
 
       {/* useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build */}
