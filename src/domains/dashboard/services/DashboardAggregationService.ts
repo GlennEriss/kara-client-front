@@ -20,6 +20,7 @@ import type { FinancialReportSources } from '@/domains/financial/reports/entitie
 import { loadFinancialReportSources } from '@/domains/financial/reports/services/loadFinancialReportSources'
 import { FirestoreReadScope } from '@/domains/financial/reports/services/FirestoreReadScope'
 import { currentMonthKey } from '@/domains/financial/reports/utils/report-months'
+import { buildDashboardFinancialRankings, buildRecentMembersRanking } from './buildDashboardRankings'
 
 type FirestoreRecord = Record<string, unknown> & { id: string }
 
@@ -149,8 +150,8 @@ function resolveDateRange(filters: DashboardFilters): DateRange | null {
       return null
     }
 
-    const from = new Date(`${filters.customFrom}T00:00:00`)
-    const to = new Date(`${filters.customTo}T23:59:59`)
+    const from = new Date(`${filters.customFrom}T00:00:00+01:00`)
+    const to = new Date(`${filters.customTo}T23:59:59.999+01:00`)
 
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       return null
@@ -159,33 +160,21 @@ function resolveDateRange(filters: DashboardFilters): DateRange | null {
     return { from, to }
   }
 
-  if (filters.period === 'today') {
-    const from = new Date(now)
-    from.setHours(0, 0, 0, 0)
-
-    const to = new Date(now)
-    to.setHours(23, 59, 59, 999)
-    return { from, to }
-  }
+  // Les jours du dashboard suivent Libreville, même si le serveur est en UTC.
+  const localNow = new Date(now.getTime() + 60 * 60 * 1000)
+  const localDay = localNow.toISOString().slice(0, 10)
+  const endOfToday = new Date(`${localDay}T23:59:59.999+01:00`)
+  if (filters.period === 'today') return { from: new Date(`${localDay}T00:00:00+01:00`), to: endOfToday }
 
   if (filters.period === '7d' || filters.period === '30d') {
     const days = filters.period === '7d' ? 6 : 29
-    const from = new Date(now)
-    from.setHours(0, 0, 0, 0)
-    from.setDate(from.getDate() - days)
-
-    const to = new Date(now)
-    to.setHours(23, 59, 59, 999)
-    return { from, to }
+    const firstDay = new Date(localNow)
+    firstDay.setUTCDate(firstDay.getUTCDate() - days)
+    return { from: new Date(`${firstDay.toISOString().slice(0, 10)}T00:00:00+01:00`), to: endOfToday }
   }
 
   if (filters.period === 'month') {
-    const from = new Date(now.getFullYear(), now.getMonth(), 1)
-    from.setHours(0, 0, 0, 0)
-
-    const to = new Date(now)
-    to.setHours(23, 59, 59, 999)
-    return { from, to }
+    return { from: new Date(`${localDay.slice(0, 7)}-01T00:00:00+01:00`), to: endOfToday }
   }
 
   return null
@@ -622,12 +611,13 @@ function createDistribution(
   }
 }
 
-function createRanking(key: string, title: string, items: DashboardRankingBlock['items'], unit?: string): DashboardRankingBlock {
+function createRanking(key: string, title: string, items: DashboardRankingBlock['items'], unit?: string, description?: string): DashboardRankingBlock {
   return {
     key,
     title,
     unit,
     items,
+    description,
   }
 }
 
@@ -636,7 +626,7 @@ async function getMemberScope(filters: DashboardFilters, reader?: FirestoreReadS
   const allMembers = rawUsers.map(toMemberRecord).filter((user): user is DashboardMemberRecord => user !== null)
 
   const scopedMembers = allMembers.filter((member) => matchesMemberFilter(member, filters))
-  const scopedMemberIds = new Set(scopedMembers.map((member) => member.id))
+  const scopedMemberIds = new Set(scopedMembers.flatMap((member) => [member.id, ...(member.matricule ? [member.matricule] : [])]))
 
   const hasMemberScope = filters.memberType !== 'all' || filters.zoneProvince !== 'all' || filters.zoneCity !== 'all'
 
@@ -1619,6 +1609,7 @@ function buildGroupesPayload(groupsRaw: FirestoreRecord[], memberScope: MemberSc
         label,
         value: count,
         subLabel: group.id,
+        href: routes.admin.groupDetails(encodeURIComponent(group.id)),
       }
     })
     .sort((a, b) => b.value - a.value)
@@ -1640,7 +1631,7 @@ function buildGroupesPayload(groupsRaw: FirestoreRecord[], memberScope: MemberSc
       ], 'pie', 'groupes'),
     ],
     rankings: [
-      createRanking('top_groups', 'Principaux groupes par effectif', topGroups, 'membres'),
+      createRanking('top_groups', 'Principaux groupes par effectif', topGroups, 'membres', 'Effectif actuel des groupes, après les filtres de type de membre et de zone. La période ne limite pas cet effectif.'),
     ],
   }
 }
@@ -2432,6 +2423,10 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       financialReport,
       filters
     )
+    snapshot.rankings = [
+      ...(snapshot.rankings ?? []),
+      buildRecentMembersRanking(memberScope.scopedMembers, membershipRequestsRaw, dateRange, new Date()),
+    ]
   } else if (activeTab === 'caisse_speciale') {
     const [demandsRaw, contractsRaw, paymentsRaw] = await Promise.all([
       readCollection(firebaseCollectionNames.caisseSpecialeDemands),
@@ -2580,7 +2575,12 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     const { adminFirestore } = await import('@/firebase/adminFirestore')
     if (!adminFirestore) throw new Error('Firestore admin indisponible pour le calcul financier')
     const sources = scopeFinancialSources(await loadFinancialReportSources(adminFirestore, reader), memberScope)
-    snapshot = applyAuthoritativeModuleFinancials(snapshot, buildCurrentFinancialReport(sources), financialModule)
+    const report = buildCurrentFinancialReport(sources)
+    snapshot = applyAuthoritativeModuleFinancials(snapshot, report, financialModule)
+    snapshot.rankings = [
+      ...(snapshot.rankings ?? []),
+      ...buildDashboardFinancialRankings(sources, report, financialModule, memberScope.scopedMembers, dateRange, new Date()),
+    ]
   }
 
   return {
