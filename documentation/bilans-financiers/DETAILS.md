@@ -20,6 +20,16 @@ Le calcul normal du bilan et du tableau de bord ne charge pas ce détail. À l�
 
 La somme des contributions est rapprochée de la ligne du bilan. Un éventuel écart d’arrondi ou de ventilation est présenté séparément. Si les données ont changé depuis l’ouverture du bilan, le montant recalculé est comparé à la cellule affichée et l’interface invite à régénérer le bilan. Il ne s’agit pas d’un instantané historique des documents : les statuts sont les statuts actuels.
 
+## Assurances véhicules
+
+L’onglet **Véhicules — Assurances** lit `vehicleInsuranceRewards`, une opération par période initiale ou renouvellement. La prime est informative. Une commission attendue n’est ni une entrée, ni un gain, ni une créance incluse dans la synthèse.
+
+La réception utilise `partnerReceipt.amount` et `partnerReceipt.receivedAt`. À cette date, le résultat est la commission reçue moins `memberAmount` ; cette part du parrain devient une dette. La sortie utilise exclusivement la remise datée `memberPayment.paidAt`, après réception : un statut ou une notification seuls ne déclenchent pas de sortie. La remise éteint la dette sans seconde charge. Les événements futurs ou sans date valide ne sont pas traités comme des mouvements réalisés. Les dettes antérieures à la période sont conservées.
+
+La synthèse reprend les entrées, sorties, résultat et parts restant à reverser. Les détails et annexes présentent le parrain bénéficiaire, le titulaire, l’assureur, la plaque, la police, les dates, références et justificatifs disponibles. Les fiches d’assurance sont lues par identifiant avec une projection limitée aux noms et références ; aucune pièce ni contact de la fiche n’est chargé. Une fiche disparue ne supprime pas l’historique financier.
+
+Le bilan individuel administratif rattache une période uniquement au parrain bénéficiaire, par identifiant ou matricule, avec déduplication. Ces routes restent réservées au SuperAdmin ; les commissions des assureurs ne sont pas exposées à l’espace membre.
+
 ## Vérification
 
 ```sh

@@ -3,7 +3,7 @@ import type { CreditContract, CreditPayment, CreditPenalty, GuarantorPayment } f
 import type { DocumentSnapshot, Firestore, Query } from 'firebase-admin/firestore'
 import type { FinancialReportSubject } from '../entities/financial-report.types'
 import type { ChildRecord, FinancialReportSources, SourceRecord } from '../entities/financial-report-sources.types'
-import { toRecord } from './loadFinancialReportSources'
+import { loadVehicleInsuranceMetadata, toRecord } from './loadFinancialReportSources'
 
 /** Limite de valeurs d'un filtre `in` Firestore. */
 const IN_QUERY_LIMIT = 30
@@ -79,6 +79,13 @@ export async function loadMemberFinancialReportSources(
     })),
   ]);
   const groupContributions = contributionLists.flat();
+  // Bilan administratif du parrain : seules les périodes dont il est bénéficiaire.
+  const vehicleLists = await Promise.all([
+    readWhereIn(db, names.vehicleInsuranceRewards, 'beneficiaryId', viewerIds),
+    readWhereIn(db, names.vehicleInsuranceRewards, 'beneficiaryMatricule', viewerIds),
+  ])
+  const vehicleRewards = [...new Map(vehicleLists.flat().map(reward => [reward.id, reward])).values()]
+  const vehicleInsurances = await loadVehicleInsuranceMetadata(db, vehicleRewards)
   const creditIds = creditContracts.map((contract) => contract.id)
   const [
     caisseSpecialePayments,
@@ -129,6 +136,8 @@ export async function loadMemberFinancialReportSources(
       membershipRequests,
       groupPayouts,
       groupContributions,
+      vehicleRewards,
+      vehicleInsurances,
     },
   }
 }

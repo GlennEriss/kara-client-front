@@ -70,6 +70,7 @@ export const DEFAULT_REPORT_EXPORT_OPTIONS: ReportExportOptions = {
     'placements',
     'adhesions',
     'caisses_collectives',
+    'vehicules',
   ],
   blocks: REPORT_BLOCK_KEYS,
 }

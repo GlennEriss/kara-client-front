@@ -1,5 +1,6 @@
 import routes from "@/constantes/routes";
 import type { CreditType } from "@/types/types";
+import { PAYMENT_MODE_LABELS } from "@/constantes/membership-requests";
 import { isUnknownGuarantor } from "@/utils/credit-guarantor";
 import type {
   FinancialReport,
@@ -25,6 +26,7 @@ import { buildCaisseSpecialeModule } from "./caisse-speciale";
 import { buildCreditModule } from "./credits";
 import { buildPlacementsModule } from "./placements";
 import { buildSynthesisModule } from "./synthesis";
+import { buildVehiclesModule } from "./vehicles";
 import { toReportDate } from "../utils/report-months";
 import { monthKeyOf } from "../utils/report-months";
 
@@ -196,6 +198,27 @@ function* entities(sources: FinancialReportSources): Generator<Entity> {
       exists: true,
       sources: { ...emptySources(), membershipRequests: [record] },
     };
+  const insurances = new Map((sources.vehicleInsurances ?? []).map(record => [record.id, record]));
+  for (const record of sources.vehicleRewards ?? []) {
+    const insurance = insurances.get(text(record.insuranceId));
+    const receipt = record.partnerReceipt as Record<string, unknown> | undefined;
+    const payment = record.memberPayment as Record<string, unknown> | undefined;
+    const period = Number(record.periodIndex) > 0
+      ? `Renouvellement ${Number(record.periodIndex)}` : "Période initiale";
+    yield {
+      id: record.id,
+      module: "vehicules",
+      record: {
+        ...record,
+        insurance,
+        sourceLabel: [text(record.plateNumber), text(record.insuranceCompany), text(insurance?.policyNumber), period, record.id].filter(Boolean).join(" · "),
+        status: toReportDate(payment?.paidAt) ? "Remise enregistrée au parrain"
+          : toReportDate(receipt?.receivedAt) && Number(receipt?.amount) > 0 ? "À reverser au parrain" : "Commission à recevoir",
+      },
+      exists: true,
+      sources: { ...emptySources(), vehicleRewards: [record] },
+    };
+  }
 }
 
 function sourceHref(entity: Entity): string | undefined {
@@ -216,6 +239,10 @@ function sourceHref(entity: Entity): string | undefined {
       return routes.admin.placementDetails(id);
     case "adhesions":
       return routes.admin.membershipRequestDetails(id);
+    case "vehicules":
+      return entity.record.insurance
+        ? routes.admin.vehiculeDetails(encodeURIComponent(text(entity.record.insuranceId)))
+        : undefined;
     case "caisses_collectives":
       return routes.admin.groupDetails(
         encodeURIComponent(text(entity.record.groupId)),
@@ -223,8 +250,27 @@ function sourceHref(entity: Entity): string | undefined {
   }
 }
 
+function insuredMember(entity: Entity): FinancialDetailParty[] {
+  if (entity.module !== "vehicules") return [];
+  const insurance = entity.record.insurance as Record<string, unknown> | undefined;
+  if (insurance?.holderType !== "member" || !text(insurance.memberId) || insurance.memberId === entity.record.beneficiaryId) return [];
+  return [{
+    id: text(insurance.memberId),
+    matricule: text(insurance.memberMatricule) || undefined,
+    name: name(insurance.memberLastName, insurance.memberFirstName) || "Titulaire de l’assurance",
+    kind: "member",
+  }];
+}
+
 function owner(entity: Entity): FinancialDetailParty {
   const c = entity.record;
+  if (entity.module === "vehicules")
+    return {
+      id: text(c.beneficiaryId) || undefined,
+      name: text(c.beneficiaryName) || "Parrain non identifié",
+      matricule: text(c.beneficiaryMatricule) || undefined,
+      kind: "member",
+    };
   if (entity.module === "caisses_collectives")
     return {
       id: text(c.memberId),
@@ -301,7 +347,7 @@ export function buildFinancialReportDetails(
     )
       continue;
     const c = entity.record;
-    const relatedParties: FinancialDetailParty[] = [];
+    const relatedParties: FinancialDetailParty[] = insuredMember(entity);
     if (entity.module === "caisses_collectives")
       relatedParties.push({
         id: text(c.groupId),
@@ -397,6 +443,9 @@ function moduleForEntity(
     case "adhesions":
       scoped = buildAdhesionsModule(entity.sources, context);
       break;
+    case "vehicules":
+      scoped = buildVehiclesModule(entity.sources, context);
+      break;
     default:
       scoped = buildCreditModule(entity.creditType!, entity.sources, context, {
         contractId: entity.id,
@@ -433,6 +482,44 @@ function contractFacts(entity: Entity): FinancialContractReport["facts"] {
         value: `${Number(value).toLocaleString("fr-FR")} FCFA`,
       });
   };
+  if (entity.module === "vehicules") {
+    const insurance = c.insurance as Record<string, unknown> | undefined;
+    const receipt = c.partnerReceipt as Record<string, unknown> | undefined;
+    const payment = c.memberPayment as Record<string, unknown> | undefined;
+    const addText = (label: string, value: unknown) => {
+      if (text(value)) facts.push({ label, value: text(value) });
+    };
+    addText("Référence du reversement", c.id);
+    addText("Assureur", c.insuranceCompany);
+    addText("Véhicule", c.vehicleLabel);
+    addText("Plaque", c.plateNumber);
+    addText("Police d’assurance", insurance?.policyNumber);
+    addText("Titulaire de l’assurance", insurance?.holderType === "member"
+      ? name(insurance.memberLastName, insurance.memberFirstName)
+      : name(insurance?.nonMemberLastName, insurance?.nonMemberFirstName));
+    addText("Parrain bénéficiaire", c.beneficiaryName);
+    facts.push({ label: "Période", value: Number(c.periodIndex) > 0 ? `Renouvellement ${Number(c.periodIndex)}` : "Période initiale" });
+    addDate("Début de la période assurée", c.startDate);
+    addDate("Fin de la période assurée", c.endDate);
+    money("Prime d’assurance (information)", c.premiumAmount);
+    money("Commission attendue (prévision)", c.expectedCommission);
+    if (receipt) {
+      money("Commission reçue", receipt.amount);
+      money("Part réservée au parrain", c.memberAmount);
+      money("Part acquise à KARA", Number(receipt.amount) - Number(c.memberAmount));
+      addDate("Réception de la commission", receipt.receivedAt);
+      addText("Référence de réception", receipt.reference);
+      addText("Réception enregistrée par", receipt.recordedByName ?? receipt.recordedBy);
+    }
+    if (payment) {
+      addDate("Remise enregistrée au parrain", payment.paidAt);
+      addText("Mode de remise", PAYMENT_MODE_LABELS[text(payment.mode) as keyof typeof PAYMENT_MODE_LABELS] ?? payment.mode);
+      addText("Référence de remise", payment.reference);
+      addText("Remise enregistrée par", payment.paidByName ?? payment.paidBy);
+      if (text(payment.proofUrl)) facts.push({ label: "Justificatif de remise", value: text(payment.proofUrl), href: text(payment.proofUrl) });
+    }
+    if (!insurance) facts.push({ label: "Fiche d’assurance", value: "Introuvable ; historique financier conservé" });
+  }
   if (entity.creditType) {
     money("Montant du contrat", c.amount);
     money("Mensualité enregistrée", c.monthlyPaymentAmount);
@@ -447,7 +534,7 @@ function contractFacts(entity: Entity): FinancialContractReport["facts"] {
   const link = c.groupProject as Record<string, unknown> | undefined;
   if (link?.projectName)
     facts.push({ label: "Projet du groupe", value: text(link.projectName) });
-  if (c.period) facts.push({ label: "Mois concerné", value: text(c.period) });
+  if (c.period) facts.push({ label: text(c.period).length === 7 ? "Mois concerné" : "Période concernée", value: text(c.period) });
   return facts;
 }
 /** Complete dossiers, including flow/stock history; an inactive contract with no
@@ -466,7 +553,7 @@ export function buildFinancialReportContracts(
     )
       continue;
     const c = entity.record;
-    const relatedParties: FinancialDetailParty[] = [];
+    const relatedParties: FinancialDetailParty[] = insuredMember(entity);
     const add = (party: FinancialDetailParty) => {
       if (
         party.id &&
@@ -515,7 +602,7 @@ export function buildFinancialReportContracts(
       sourceKind:
         entity.module === "adhesions"
           ? "Dossier"
-          : entity.module === "caisses_collectives"
+          : entity.module === "caisses_collectives" || entity.module === "vehicules"
             ? "Opération"
             : "Contrat",
       status: entity.exists

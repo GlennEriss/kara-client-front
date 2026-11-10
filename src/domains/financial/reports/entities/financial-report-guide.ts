@@ -29,6 +29,10 @@ export const FINANCIAL_REPORT_GUIDE: Array<{ title: string; text: string }> = [
     text: 'En gras : sous-totaux et totaux. En italique : lignes données pour information, jamais additionnées. En rouge : montants négatifs. « — » : aucun mouvement dans le mois.',
   },
   {
+    title: 'Assurances véhicules',
+    text: 'Une commission attendue reste une prévision. À sa réception, seule la part de KARA entre dans le résultat ; la part du parrain reste à reverser. Une sortie est comptée uniquement à la date de remise enregistrée par l’administration, sans seconde charge. La prime d’assurance reste informative.',
+  },
+  {
     title: 'Contrats et dossiers',
     text: 'La vue Contrats et dossiers permet de retrouver chaque membre, référence et chiffre mensuel. L’export détaillé ajoute un inventaire et les annexes contractuelles. Les informations et statuts du dossier sont actuels ; les montants portent sur la période du bilan.',
   },

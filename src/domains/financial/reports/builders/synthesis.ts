@@ -46,6 +46,8 @@ export function buildSynthesisModule(modules: FinancialReportModule[], size: num
       'Avances de la caisse imprévue pas encore remboursées par les membres.', { kind: 'stock' }),
   ]
   const payableLines: FinancialReportLine[] = [
+    makeLine('vehicle_sponsors', 'Parts à reverser — Parrains des assurances', values('vehicules', 'outstanding', 'sponsors_payable'),
+      'Parts des commissions déjà reçues réservées aux parrains, tant que leur remise n’est pas confirmée.', { kind: 'stock' }),
     makeLine('cs_funds', 'Épargne détenue — Caisse spéciale', values('caisse_speciale', 'outstanding', 'funds_held'),
       'Épargne des membres de la caisse spéciale, à leur rendre.', { kind: 'stock' }),
     makeLine('ci_funds', 'Épargne détenue — Caisse imprévue', values('caisse_imprevue', 'outstanding', 'funds_held'),

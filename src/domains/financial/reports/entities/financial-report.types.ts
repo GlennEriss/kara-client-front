@@ -45,6 +45,7 @@ export type FinancialReportModuleKey =
   | 'placements'
   | 'adhesions'
   | 'caisses_collectives'
+  | 'vehicules'
 
 export interface FinancialReportModule {
   key: FinancialReportModuleKey

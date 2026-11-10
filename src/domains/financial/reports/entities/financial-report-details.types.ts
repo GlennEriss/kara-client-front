@@ -61,7 +61,7 @@ export interface FinancialContractReport extends Omit<
   "values" | "amount"
 > {
   sourceKind: "Contrat" | "Dossier" | "Opération";
-  facts: { label: string; value: string }[];
+  facts: { label: string; value: string; href?: string }[];
   blocks: import("./financial-report.types").FinancialReportBlock[];
 }
 export interface FinancialReportContracts {

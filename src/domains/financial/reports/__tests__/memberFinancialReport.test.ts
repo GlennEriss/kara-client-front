@@ -53,7 +53,7 @@ describe('bilan d’un membre', () => {
   it('le bilan de l’association garde tous ses modules', () => {
     const report = buildFinancialReport(memberSources, { from: '2025-01', to: '2025-06', now: noon('2025-06-30') })
     expect(report.subject).toBeUndefined()
-    expect(report.modules).toHaveLength(9)
+    expect(report.modules).toHaveLength(10)
   })
 
   it('accepte une période plus longue que celle de l’association', () => {

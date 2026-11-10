@@ -55,7 +55,13 @@ export function ContractMonthlyTables({
           {contract.facts.map((f) => (
             <div key={f.label}>
               <dt className="text-gray-500">{f.label}</dt>
-              <dd className="mt-1 font-medium">{f.value}</dd>
+              <dd className="mt-1 break-words font-medium">
+                {f.href && /^https?:\/\//i.test(f.href) ? (
+                  <a href={f.href} target="_blank" rel="noopener noreferrer" className="text-[#234D65] underline">
+                    Voir le justificatif
+                  </a>
+                ) : f.value}
+              </dd>
             </div>
           ))}
         </dl>

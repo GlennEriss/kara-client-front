@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       "placements",
       "adhesions",
       "caisses_collectives",
+      "vehicules",
     ].includes(module) ||
     !["treasury", "result", "outstanding", "risks"].includes(block) ||
     !/^[a-z_]+$/.test(line)
