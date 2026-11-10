@@ -26,6 +26,7 @@ import {
 import { useAllCharityEvents } from '@/hooks/bienfaiteur/useCharityEvents'
 import { EVENT_TYPE_LABEL } from './event-meta'
 import type { Event } from '../entities/event.types'
+import { EventInvitationOption } from './EventInvitationOption'
 
 function genOptionId(): string {
   return 'opt_' + Math.random().toString(36).slice(2, 9)
@@ -51,6 +52,8 @@ export interface EventFormProps {
   onBack?: () => void
   onSubmit: (values: CreateEventFormValues) => void | Promise<void>
   isSubmitting?: boolean
+  prepareWhatsApp?: boolean
+  onPrepareWhatsAppChange?: (checked: boolean) => void
 }
 
 export function EventForm({
@@ -61,6 +64,8 @@ export function EventForm({
   onBack,
   onSubmit,
   isSubmitting,
+  prepareWhatsApp = false,
+  onPrepareWhatsAppChange,
 }: EventFormProps) {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -289,7 +294,6 @@ export function EventForm({
 
               {previewUrl ? (
                 <div className="mt-1.5 relative w-full h-36 rounded-lg overflow-hidden border border-gray-200">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={previewUrl}
                     alt="Aperçu"
@@ -535,6 +539,8 @@ export function EventForm({
           )}
         </CardContent>
       </Card>
+
+      {onPrepareWhatsAppChange && <EventInvitationOption checked={prepareWhatsApp} onCheckedChange={onPrepareWhatsAppChange} />}
 
       {/* Footer */}
       <div className="flex items-center justify-end gap-2 pt-2">

@@ -15,6 +15,7 @@ import { Calendar, Image as ImageIcon, Upload, X } from 'lucide-react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
+import { EventInvitationOption } from '@/domains/community/events/components/EventInvitationOption'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
@@ -23,6 +24,7 @@ export default function CreateCharityEventForm() {
   const { mutate: createEvent, isPending } = useCreateCharityEvent()
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [prepareWhatsApp, setPrepareWhatsApp] = useState(false)
 
   const {
     register,
@@ -119,7 +121,7 @@ export default function CreateCharityEventForm() {
       createEvent(eventData, {
         onSuccess: (eventId) => {
           toast.success('Évènement créé avec succès!')
-          router.push(routes.admin.bienfaiteurDetails(eventId))
+          router.push(`${routes.admin.bienfaiteurDetails(eventId)}${prepareWhatsApp ? '?notify=whatsapp' : ''}`)
         },
         onError: (error) => {
           toast.error('Erreur lors de la création de l\'évènement')
@@ -335,6 +337,8 @@ export default function CreateCharityEventForm() {
           )}
         </CardContent>
       </Card>
+
+      <EventInvitationOption checked={prepareWhatsApp} onCheckedChange={setPrepareWhatsApp} />
 
       {/* Actions */}
       <div className="flex justify-end gap-4">

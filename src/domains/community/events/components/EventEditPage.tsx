@@ -62,6 +62,7 @@ export function EventEditPage({ eventId }: Props) {
         description: values.description.trim(),
         imageURL: values.imageURL?.trim() || undefined,
         type: values.type,
+        charityEventId: values.charityEventId?.trim() || '',
         startDate,
         endDate,
         pollEnabled: values.pollEnabled,

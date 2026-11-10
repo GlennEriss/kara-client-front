@@ -21,6 +21,7 @@ import CharityEventSettings from './CharityEventSettings'
 import CharityGroupsSection from './CharityGroupsSection'
 import CharityMediaSection from './CharityMediaSection'
 import CharityParticipantsSection from './CharityParticipantsSection'
+import { CharityEventWhatsAppInvitations } from '@/domains/community/events/components/EventWhatsAppInvitations'
 
 interface CharityEventDetailProps {
   eventId: string
@@ -155,6 +156,8 @@ export default function CharityEventDetail({ eventId }: CharityEventDetailProps)
             </div>
           )}
         </div>
+
+        {(canEdit || can('bienfaiteur.create')) && <CharityEventWhatsAppInvitations event={event} />}
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
