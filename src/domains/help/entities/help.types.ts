@@ -44,6 +44,8 @@ export interface HelpTopic {
   summary: string
   pages: HelpPage[]
   sections: HelpSection[]
+  /** Démonstration interactive facultative, à côté de la fiche écrite. */
+  demonstration?: 'groups'
   /** Fiche réservée au super admin (comme la section qu'elle documente). */
   superAdminOnly?: boolean
 }

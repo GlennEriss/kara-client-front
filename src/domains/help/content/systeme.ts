@@ -303,6 +303,7 @@ export const journalisationHelp: HelpTopic = {
 
 export const groupesHelp: HelpTopic = {
   key: 'groupes',
+  demonstration: 'groups',
   title: 'Groupes',
   category: 'Membres',
   summary: 'Créer des groupes de membres et organiser leurs caisses collectives, achats collectifs et autres projets.',
@@ -320,6 +321,11 @@ export const groupesHelp: HelpTopic = {
     {
       kind: 'howto',
       blocks: [
+        {
+          type: 'steps',
+          title: 'Découvrir les groupes avec une démonstration interactive',
+          items: ['Cliquez sur « Voir une démonstration » depuis la liste des groupes, la fiche d’un groupe ou cette aide.', 'Choisissez un parcours : créer un groupe, gérer une caisse et ses remises, ou financer un achat collectif.', 'Lisez le cas concret et son objectif, puis cliquez sur « Commencer le parcours ». « Montrer » anime le curseur pour une seule étape ; vous pouvez aussi cliquer sur l’action encadrée. Comparez l’avant et l’après, lisez « Ce qui a changé » et ouvrez « Pourquoi cette étape ? » si nécessaire.', 'Le résultat reste affiché jusqu’à « Suivant ». « Enchaîner automatiquement les étapes » active une lecture continue avec un temps de lecture adapté. « Retour », la liste des étapes et « Recommencer » permettent de revoir les actions. À la dernière étape, « Bilan » ouvre le récapitulatif et une question avec une explication. Les noms et montants sont fictifs : aucune opération réelle n’est enregistrée.'],
+        },
         {
           type: 'steps',
           title: 'Créer un groupe',

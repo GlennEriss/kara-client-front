@@ -1,5 +1,6 @@
 'use client'
 
+import { GroupTutorialButton } from '@/domains/groups/tutorial/GroupTutorialButton'
 import { cn } from '@/lib/utils'
 import { AlertTriangle, ChevronDown, Info, MapPin } from 'lucide-react'
 import React from 'react'
@@ -81,6 +82,12 @@ export function HelpArticle({ topic, currentPage, compact = false }: { topic: He
         <p className="text-xs font-semibold uppercase tracking-wider text-[#234D65]/70">{topic.category}</p>
         <h2 className={cn('font-bold text-gray-900', compact ? 'text-lg' : 'text-xl')}>{topic.title}</h2>
         <p className="text-sm leading-relaxed text-gray-600">{topic.summary}</p>
+        {topic.demonstration === 'groups' && (
+          <div className="space-y-2 rounded-xl border border-[#234D65]/15 bg-[#234D65]/5 p-3">
+            <p className="text-sm text-slate-600">Apprenez aussi en regardant les clics et les étapes, dans un exemple avec des données fictives.</p>
+            <GroupTutorialButton size="sm" />
+          </div>
+        )}
         {currentPage ? (
           <div className="flex gap-2.5 rounded-xl border border-[#234D65]/20 bg-[#234D65]/5 p-3">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#234D65]" />

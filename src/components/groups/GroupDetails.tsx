@@ -42,6 +42,7 @@ import {
   PROJECT_KINDS,
   PROJECT_STATUSES,
 } from "@/domains/groups/group-model";
+import { GroupTutorialButton } from "@/domains/groups/tutorial/GroupTutorialButton";
 import { useGroupWorkspace } from "@/domains/groups/useGroupWorkspace";
 import type { GroupProject, User } from "@/types/types";
 import {
@@ -372,7 +373,7 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
         Tous les groupes
       </Button>
       <header className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#234D65]/10">
               <Users className="h-6 w-6 text-[#234D65]" />
@@ -389,6 +390,7 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
+            <GroupTutorialButton size="sm" />
             {canEditMembers && (
               <>
                 <Button
