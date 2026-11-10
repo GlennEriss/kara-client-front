@@ -21,6 +21,13 @@ import {
   paidContribution,
   remainingContribution,
   todayLibreville,
+  CONTRIBUTION_FREQUENCIES,
+  contributionFrequency,
+  contributionPeriodLabel,
+  currentContributionPeriod,
+  planPeriods,
+  type ContributionFrequency,
+  type ContributionPlanInput,
   type GroupContribution,
   type ContributionPayment,
 } from "@/domains/groups/contribution-model";
@@ -29,11 +36,6 @@ const CreateCreditDemandModal = dynamic(
   { ssr: false },
 );
 const money = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
-const monthLabel = (period: string) =>
-  new Date(`${period}-01T12:00:00`).toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric",
-  });
 export function GroupProjectContributions({
   groupId,
   group,
@@ -48,18 +50,30 @@ export function GroupProjectContributions({
   const { actor, canManage, creditAccess, refresh } =
     useGroupWorkspace(groupId);
   const plan = project.contributionPlan;
+  const [frequency, setFrequency] = useState<ContributionFrequency>(contributionFrequency(plan));
+  const [startDate, setStartDate] = useState(plan?.startDate || todayLibreville());
   const [amount, setAmount] = useState(plan?.amount || 10000);
   const [startMonth, setStart] = useState(
     plan?.startMonth || todayLibreville().slice(0, 7),
   );
   const [months, setMonths] = useState(
-    plan?.months || Math.min(60, Math.max(1, project.participantIds.length)),
+    plan?.periodCount || plan?.months || Math.min(60, Math.max(1, project.participantIds.length)),
   );
   const [dueDay, setDueDay] = useState(plan?.dueDay || 5);
-  const [selectedMonth, setMonth] = useState(todayLibreville().slice(0, 7));
+  const [selectedMonth, setMonth] = useState(plan ? currentContributionPeriod(plan) : "");
   const period = plan?.periods.some((p) => p.period === selectedMonth)
     ? selectedMonth
-    : plan?.periods[0]?.period || "";
+    : plan ? currentContributionPeriod(plan) : "";
+  const config = CONTRIBUTION_FREQUENCIES[frequency];
+  const savedFrequency = contributionFrequency(plan);
+  const saved = CONTRIBUTION_FREQUENCIES[savedFrequency];
+  const monthly = savedFrequency === "MONTHLY";
+  const monthLabel = (p: string) => contributionPeriodLabel(p, savedFrequency);
+  const configuration: ContributionPlanInput = frequency === "MONTHLY"
+    ? { amount, frequency, startMonth, months, dueDay }
+    : { amount, frequency, startDate, periodCount: months };
+  let preview: ReturnType<typeof planPeriods> = [];
+  try { preview = planPeriods(configuration); } catch { /* Le formulaire affichera l’erreur lors de sa validation. */ }
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const [payment, setPayment] = useState<{
@@ -124,7 +138,7 @@ export function GroupProjectContributions({
       <div className="flex justify-between gap-2">
         <div>
           <h3 className="!text-base font-semibold text-[#234D65]">
-            Cotisations mensuelles
+            Cotisations {plan ? saved.adjective : config.adjective}
           </h3>
           <p className="mt-1 text-xs text-gray-500">
             Les versements et les prises en charge sont enregistrés par
@@ -158,9 +172,21 @@ export function GroupProjectContributions({
               disabled={busy}
               className="mt-3 grid gap-3 sm:grid-cols-2"
             >
+              <div className="sm:col-span-2">
+                <Label htmlFor={`contribution-frequency-${project.id}`}>Fréquence des cotisations et des prises</Label>
+                <select id={`contribution-frequency-${project.id}`} className="h-10 w-full rounded-md border bg-white px-2 text-sm"
+                  value={frequency} onChange={e => {
+                    const next = e.target.value as ContributionFrequency;
+                    setFrequency(next);
+                    setMonths(current => Math.min(current, next === "MONTHLY" ? 60 : 400));
+                  }}>
+                  {Object.entries(CONTRIBUTION_FREQUENCIES).map(([value, item]) => <option key={value} value={value}>{item.label}</option>)}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">Une cotisation par membre et une prise de caisse par {config.unit}.</p>
+              </div>
               <div>
                 <Label htmlFor={`contribution-amount-${project.id}`}>
-                  Cotisation mensuelle par membre (FCFA)
+                  Cotisation par membre et par {config.unit} (FCFA)
                 </Label>
                 <Input
                   id={`contribution-amount-${project.id}`}
@@ -174,29 +200,29 @@ export function GroupProjectContributions({
               </div>
               <div>
                 <Label htmlFor={`contribution-start-${project.id}`}>
-                  Premier mois
+                  {frequency === "MONTHLY" ? "Premier mois" : "Première cotisation / prise"}
                 </Label>
                 <Input
                   id={`contribution-start-${project.id}`}
-                  type="month"
-                  value={startMonth}
-                  onChange={(e) => setStart(e.target.value)}
+                  type={frequency === "MONTHLY" ? "month" : "date"}
+                  value={frequency === "MONTHLY" ? startMonth : startDate}
+                  onChange={(e) => frequency === "MONTHLY" ? setStart(e.target.value) : setStartDate(e.target.value)}
                 />
               </div>
               <div>
                 <Label htmlFor={`contribution-months-${project.id}`}>
-                  Nombre de mois
+                  Nombre de {config.plural}
                 </Label>
                 <Input
                   id={`contribution-months-${project.id}`}
                   type="number"
                   min={1}
-                  max={60}
+                  max={frequency === "MONTHLY" ? 60 : 400}
                   value={months}
                   onChange={(e) => setMonths(Number(e.target.value))}
                 />
               </div>
-              <div>
+              {frequency === "MONTHLY" && <div>
                 <Label htmlFor={`contribution-day-${project.id}`}>
                   Jour d’échéance du mois
                 </Label>
@@ -208,13 +234,16 @@ export function GroupProjectContributions({
                   value={dueDay}
                   onChange={(e) => setDueDay(Number(e.target.value))}
                 />
-              </div>
+              </div>}
+              {!!preview.length && <div className="rounded-lg bg-[#234D65]/5 p-3 text-xs sm:col-span-2">
+                <strong>{preview.length} prise(s) prévues · une par {config.unit}</strong>
+                <p className="mt-1">Du {preview[0].dueDate} au {preview[preview.length - 1].dueDate}. Chaque période : {project.participantIds.length} membre(s) × {money(amount)} = {money(amount * project.participantIds.length)} de caisse brute.</p>
+              </div>}
               <p className="text-xs text-gray-500 sm:col-span-2">
                 Le cycle reprend les participants actuels du projet. Son
-                montant, ses mois et ses participants sont conservés dès la
+                montant, sa fréquence, ses échéances et ses participants sont conservés dès la
                 première opération ; créez un nouveau projet pour un autre
-                cycle. Pour un mois plus court, l’échéance tombe le dernier
-                jour.
+                cycle. {frequency === "MONTHLY" ? "Pour un mois plus court, l’échéance tombe le dernier jour." : frequency === "WEEKLY" ? "Les échéances reviennent tous les 7 jours, au même jour de la semaine." : "Les échéances se suivent chaque jour, week-ends compris."}
               </p>
               <Button
                 size="sm"
@@ -223,7 +252,7 @@ export function GroupProjectContributions({
                     configureContributions(
                       groupId,
                       project.id,
-                      { amount, startMonth, months, dueDay },
+                      configuration,
                       actor,
                     ),
                   )
@@ -243,12 +272,12 @@ export function GroupProjectContributions({
       {plan && (
         <>
           <p className="text-xs text-gray-500">
-            {money(plan.amount)} par membre et par mois · {plan.months} mois ·{" "}
+            {money(plan.amount)} par membre et par {saved.unit} · {plan.periods.length} {saved.plural} ·{" "}
             {plan.participants.length} participants
             {plan.locked ? " · Cycle enregistré" : ""}
           </p>
           <Label htmlFor={`contribution-period-${project.id}`}>
-            Mois de cotisation
+            {monthly ? "Mois de cotisation" : savedFrequency === "DAILY" ? "Jour de cotisation" : "Semaine de cotisation"}
           </Label>
           <select
             id={`contribution-period-${project.id}`}
@@ -299,7 +328,7 @@ export function GroupProjectContributions({
               <Table
                 topScroll
                 className="min-w-[700px]"
-                aria-label="Cotisations du mois"
+                aria-label={monthly ? "Cotisations du mois" : "Cotisations de la période"}
               >
                 <thead>
                   <tr className="text-left text-xs">
@@ -403,7 +432,7 @@ export function GroupProjectContributions({
               </Table>
               <details className="rounded-lg border p-3">
                 <summary className="cursor-pointer text-sm font-medium">
-                  Historique des versements du mois
+                  Historique des versements {monthly ? "du mois" : "de la période"}
                 </summary>
                 <ul className="mt-3 space-y-2">
                   {rows.flatMap((r) =>
@@ -434,7 +463,7 @@ export function GroupProjectContributions({
                   )}
                   {rows.every((r) => !r.payments.length) && (
                     <li className="text-xs text-gray-500">
-                      Aucun versement enregistré pour ce mois.
+                      Aucun versement enregistré pour {monthly ? "ce mois" : "cette période"}.
                     </li>
                   )}
                 </ul>

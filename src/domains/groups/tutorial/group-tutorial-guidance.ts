@@ -137,7 +137,7 @@ export const TUTORIAL_GUIDANCE: Record<GroupTutorialScene, StepGuidance> = {
     where: "Projet → Cotisations mensuelles",
     before: "Aucun cycle configuré",
     after: "3 mois à 30 000 FCFA attendus par mois",
-    why: "Le calcul est par mois : 3 personnes × 10 000 FCFA. Dès la première opération, le cycle est conservé.",
+    why: "Cet exemple choisit le rythme mensuel : 3 personnes × 10 000 FCFA par mois. Le même suivi accepte une cotisation et une prise par jour ou par semaine. Dès la première opération, le cycle est conservé.",
   },
   "caisse-payment": {
     where: "Cotisations → Novembre → Enregistrer un versement",

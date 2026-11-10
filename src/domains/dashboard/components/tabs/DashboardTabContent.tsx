@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import dynamic from 'next/dynamic';
 import { DeferredRender } from '@/components/ui/deferred-render';
+import { DashboardRankingCards } from './DashboardRankingCards';
 
 const DistributionChart = dynamic(() => import('./DashboardDistributionChart'), {
   ssr: false,
@@ -677,69 +678,7 @@ export function DashboardTabContent({
         </section>
       )}
 
-      {rankingsToRender.length > 0 && (
-        <section className="grid gap-4 xl:grid-cols-2">
-          {rankingsToRender.map((ranking) => {
-            const max = Math.max(...ranking.items.map((item) => item.value), 1);
-
-            return (
-              <article
-                key={ranking.key}
-                className="min-w-0 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5"
-              >
-                <h3 className="break-words text-base font-bold text-[#234D65]">
-                  {ranking.title}
-                </h3>
-
-                {ranking.items.length === 0 ? (
-                  <p className="mt-3 text-sm text-gray-500">
-                    Aucune donnée disponible.
-                  </p>
-                ) : (
-                  <div className="mt-3 space-y-3">
-                    {ranking.items.map((item) => (
-                      <ActionableCard
-                        key={`${ranking.key}-${item.label}`}
-                        href={item.href}
-                        className="space-y-1 rounded-lg p-2 pr-8 transition-colors hover:bg-[#234D65]/[0.04]"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="break-words text-sm font-semibold text-[#234D65]">
-                              {item.label}
-                            </p>
-                            {item.subLabel && (
-                              <p className="break-words text-xs text-gray-500">
-                                {item.subLabel}
-                              </p>
-                            )}
-                          </div>
-                          <p className="shrink-0 whitespace-nowrap text-sm font-bold text-[#234D65]">
-                            {item.value.toLocaleString("fr-FR")}{" "}
-                            {ranking.unit ? (
-                              <span className="text-xs font-medium text-gray-500">
-                                {ranking.unit}
-                              </span>
-                            ) : null}
-                          </p>
-                        </div>
-                        <div className="h-2 w-full rounded-full bg-[#234D65]/10">
-                          <div
-                            className="h-2 rounded-full bg-[#234D65] transition-all"
-                            style={{
-                              width: `${Math.max(4, (item.value / max) * 100)}%`,
-                            }}
-                          />
-                        </div>
-                      </ActionableCard>
-                    ))}
-                  </div>
-                )}
-              </article>
-            );
-          })}
-        </section>
-      )}
+      <DashboardRankingCards rankings={rankingsToRender} />
 
       {payload.notes && payload.notes.length > 0 && (
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">

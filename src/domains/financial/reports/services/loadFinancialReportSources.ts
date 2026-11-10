@@ -33,6 +33,21 @@ async function readChildren(reader: FirestoreReadScope, parentCollection: string
     .map((doc) => ({ ...toRecord(doc), parentId: doc.ref.parent.parent!.id }))
 }
 
+/** Métadonnées des seules assurances concernées, sans contacts ni pièces jointes. */
+export async function loadVehicleInsuranceMetadata(db: Firestore, rewards: SourceRecord[]): Promise<SourceRecord[]> {
+  const ids = [...new Set(rewards.map(reward => reward.insuranceId)
+    .filter((id): id is string => typeof id === 'string' && !!id && !id.includes('/') && id !== '.' && id !== '..'))]
+  const result: SourceRecord[] = []
+  for (let index = 0; index < ids.length; index += 100) {
+    const docs = await db.getAll(
+      ...ids.slice(index, index + 100).map(id => db.collection('vehicle-insurances').doc(id)),
+      { fieldMask: ['holderType', 'memberId', 'memberMatricule', 'memberFirstName', 'memberLastName', 'nonMemberFirstName', 'nonMemberLastName', 'policyNumber'] },
+    )
+    result.push(...docs.filter(doc => doc.exists).map(toRecord))
+  }
+  return result
+}
+
 /** Lit, côté serveur, toutes les données d'un bilan financier. */
 export async function loadFinancialReportSources(db: Firestore, reader = new FirestoreReadScope(db)): Promise<FinancialReportSources> {
   const names = firebaseCollectionNames
@@ -54,6 +69,7 @@ export async function loadFinancialReportSources(db: Firestore, reader = new Fir
     membershipRequests,
     groupPayouts,
     groupContributions,
+    vehicleRewards,
   ] = await Promise.all([
     readCollection(reader, names.caisseContracts),
     readChildren(reader, names.caisseContracts, 'payments'),
@@ -72,7 +88,9 @@ export async function loadFinancialReportSources(db: Firestore, reader = new Fir
     readCollection(reader, names.membershipRequests),
     readCollection(reader, 'groupPayouts'),
     readChildren(reader, 'groups', 'contributions'),
+    readCollection(reader, names.vehicleInsuranceRewards),
   ])
+  const vehicleInsurances = await loadVehicleInsuranceMetadata(db, vehicleRewards)
 
   return {
     caisseSpecialeContracts,
@@ -92,5 +110,7 @@ export async function loadFinancialReportSources(db: Firestore, reader = new Fir
     membershipRequests,
     groupPayouts,
     groupContributions,
+    vehicleRewards,
+    vehicleInsurances,
   }
 }

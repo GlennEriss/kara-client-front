@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { listGroupCandidates } from "@/domains/groups/group-service";
 import { memberName } from "@/domains/groups/group-model";
-import { isGroupGuarantor } from "@/domains/groups/group-guarantor";
+import { groupGuarantorName, isGroupGuarantor, isKaraGroupGuarantor } from "@/domains/groups/group-guarantor";
+import { UNKNOWN_USER_ID } from "@/domains/financial/caisse-imprevue/import/unknownUser";
+import { getUserById } from "@/db/user.db";
+import { Loader2 } from "lucide-react";
 
 export type GroupGuarantorChoice = { id: string; name: string };
 export function GroupGuarantorPicker({
@@ -23,6 +26,8 @@ export function GroupGuarantorPicker({
 }) {
   const id = useId();
   const [search, setSearch] = useState("");
+  const [loadingUnknown, setLoadingUnknown] = useState(false);
+  const [unknownError, setUnknownError] = useState("");
   const {
     data = [],
     isPending,
@@ -49,9 +54,34 @@ export function GroupGuarantorPicker({
         ),
     )
     .slice(0, 8);
+  const selectUnknown = async () => {
+    setLoadingUnknown(true);
+    setUnknownError("");
+    try {
+      const unknown = data.find(isKaraGroupGuarantor) ?? await getUserById(UNKNOWN_USER_ID);
+      if (!unknown || !isKaraGroupGuarantor(unknown)) {
+        setUnknownError(`Membre INCONNU introuvable (${UNKNOWN_USER_ID}). Aucun compte n’a été créé.`);
+        return;
+      }
+      onChange({ id: unknown.id, name: groupGuarantorName(unknown) });
+      setSearch("");
+    } catch {
+      setUnknownError("Impossible de charger le membre INCONNU. Réessayez.");
+    } finally {
+      setLoadingUnknown(false);
+    }
+  };
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        <Button type="button" size="sm" variant="outline" onClick={selectUnknown}
+          disabled={loadingUnknown || excludeIds.includes(UNKNOWN_USER_ID)}>
+          {loadingUnknown && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Contact inconnu
+        </Button>
+      </div>
+      <p className="text-xs text-gray-500">INCONNU représente LE KARA : aucune commission de garant.</p>
+      {unknownError && <p role="alert" className="text-xs text-red-700">{unknownError}</p>}
       {value && (
         <div className="flex items-center justify-between gap-2 rounded-lg bg-[#234D65]/5 p-3 text-sm">
           <span className="break-words font-medium">{value.name}</span>
@@ -99,11 +129,11 @@ export function GroupGuarantorPicker({
                   key={m.id}
                   className="block w-full border-b p-2 text-left text-sm last:border-0 hover:bg-gray-50"
                   onClick={() => {
-                    onChange({ id: m.id, name: memberName(m) });
+                    onChange({ id: m.id, name: groupGuarantorName(m) });
                     setSearch("");
                   }}
                 >
-                  {memberName(m)}
+                  {groupGuarantorName(m)}
                   <span className="ml-2 text-xs text-gray-500">
                     {m.matricule || m.id}
                   </span>

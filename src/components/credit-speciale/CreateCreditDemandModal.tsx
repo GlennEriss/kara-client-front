@@ -107,7 +107,7 @@ export default function CreateCreditDemandModal({
         form.setValue('guarantorFirstName', member.firstName || '')
         form.setValue('guarantorLastName', member.lastName || '')
         form.setValue('guarantorRelation', 'Autre')
-        form.setValue('guarantorIsMember', true)
+        form.setValue('guarantorIsMember', member.id !== UNKNOWN_USER_MATRICULE)
       }).catch(() => { /* The usual guarantor selector remains available. */ })
     }
     return () => { cancelled = true }
@@ -163,7 +163,7 @@ export default function CreateCreditDemandModal({
       form.setValue('guarantorId', memberId)
       form.setValue('guarantorFirstName', member.firstName || '')
       form.setValue('guarantorLastName', member.lastName)
-      form.setValue('guarantorIsMember', true)
+      form.setValue('guarantorIsMember', member.id !== UNKNOWN_USER_MATRICULE)
       setGuarantorSearch('')
     }
   }

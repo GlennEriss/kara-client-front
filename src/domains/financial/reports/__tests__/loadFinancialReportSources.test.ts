@@ -25,13 +25,30 @@ function fixture() {
   ])
   const read = vi.fn(async (kind: string, name: string) => ({ docs: (kind === 'collection' ? collections : groups).get(name) ?? [] }) as unknown as QuerySnapshot)
   const db = {
-    collection: (name: string) => ({ get: () => read('collection', name) }),
+    collection: (name: string) => ({ get: () => read('collection', name), doc: (id: string) => ({ id, collection: name }) }),
     collectionGroup: (name: string) => ({ get: () => read('group', name) }),
   } as unknown as Firestore
   return { db, read, collections, groups }
 }
 
 describe('sources financières : mêmes chiffres avec moins de lectures', () => {
+  it('lit les réceptions et remises historiques puis seulement les métadonnées des assurances concernées', async () => {
+    const { db, collections } = fixture()
+    const at = Timestamp.fromDate(new Date('2026-10-10T12:00:00Z'))
+    collections.set(names.vehicleInsuranceRewards, [{ id: 'v1_P0', data: () => ({
+      insuranceId: 'v1', partnerReceipt: { amount: 20_000, receivedAt: at }, memberPayment: { paidAt: at },
+    }) }] as never)
+    const getAll = vi.fn(async () => [{ exists: true, id: 'v1', data: () => ({ policyNumber: 'POL-001' }) }])
+    Object.assign(db, { getAll })
+    const sources = await loadFinancialReportSources(db)
+    expect(sources.vehicleRewards?.[0]).toMatchObject({ id: 'v1_P0',
+      partnerReceipt: { receivedAt: at.toDate(), amount: 20_000 }, memberPayment: { paidAt: at.toDate() } })
+    expect(sources.vehicleInsurances).toEqual([{ id: 'v1', policyNumber: 'POL-001' }])
+    expect(getAll).toHaveBeenCalledWith({ id: 'v1', collection: 'vehicle-insurances' }, {
+      fieldMask: ['holderType', 'memberId', 'memberMatricule', 'memberFirstName', 'memberLastName', 'nonMemberFirstName', 'nonMemberLastName', 'policyNumber'],
+    })
+  })
+
   it('déduplique payments et garde les parents, dates et totaux des deux caisses séparés', async () => {
     const { db, read, groups } = fixture()
     const actual = await loadFinancialReportSources(db)

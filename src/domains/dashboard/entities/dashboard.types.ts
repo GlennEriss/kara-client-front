@@ -43,10 +43,12 @@ export interface DashboardDistributionBlock {
 }
 
 export interface DashboardRankingItem {
+  id?: string
   label: string
   value: number
   subLabel?: string
   href?: string
+  date?: string
 }
 
 export interface ExecutiveActiveMemberItem {
@@ -67,6 +69,9 @@ export interface ExecutiveActiveMembersPage {
 export interface DashboardRankingBlock {
   key: string
   title: string
+  description?: string
+  tone?: 'neutral' | 'danger'
+  kind?: 'amount' | 'recent'
   unit?: string
   items: DashboardRankingItem[]
 }

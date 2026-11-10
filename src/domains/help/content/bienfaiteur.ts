@@ -39,6 +39,16 @@ export const charitesHelp: HelpTopic = {
         },
         {
           type: 'steps',
+          title: 'Inviter les membres à contribuer par WhatsApp',
+          items: [
+            'Activez « Préparer les invitations WhatsApp » lors de la création, ou ouvrez « Inviter par WhatsApp » sur la fiche. La collecte doit être publique avec le statut « À venir » ou « En cours ». Un brouillon, une collecte privée, clôturée ou archivée ne permet pas cette invitation.',
+            'Sélectionnez les membres, individuellement ou tous ceux qui possèdent un numéro valide. Personnalisez l’introduction et consultez l’aperçu avec le titre, les dates, le lieu et la contribution minimale si elle est renseignée.',
+            'Gardez « Proposer de contribuer à la collecte » activé pour ajouter le lien direct vers la collecte sur https://association-le-kara.com. Le membre peut utiliser « Je veux contribuer » ou répondre sur WhatsApp. Vérifiez ensuite la réception du don avant de le confirmer ou de l’enregistrer dans Contributions.',
+            'Ouvrez chaque conversation et confirmez l’envoi dans WhatsApp. Le compteur suit uniquement les ouvertures sur la page actuelle. Aucun paiement ni aucune contribution n’est enregistré par cette invitation.',
+          ],
+        },
+        {
+          type: 'steps',
           title: 'Enregistrer une contribution',
           items: [
             'Dans l’onglet Contributions, ajoutez une contribution.',
@@ -166,6 +176,7 @@ export const vehiculesHelp: HelpTopic = {
             { term: 'Commission', text: 'L’assureur partenaire verse à LE KARA un pourcentage de la prime. Le taux est enregistré pour chaque assureur.' },
             { term: 'Part du parrain', text: 'Un pourcentage de cette commission revient au parrain du dossier ; le titulaire membre peut se désigner lui-même comme parrain et recevoir cette part. Le reste est gardé par LE KARA.' },
             { term: 'Une ligne par période', text: 'Un reversement est créé à la validation, puis à chaque renouvellement.' },
+            { term: 'Bilan financier', text: 'Dans le bilan réservé à l’administration, l’onglet Véhicules — Assurances reprend les commissions réellement reçues, la part de KARA, les remises confirmées aux parrains et les sommes restant à leur reverser. La sortie de trésorerie est comptée uniquement après l’enregistrement de la remise et à sa date ; une notification ne vaut pas paiement. Les commissions attendues restent des prévisions et la prime d’assurance est informative. Le détail par période et les exports permettent de retrouver les dossiers concernés.' },
             { term: 'Commission confidentielle', text: 'Les membres ne voient pas la commission de l’assureur.' },
             { term: 'Échéance synchronisée', text: 'Le statut passe automatiquement à « Expire bientôt » dans les 30 derniers jours, puis à « Expirée ». Le membre reçoit aussi les rappels prévus.' },
           ],

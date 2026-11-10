@@ -8,6 +8,7 @@ import routes from '@/constantes/routes'
 import { useAuth } from '@/domains/auth/hooks'
 import { auth } from '@/firebase/auth'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { EventForm } from './EventForm'
 import { useCreateEvent } from '../hooks/useEventMutations'
@@ -17,6 +18,7 @@ export function EventCreatePage() {
   const router = useRouter()
   const { user } = useAuth()
   const createEvent = useCreateEvent()
+  const [prepareWhatsApp, setPrepareWhatsApp] = useState(false)
 
   const handleSubmit = async (values: CreateEventFormValues) => {
     const currentUser = user ?? auth.currentUser
@@ -39,6 +41,7 @@ export function EventCreatePage() {
           description: values.description.trim(),
           imageURL: values.imageURL?.trim() || undefined,
           type: values.type,
+          charityEventId: values.charityEventId?.trim() || undefined,
           startDate,
           endDate,
           pollEnabled: values.pollEnabled,
@@ -62,7 +65,7 @@ export function EventCreatePage() {
           createdBy: currentUser.uid,
         },
       })
-      router.push(routes.admin.eventDetails(event.id))
+      router.push(`${routes.admin.eventDetails(event.id)}${prepareWhatsApp ? '?notify=whatsapp' : ''}`)
     } catch (err) {
       console.error('[EventCreatePage] mutateAsync error:', err)
     }
@@ -84,6 +87,8 @@ export function EventCreatePage() {
         onSubmit={handleSubmit}
         isSubmitting={createEvent.isPending}
         submitLabel="Créer l'événement"
+        prepareWhatsApp={prepareWhatsApp}
+        onPrepareWhatsAppChange={setPrepareWhatsApp}
       />
     </div>
   )

@@ -11,6 +11,7 @@ const ACTIVITY_DATE_FIELDS = [
   'date',
   'paymentDate',
   'paidAt',
+  'receivedAt',
   'recordedAt',
 ]
 
@@ -29,6 +30,10 @@ export function firstActivityMonth(sources: FinancialReportSources): MonthKey | 
   for (const list of Object.values(sources) as Array<Array<Record<string, unknown>>>) {
     for (const record of list) {
       visit(record)
+      for (const field of ['partnerReceipt', 'memberPayment']) {
+        const event = record[field]
+        if (event && typeof event === 'object') visit(event as Record<string, unknown>)
+      }
       // Les paiements d'adhésion sont rangés dans la demande.
       if (Array.isArray(record.payments)) {
         for (const payment of record.payments) if (payment && typeof payment === 'object') visit(payment as Record<string, unknown>)

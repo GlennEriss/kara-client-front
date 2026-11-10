@@ -33,6 +33,10 @@ export interface FinancialReportSources {
   membershipRequests: SourceRecord[]
   groupPayouts?: SourceRecord[]
   groupContributions?: ChildRecord[]
+  /** Une opération par période d'assurance, avec réception et remise confirmées. */
+  vehicleRewards?: SourceRecord[]
+  /** Métadonnées des assurances ; aucun montant calculé depuis leurs primes. */
+  vehicleInsurances?: SourceRecord[]
 }
 
 export interface FinancialReportContext {

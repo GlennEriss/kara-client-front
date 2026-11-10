@@ -18,11 +18,14 @@ import type { GroupActor } from "./group-service";
 import { memberName, isOpenProject } from "./group-model";
 import { payoutAmounts } from "./payout-model";
 import { isGroupGuarantor } from "./group-guarantor";
+import { UNKNOWN_USER_ID } from "@/domains/financial/caisse-imprevue/import/unknownUser";
 import {
   planPeriods,
   plannedContribution,
   remainingContribution,
   validPaymentDate,
+  contributionFrequency,
+  CONTRIBUTION_FREQUENCIES,
   type ContributionPlanInput,
   type ContributionPlan,
   type GroupContribution,
@@ -145,7 +148,7 @@ export async function configureContributions(
       activity: [
         ...(group.data().activity ?? []),
         event(
-          `Cycle de cotisations configuré pour « ${project.name} » : ${input.months} mois et ${participants.length} participants.`,
+          `Cycle de cotisations configuré pour « ${project.name} » : ${periods.length} ${CONTRIBUTION_FREQUENCIES[contributionFrequency(input)].plural}, une prise par ${CONTRIBUTION_FREQUENCIES[contributionFrequency(input)].unit}, et ${participants.length} participants.`,
           actor,
         ),
       ],
@@ -296,7 +299,7 @@ export async function prepareContributionFinancing(
   if (!link.contributionId) return null;
   if (input.creditType !== "FIXE" || !link.contributionPeriod)
     throw new Error(
-      "La cotisation doit être financée par un crédit fixe lié à son mois.",
+      "La cotisation doit être financée par un crédit fixe lié à sa période.",
     );
   const borrower = await tx.get(doc(db, "users", idCheck(input.clientId)));
   if (!borrower.exists()) throw new Error("Le membre n’existe plus.");
@@ -318,9 +321,9 @@ export async function prepareContributionFinancing(
     throw new Error(
       "Le solde de la cotisation a changé. Actualisez son suivi avant de créer le dossier.",
     );
-  if (!input.guarantorIsMember || !input.guarantorId)
+  if (!input.guarantorId || (!input.guarantorIsMember && input.guarantorId !== UNKNOWN_USER_ID))
     throw new Error(
-      "Choisissez un membre Kara comme garant de cette prise en charge.",
+      "Choisissez un membre Kara ou INCONNU comme garant de cette prise en charge.",
     );
   const guarantor = await tx.get(doc(db, "users", idCheck(input.guarantorId)));
   if (
@@ -330,7 +333,7 @@ export async function prepareContributionFinancing(
     (guarantor.data().matricule &&
       guarantor.data().matricule === borrower.data().matricule)
   )
-    throw new Error("Le garant doit être un autre membre Kara identifié.");
+    throw new Error("Le garant doit être un autre membre Kara identifié ou le compte INCONNU de LE KARA.");
   if (kind === "creditDemands") {
     if (await activeReservation(tx, row))
       throw new Error(

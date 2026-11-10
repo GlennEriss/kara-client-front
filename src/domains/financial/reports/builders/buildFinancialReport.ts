@@ -9,6 +9,7 @@ import { buildCaisseSpecialeModule } from './caisse-speciale'
 import { buildCreditModule } from './credits'
 import { buildPlacementsModule } from './placements'
 import { buildSynthesisModule } from './synthesis'
+import { buildVehiclesModule } from './vehicles'
 
 /**
  * Bilan financier de `from` à `to` (mois inclus), tous modules. Avec un
@@ -33,6 +34,7 @@ export function buildFinancialReport(
     buildPlacementsModule(sources, context),
     buildAdhesionsModule(sources, context),
     buildCollectiveFundsModule(sources, context),
+    buildVehiclesModule(sources, context),
   ]
   const modules = options.subject ? allModules.filter((module) => !isEmptyModule(module)) : allModules
   const synthesis = buildSynthesisModule(modules, months.length)

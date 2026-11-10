@@ -10,19 +10,24 @@ export function ModernStatsCard({
   value,
   color,
   icon: Icon,
+  onClick,
+  selected,
+  tooltip,
 }: {
   title: string
   value: number
   color: string
   icon: React.ComponentType<any>
+  onClick?: () => void
+  selected?: boolean
+  tooltip?: string
   // Props legacy conservés pour compatibilité (ignorés)
   subtitle?: string
   percentage?: number
   trend?: 'up' | 'down' | 'neutral'
   data?: Array<{ name: string; value: number; fill: string }>
 }) {
-  return (
-    <div className="group flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200">
+  const content = <>
       <div
         className="p-1.5 rounded-lg shrink-0 transition-transform duration-200 group-hover:scale-110"
         style={{ backgroundColor: `${color}15`, color }}
@@ -37,8 +42,11 @@ export function ModernStatsCard({
           {value.toLocaleString('fr-FR')}
         </p>
       </div>
-    </div>
-  )
+  </>
+  const style = `group flex w-full items-center gap-2 rounded-xl border bg-white px-2.5 py-2 text-left shadow-sm transition-all duration-200 hover:shadow-md ${selected ? 'border-[#234D65]' : 'border-gray-100 hover:border-gray-200'}`
+  return onClick
+    ? <button type="button" onClick={onClick} aria-pressed={selected} title={tooltip} className={`${style} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#234D65]`}>{content}</button>
+    : <div className={style} title={tooltip}>{content}</div>
 }
 
 interface MembershipsListStatsProps {

@@ -2,11 +2,11 @@
 
 ## Garant et demande collective
 
-Chaque nouveau groupe désigne un garant parmi les membres Kara identifiés. Il peut appartenir à un autre groupe ; le référent est un rôle distinct. Les groupes historiques restent lisibles et peuvent renseigner leur garant dans les informations du groupe. Modifier ce garant ne modifie aucune demande ni aucun contrat existant.
+Chaque nouveau groupe désigne un garant parmi les membres Kara identifiés, même d’un autre groupe, ou sélectionne « Contact inconnu ». Cette option réutilise uniquement le compte INCONNU existant (`2548.MK.290126`), qui représente LE KARA et n’ouvre droit à aucune commission. Le référent est un rôle distinct. Les groupes historiques restent lisibles et peuvent renseigner leur garant dans les informations du groupe. Modifier ce garant ne modifie aucune demande ni aucun contrat existant.
 
 **Demande collective de crédit fixe** ouvre le montant total (prérempli avec le budget estimé), la date souhaitée et le motif. Les participants du projet sont sélectionnés par défaut. Les parts égales sont modifiables ; les francs restants sont répartis dans l’ordre affiché. Chaque part est un entier de 1 000 à 10 000 000 FCFA et leur somme doit correspondre exactement au total. Changer le total ou la sélection recalcule les parts égales.
 
-Le garant du groupe est repris sur chaque demande. S’il emprunte, un autre membre Kara doit garantir sa part. Le récapitulatif affiche chaque membre, son capital demandé et son garant avant confirmation.
+Le garant du groupe est repris sur chaque demande. S’il emprunte, un autre garant doit garantir sa part : un membre Kara ou INCONNU. Le récapitulatif affiche chaque membre, son capital demandé et son garant avant confirmation.
 
 La confirmation crée des demandes `FIXE` ordinaires, statut `PENDING`, en une transaction. Aucun contrat ni aucun paiement n’est créé. Les vérifications de participation et de garant sont refaites dans la transaction ; un profil incomplet bloque tout le lot. Chaque demande suit ensuite sa propre approbation, simulation et signature. Le score, s’il n’est pas encore renseigné, est calculé par le parcours existant à la création du contrat.
 
@@ -27,6 +27,16 @@ Les noms du groupe et du projet sont visibles dans les fiches de demande et de c
 La consultation et les totaux sont filtrés par type autorisé (`creditFixe.view`, `creditSpeciale.view`). La création, le rattachement et le détachement nécessitent aussi `groups.manage` et le droit de création du type concerné (`creditFixe.create`, `creditSpeciale.create`). Un projet terminé ou annulé reste consultable, mais n’accepte plus de nouveau financement. Retirer un participant du groupe ne détache pas ses contrats et n’annule aucune dette.
 
 ## Données et calculs
+
+### Fréquence des caisses collectives
+
+Le cycle accepte `MONTHLY` (par défaut pour les anciens cycles), `DAILY` et `WEEKLY`. Le montant s’entend par membre et par période, avec une prise par période. Le mensuel conserve `startMonth`, `months` et `dueDay` ; les nouveaux rythmes utilisent `startDate` et `periodCount` (1 à 400). Le journalier inclut les week-ends ; l’hebdomadaire avance de 7 jours à partir de la première date choisie.
+
+Les périodes mensuelles conservent leurs identifiants `YYYY-MM`. Les jours et semaines utilisent la date exacte de leur échéance, `YYYY-MM-DD`. Les identifiants de cotisation et de remise incluent cette période : plusieurs prises dans un même mois restent distinctes, avec une seule remise définitive par période. La configuration est verrouillée à la première opération.
+
+L’ordre de récupération suggère un bénéficiaire pour chaque position du cycle, indépendamment de sa fréquence. L’admin vérifie ce choix ; au-delà des positions disponibles, il doit sélectionner le bénéficiaire. La redevance reste facultative et s’applique à chaque remise. Le crédit fixe affecté à une cotisation reste un contrat distinct, dont la durée n’est pas changée par la fréquence de la caisse.
+
+L’espace membre lit les mêmes périodes et ne renvoie que les cotisations et remises du membre connecté. Le bilan financier continue de compter les dates réelles des mouvements dans leur mois ; les nouveaux rythmes ne créent aucune seconde recette. Aucun changement des règles Firestore n’est nécessaire : les écritures restent administratives et les remises immuables.
 
 Le champ facultatif `groupProject` des documents `creditDemands` et `creditContracts` porte `groupId`, `projectId`, les noms enregistrés du groupe et du projet, la date et l’auteur du rattachement. `null` signifie que le rattachement a été retiré. Un contrat ne peut appartenir qu’à un seul projet à la fois. Seuls les crédits FIXE et SPECIALE sont acceptés. Le type de la demande et celui du contrat doivent correspondre.
 
@@ -61,7 +71,7 @@ L’admin configure le cycle d’un projet Caisse collective : montant entier de
 
 Chaque opération matérialise `groups/{groupId}/contributions/{projectId}__{period}__{memberId}`. Le document contient le montant attendu, les versements datés et leur auteur, ainsi que les références éventuelles de demande/contrat. Les versements directs sont partiels ou complets, positifs et au plus égaux au solde. La date réelle ne peut pas être future (heure de Libreville). Une référence de versement réessayée avec le même contenu ne crée pas de doublon ; un contenu différent est refusé.
 
-« Financer par crédit fixe » crée une demande ordinaire avec `groupProject.contributionId` et `contributionPeriod`. La transaction contrôle le participant enregistré dans le cycle, son appartenance actuelle au groupe, le mois, le solde exact et un garant Kara distinct de l’emprunteur. Une modification ultérieure des participants du projet ne supprime pas les échéances du cycle et ne bloque pas leur financement pour un membre encore dans le groupe. Elle réserve le mois, sans le payer. La création du contrat conserve ce lien et ne paie toujours rien. Un versement direct pendant une réservation active est refusé ; l’admin peut d’abord détacher le dossier non affecté, ce qui libère le mois sans supprimer le dossier.
+« Financer par crédit fixe » crée une demande ordinaire avec `groupProject.contributionId` et `contributionPeriod`. La transaction contrôle le participant enregistré dans le cycle, son appartenance actuelle au groupe, le mois, le solde exact et un garant distinct de l’emprunteur, membre Kara ou compte INCONNU de LE KARA. Une modification ultérieure des participants du projet ne supprime pas les échéances du cycle et ne bloque pas leur financement pour un membre encore dans le groupe. Elle réserve le mois, sans le payer. La création du contrat conserve ce lien et ne paie toujours rien. Un versement direct pendant une réservation active est refusé ; l’admin peut d’abord détacher le dossier non affecté, ce qui libère le mois sans supprimer le dossier.
 
 Après signature et activation du contrat fixe, « Confirmer la prise en charge » enregistre l’affectation effective de son capital au solde du mois. La transaction vérifie le contrat signé du bon emprunteur, lié au bon projet et au bon mois, et que son capital correspond toujours au solde. Une seconde confirmation n’ajoute rien. Le dossier ayant déjà réglé un mois ne peut plus être détaché/supprimé par le parcours courant : le lien est conservé pour l’historique. Les remboursements ultérieurs du crédit ne sont pas ajoutés une seconde fois aux cotisations.
 

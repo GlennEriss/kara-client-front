@@ -72,6 +72,21 @@ const values = (
     .blocks.find((b) => b.key === block)!
     .lines.find((l) => l.key === line)!.values;
 describe("bilan des caisses collectives", () => {
+  it('additionne les opérations journalières et hebdomadaires à leur date réelle, avec chaque redevance comptée une seule fois', () => {
+    const s = sources();
+    for (const [frequency, day, amount, fee] of [['DAILY', '2026-11-05', 10000, 1000], ['WEEKLY', '2026-11-06', 20000, 2000]] as const) {
+      s.groupContributions!.push({ id: frequency, parentId: 'g1', projectId: frequency, memberId: 'alice', period: day,
+        payments: [{ amount, date: day, source: 'CASH' }] });
+      s.groupPayouts!.push({ id: frequency, groupId: 'g1', projectId: frequency, beneficiaryId: 'alice', period: day, frequency,
+        date: day, grossAmount: amount, feeAmount: fee, netAmount: amount - fee });
+    }
+    const report = buildFinancialReport(s, period);
+    expect(values(report, 'caisses_collectives', 'treasury', 'in_total')).toEqual([0, 80000]);
+    expect(values(report, 'caisses_collectives', 'treasury', 'out_total')).toEqual([0, 76000]);
+    expect(values(report, 'caisses_collectives', 'result', 'net')).toEqual([0, 4000]);
+    expect(values(report, 'caisses_collectives', 'outstanding', 'funds_held')).toEqual([0, 0]);
+    expect(buildFinancialReportDetails(s, report, { module: 'caisses_collectives', block: 'result', line: 'income_fees' }).reconciliationDifference).toBe(0);
+  });
   it("compte la redevance une seule fois, distingue fonds collectifs et recettes et solde les fonds remis", () => {
     const report = buildFinancialReport(sources(), period);
     expect(values(report, "caisses_collectives", "result", "net")).toEqual([

@@ -24,7 +24,7 @@ import {
   type GroupProjectDraft,
 } from "./group-model";
 import { sameParticipants, supportsPayoutOrder } from "./payout-order";
-import { isGroupGuarantor } from "./group-guarantor";
+import { groupGuarantorName, isGroupGuarantor } from "./group-guarantor";
 
 export interface GroupActor {
   id: string;
@@ -92,7 +92,7 @@ export async function createCollectiveGroup(
       !isGroupGuarantor({ ...guarantor.data(), id: guarantor.id } as User)
     )
       throw new Error(
-        "Le garant du groupe doit être un membre Kara identifié.",
+        "Le garant du groupe doit être un membre Kara identifié ou le compte INCONNU de LE KARA.",
       );
     const members = await Promise.all(
       memberIds.map((id) => transaction.get(doc(users(), id))),
@@ -125,7 +125,7 @@ export async function createCollectiveGroup(
       coordinatorId: input.coordinatorId || null,
       coordinatorName: input.coordinatorId ? names[input.coordinatorId] : null,
       guarantorId: guarantor.id,
-      guarantorName: memberName({
+      guarantorName: groupGuarantorName({
         ...guarantor.data(),
         id: guarantor.id,
       } as User),
@@ -409,14 +409,14 @@ export async function updateCollectiveGroup(
     if (!group.exists()) throw new Error("Ce groupe n’existe plus.");
     const guarantorId = changes.guarantorId ?? group.data().guarantorId;
     if (!guarantorId)
-      throw new Error("Choisissez un membre Kara comme garant du groupe.");
+      throw new Error("Choisissez un membre Kara ou INCONNU comme garant du groupe.");
     const guarantor = await transaction.get(doc(users(), guarantorId));
     if (
       !guarantor.exists() ||
       !isGroupGuarantor({ ...guarantor.data(), id: guarantor.id } as User)
     )
       throw new Error(
-        "Le garant du groupe doit être un membre Kara identifié.",
+        "Le garant du groupe doit être un membre Kara identifié ou le compte INCONNU de LE KARA.",
       );
     if (
       coordinator &&
@@ -430,7 +430,7 @@ export async function updateCollectiveGroup(
       label: changes.label?.trim() || null,
       coordinatorId: changes.coordinatorId || null,
       guarantorId: guarantor.id,
-      guarantorName: memberName({
+      guarantorName: groupGuarantorName({
         ...guarantor.data(),
         id: guarantor.id,
       } as User),

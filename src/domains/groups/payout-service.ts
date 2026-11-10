@@ -16,6 +16,8 @@ import {
   contributionId,
   paidContribution,
   validPaymentDate,
+  isContributionPeriod,
+  contributionFrequency,
   type GroupContribution,
 } from "./contribution-model";
 import {
@@ -105,7 +107,7 @@ export type PayoutInput = Pick<
   GroupPayout,
   "operationId" | "beneficiaryId" | "date" | "source" | "reference" | "note"
 > & { expectedGross: number; expectedFee: number };
-/** One immutable remittance per month; authoritative amounts are recomputed in the transaction. */
+/** Une seule remise définitive par période (jour, semaine ou mois). */
 export async function recordGroupPayout(
   groupId: string,
   projectId: string,
@@ -127,11 +129,11 @@ export async function recordGroupPayout(
   checked(input.beneficiaryId);
   checked(projectId);
   if (
-    !/^\d{4}-(0[1-9]|1[0-2])$/.test(period) ||
+    !isContributionPeriod(period) ||
     input.reference.length > 120 ||
     input.note.length > 500
   )
-    throw new Error("Vérifiez le mois, la référence et la note.");
+    throw new Error("Vérifiez la période, la référence et la note.");
   const ref = doc(
     db,
     "groupPayouts",
@@ -153,7 +155,7 @@ export async function recordGroupPayout(
         old.feeAmount !== input.expectedFee
       )
         throw new Error(
-          "Une remise est déjà enregistrée pour ce mois. Actualisez son historique.",
+          "Une remise est déjà enregistrée pour cette période. Actualisez son historique.",
         );
       return;
     }
@@ -162,8 +164,8 @@ export async function recordGroupPayout(
       plan = project.contributionPlan!;
     if (project.status === "CANCELLED")
       throw new Error("Ce projet est annulé.");
-    if (!plan.periods.some((p) => p.period === period))
-      throw new Error("Ce mois ne fait pas partie du cycle.");
+    if (!isContributionPeriod(period, contributionFrequency(plan)) || !plan.periods.some((p) => p.period === period))
+      throw new Error("Cette période ne fait pas partie du cycle.");
     const beneficiary = plan.participants.find(
       (p) => p.id === input.beneficiaryId,
     );
@@ -205,7 +207,7 @@ export async function recordGroupPayout(
       })
     )
       throw new Error(
-        "Toutes les cotisations du mois doivent être réglées ou prises en charge avant la date de remise.",
+        "Toutes les cotisations de la période doivent être réglées ou prises en charge avant la date de remise.",
       );
     const amounts = payoutAmounts(
       plan.amount * plan.participants.length,
@@ -226,6 +228,7 @@ export async function recordGroupPayout(
       projectId,
       projectName: project.name,
       period,
+      frequency: contributionFrequency(plan),
       beneficiaryId: beneficiary.id,
       beneficiaryName: beneficiary.name,
       ...amounts,

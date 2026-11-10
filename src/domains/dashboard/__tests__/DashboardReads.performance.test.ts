@@ -72,4 +72,54 @@ describe('dashboard : parité avec les lectures indépendantes', () => {
     expect(fixture.read.mock.calls.filter(([kind, name]) => kind === 'group' && name === 'payments')).toHaveLength(2)
     expect(JSON.stringify(changed)).toContain('200000')
   })
+
+  it('classe les versements de la période même sur un ancien contrat, en respectant zone et matricule', async () => {
+    fixture.collections.get(names.users)![0].matricule = 'MAT1'
+    fixture.collections.get(names.caisseContracts)![0].memberId = 'MAT1'
+    fixture.collections.get(names.caisseContracts)!.push({ id: 'cs-other', memberId: 'M2', status: 'ACTIVE', createdAt: new Date('2026-01-01') })
+    fixture.groups.get('payments')!.push(
+      { id: 'recent', parent: names.caisseContracts, parentId: 'cs-1', data: { status: 'PAID', amount: 50_000, paidAt: new Date('2026-11-03T10:00:00+01:00') } },
+      { id: 'other', parent: names.caisseContracts, parentId: 'cs-other', data: { status: 'PAID', amount: 900_000, paidAt: new Date('2026-11-03T10:00:00+01:00') } },
+    )
+    const result = await getDashboardSnapshot('caisse_speciale', {
+      ...DEFAULT_DASHBOARD_FILTERS, period: 'custom', customFrom: '2026-11-03', customTo: '2026-11-03', zoneProvince: 'Estuaire',
+    })
+    expect(result.snapshot.rankings?.find(r => r.key === 'top_received')?.items).toMatchObject([
+      { id: 'M1', label: 'MBOUMBA Jeanne', subLabel: 'MAT1', value: 50_000, href: '/memberships/M1' },
+    ])
+    const keys = fixture.read.mock.calls.map(([kind, name]) => `${kind}:${name}`)
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it('utilise le jour de Libreville quand le serveur est encore au jour précédent en UTC', async () => {
+    vi.setSystemTime(new Date('2026-11-02T23:15:00Z'))
+    fixture.groups.get('payments')!.push(
+      { id: 'local-today', parent: names.caisseContracts, parentId: 'cs-1', data: { status: 'PAID', amount: 1000, paidAt: new Date('2026-11-02T23:05:00Z') } },
+      { id: 'local-yesterday', parent: names.caisseContracts, parentId: 'cs-1', data: { status: 'PAID', amount: 9000, paidAt: new Date('2026-11-02T22:59:59Z') } },
+    )
+    const result = await getDashboardSnapshot('caisse_speciale', { ...DEFAULT_DASHBOARD_FILTERS, period: 'today' })
+    const received = result.snapshot.rankings?.find(r => r.key === 'top_received')
+    expect(received?.items[0].value).toBe(1000)
+    expect(received?.description).toContain('03/11/2026')
+  })
+
+  it('affiche les nouveaux membres dans l’Exécutif et les souscriptions récentes dans leur section', async () => {
+    fixture.collections.get(names.users)![0].dossier = 'req-m1'
+    fixture.collections.set(names.membershipRequests, [
+      { id: 'req-m1', status: 'approved', approvedAt: new Date('2026-11-02T10:00:00+01:00') },
+    ])
+    fixture.collections.get(names.caisseContracts)!.push({ id: 'cs-new', memberId: 'M1', status: 'ACTIVE', createdAt: new Date('2026-11-02T11:00:00+01:00') })
+    const filters = { ...DEFAULT_DASHBOARD_FILTERS, period: 'custom' as const, customFrom: '2026-11-01', customTo: '2026-11-03', zoneProvince: 'Estuaire' }
+    const executive = await getDashboardSnapshot('executive', filters)
+    expect(executive.snapshot.rankings?.find(r => r.key === 'recent_members')).toMatchObject({
+      kind: 'recent', items: [{ id: 'M1', date: '2026-11-02T09:00:00.000Z', subLabel: 'M1 · Adhésion approuvée' }],
+    })
+    fixture.read.mockClear()
+    const caisse = await getDashboardSnapshot('caisse_speciale', filters)
+    expect(caisse.snapshot.rankings?.find(r => r.key === 'recent_subscribers')).toMatchObject({
+      kind: 'recent', items: [{ id: 'M1', date: '2026-11-02T10:00:00.000Z', subLabel: 'M1 · Dossier cs-new' }],
+    })
+    const keys = fixture.read.mock.calls.map(([kind, name]) => `${kind}:${name}`)
+    expect(new Set(keys).size).toBe(keys.length)
+  })
 })

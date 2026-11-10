@@ -48,9 +48,10 @@ import {
   useDeleteEvent,
   usePublishEvent,
 } from '../hooks/useEventMutations'
-import { EVENT_TYPE_LABEL, EventStatusBadge, EventTypeBadge } from './event-meta'
+import { EventStatusBadge, EventTypeBadge } from './event-meta'
 import { PollResultsPanel } from './PollResultsPanel'
 import { VotersTable } from './VotersTable'
+import { CommunityEventWhatsAppInvitations } from './EventWhatsAppInvitations'
 
 interface Props {
   eventId: string
@@ -192,7 +193,6 @@ export function EventDetailPage({ eventId }: Props) {
       <Card className="overflow-hidden">
         {event.imageURL && (
           <div className="relative h-56 w-full bg-gray-100">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={event.imageURL}
               alt={event.title}
@@ -220,6 +220,8 @@ export function EventDetailPage({ eventId }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {canManage && <CommunityEventWhatsAppInvitations event={event} />}
 
       {/* Date & lieu */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -306,8 +308,8 @@ export function EventDetailPage({ eventId }: Props) {
           <DialogHeader>
             <DialogTitle>Confirmer le lieu de l&apos;événement</DialogTitle>
             <DialogDescription>
-              Sélectionnez l&apos;option retenue. Le sondage sera clôturé et les
-              membres recevront une notification du lieu officiel.
+              Sélectionnez l&apos;option retenue. Le sondage sera clôturé ;
+              vous pourrez ensuite prévenir les membres par WhatsApp.
             </DialogDescription>
           </DialogHeader>
 
