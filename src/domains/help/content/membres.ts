@@ -21,9 +21,9 @@ export const adhesionsHelp: HelpTopic = {
         {
           type: 'list',
           items: [
-            'Les indicateurs en haut comptent les dossiers par statut et par paiement (payés, non payés).',
+            'Les cartes de statistiques sous le bandeau comptent les dossiers par statut et par paiement. Cliquez sur un statut ou sur « Payées » / « Non payées » pour filtrer les dossiers.',
             'La recherche trouve un dossier par nom, e-mail, téléphone, identifiant de la demande ou matricule.',
-            'Deux affichages : en liste ou en grille. Les dossiers s’exportent en Excel ou en PDF.',
+            'Deux affichages : en liste ou en grille. Sur chaque carte, « Voir détails » ouvre le dossier ; le menu à trois points en haut à droite regroupe les autres actions, les documents et les exports.',
             'L’onglet des doublons regroupe les dossiers qui partagent un téléphone, un e-mail ou un numéro de pièce d’identité.',
           ],
         },
@@ -46,7 +46,7 @@ export const adhesionsHelp: HelpTopic = {
           type: 'steps',
           title: 'Demander des corrections',
           items: [
-            'Dans « Plus d’actions », choisissez « Demander des corrections » et écrivez une correction par ligne.',
+            'Ouvrez le menu à trois points de la carte, choisissez « Demander corrections » et écrivez une correction par ligne.',
             'Le dossier passe « En cours d’examen ». Envoyez au demandeur, par WhatsApp, le lien et le code de sécurité à 6 chiffres.',
             'Le code est valable 48 heures. S’il a expiré, régénérez-le : l’ancien code ne fonctionne plus.',
           ],
@@ -76,7 +76,7 @@ export const adhesionsHelp: HelpTopic = {
         {
           type: 'definitions',
           items: [
-            { term: 'Payer avant d’approuver', text: 'Le bouton « Approuver » reste grisé tant que le paiement de l’adhésion n’est pas enregistré.' },
+            { term: 'Payer avant d’approuver', text: 'Pour un dossier en attente, la carte propose « Payer » tant que le paiement n’est pas enregistré, puis « Approuver » une fois le dossier payé, selon vos droits.' },
             { term: 'Fiche d’adhésion', text: 'Le PDF signé est obligatoire à l’approbation. Il reste consultable et peut être remplacé ensuite.' },
             { term: 'Identifiants', text: 'À l’approbation, un compte de connexion (e-mail et mot de passe) est créé pour le membre. Si le membre les perd, « Générer les identifiants » réinitialise son mot de passe et produit un nouveau PDF.' },
             { term: 'Abonnement', text: 'L’approbation crée le premier abonnement du membre, valable un an.' },

@@ -47,6 +47,17 @@ export const evenementsHelp: HelpTopic = {
         },
         {
           type: 'steps',
+          title: 'Inviter les membres par WhatsApp',
+          items: [
+            'À la création, activez « Préparer les invitations WhatsApp » si vous souhaitez préparer les messages après publication. Vous pouvez aussi utiliser « Inviter par WhatsApp » sur la fiche d’un événement publié.',
+            'Choisissez tous les membres joignables ou quelques destinataires. Le numéro WhatsApp du membre est utilisé en priorité, sinon son premier contact. Les numéros manquants ou invalides sont signalés.',
+            'Personnalisez le message d’introduction. L’aperçu ajoute le nom du membre, le titre, les dates et le lieu ; si le lieu est en cours de choix, il indique le sondage.',
+            'Pour proposer une contribution, associez une collecte publique « À venir » ou « En cours » dans le formulaire de l’événement. L’option « Proposer de contribuer à la collecte » ajoute le lien direct vers la collecte sur association-le-kara.com et le parcours « Je veux contribuer ». Le membre peut aussi répondre sur WhatsApp ; l’admin vérifie la réception du don.',
+            'Les invitations contiennent les liens de l’événement et, si elle est ouverte, de la collecte sur https://association-le-kara.com. Ouvrez les conversations une par une et confirmez chaque envoi dans WhatsApp. Le compteur indique seulement les conversations ouvertes sur cette page, jamais une livraison ou une lecture.',
+          ],
+        },
+        {
+          type: 'steps',
           title: 'Annuler un événement',
           items: ['Cliquez sur « Annuler l’événement » et indiquez la raison : elle est affichée sur l’événement.'],
         },
