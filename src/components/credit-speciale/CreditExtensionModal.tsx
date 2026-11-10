@@ -60,6 +60,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { addContractMonths } from '@/utils/contract-months'
+import { getCreditExtensionStartDate } from '@/utils/credit-cycle-dates'
 
 // Composant pour saisir les paiements personnalisés
 function CustomPaymentsInput({ 
@@ -670,7 +671,7 @@ export default function CreditExtensionModal({
                   <div>
                     <Label htmlFor="desiredDate" className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Date souhaitée
+                      Date souhaitée (indicative)
                     </Label>
                     <Input
                       id="desiredDate"
@@ -679,6 +680,7 @@ export default function CreditExtensionModal({
                       onChange={(e) => setDesiredDate(e.target.value)}
                       className="mt-1"
                     />
+                    <p className="mt-1 text-xs text-gray-500">Le départ du nouveau cycle est calculé à partir de sa première échéance, moins un mois.</p>
                   </div>
 
                   <div>
@@ -1505,7 +1507,11 @@ export default function CreditExtensionModal({
                       <span className="font-semibold">{Math.round(simulation.totalAmount).toLocaleString('fr-FR')} FCFA</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Date du 1er versement :</span>
+                      <span className="text-gray-500">Départ du nouveau cycle :</span>
+                      <span className="font-semibold">{getCreditExtensionStartDate(simulation.firstPaymentDate) ? format(getCreditExtensionStartDate(simulation.firstPaymentDate)!, 'dd MMMM yyyy', { locale: fr }) : '—'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Première échéance du nouveau cycle :</span>
                       <span className="font-semibold">{format(new Date(simulation.firstPaymentDate), 'dd MMMM yyyy', { locale: fr })}</span>
                     </div>
                   </div>

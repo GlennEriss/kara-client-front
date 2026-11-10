@@ -39,7 +39,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { PAYMENT_MODE_LABELS } from '@/constantes/membership-requests'
 import { toast } from 'sonner'
 import { addContractMonths } from '@/utils/contract-months'
-import { getDefaultGuarantorRate } from '@/utils/guarantor-commission'
+import { getDefaultGuarantorRate, isUnknownGuarantor } from '@/utils/guarantor-commission'
 import ShopPurchaseDemandSummary from './ShopPurchaseDemandSummary'
 import { clampShopCreditInstallments, computeWeeklyCreditTotals, formatCreditDuration, splitFlatInstallments } from '@/utils/credit-weekly'
 
@@ -135,7 +135,7 @@ export default function ContractCreationModal({
 
   // Déterminer si le garant est un membre (et donc peut recevoir une rémunération)
   const hasGuarantor = !!demand.guarantorId
-  const guarantorIsMember = hasGuarantor && demand.guarantorIsMember && demand.creditType === 'SPECIALE'
+  const guarantorIsMember = hasGuarantor && !isUnknownGuarantor(demand) && demand.guarantorIsMember && demand.creditType === 'SPECIALE'
 
   // Calcul des étapes selon le contexte
   const isMobileMoneyMode = paymentMode ? MOBILE_MONEY_MODES.includes(paymentMode) : false

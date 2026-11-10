@@ -13,6 +13,7 @@
 import { addContractMonths } from '@/services/caisse/contractDates'
 import type { CreditContract, CreditContractStatus } from '@/types/types'
 import { isCreditContractEnded } from '@/utils/credit-write-off'
+import { getCreditExtensionStartDate, getCreditInitialStartDate, validCreditDate } from '@/utils/credit-cycle-dates'
 
 export interface CreditContractDatesInput {
   firstPaymentDate?: Date | string | null
@@ -22,22 +23,18 @@ export interface CreditContractDatesInput {
   status?: CreditContractStatus
 }
 
-const validDate = (value: Date | string | null | undefined): Date | null => {
-  if (!value) return null
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
 /** Le rajout devient le départ courant, sans modifier la date initiale enregistrée. */
 export function getCreditContractStartDates(
-  contract: Partial<Pick<CreditContract, 'createdAt' | 'extendedAt' | 'creditCycles'>>
+  contract: Partial<Pick<CreditContract, 'createdAt' | 'disbursementDate' | 'initialStartAt' | 'extendedAt' | 'creditCycles' | 'firstPaymentDate' | 'rajoutEffectue'>>
 ) {
   const cycles = [...(contract.creditCycles ?? [])].sort((left, right) => left.cycleNumber - right.cycleNumber)
-  const initialStartDate = validDate(contract.createdAt) ?? validDate(cycles[0]?.startedAt)
+  const initialStartDate = getCreditInitialStartDate(contract)
   const currentCycle = cycles.at(-1)
   const extensionStartDate = currentCycle?.type === 'AUGMENTATION'
-    ? validDate(currentCycle.startedAt) ?? validDate(contract.extendedAt)
-    : validDate(contract.extendedAt)
+    ? getCreditExtensionStartDate(currentCycle.firstPaymentDate) ?? validCreditDate(currentCycle.startedAt) ?? validCreditDate(contract.extendedAt)
+    : contract.rajoutEffectue
+      ? getCreditExtensionStartDate(contract.firstPaymentDate) ?? validCreditDate(contract.extendedAt)
+      : validCreditDate(contract.extendedAt)
   return {
     startDate: extensionStartDate ?? initialStartDate,
     initialStartDate,
@@ -71,8 +68,8 @@ export function getCreditContractRemainingMonths(
 ): number | null {
   if (contract.durationUnit === 'WEEKS' || !getCreditContractEndDate(contract)) return null
   if (contract.status && isCreditContractEnded(contract.status)) return 0
-  const currentDay = validDate(today)
-  const first = validDate(contract.firstPaymentDate)
+  const currentDay = validCreditDate(today)
+  const first = validCreditDate(contract.firstPaymentDate)
   if (!currentDay || !first) return null
   currentDay.setHours(0, 0, 0, 0)
   first.setHours(0, 0, 0, 0)

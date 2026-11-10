@@ -1776,6 +1776,8 @@ export interface CreditContractCycle {
   duration: number
   firstPaymentDate: Date
   startedAt: Date
+  /** Date de saisie du cycle, distincte de son départ effectif. */
+  recordedAt?: Date
   customSchedule?: Array<{ month: number; amount: number }>
   restMonths?: RestMonth[]
   additionalAmount?: number
@@ -1915,6 +1917,8 @@ export interface CreditContract {
   groupProject?: GroupCreditProjectLink | null
   /** Cycles de crédit conservés dans le même contrat (augmentation = nouveau cycle). */
   creditCycles?: CreditContractCycle[]
+  /** Départ initial du calendrier, distinct de la remise des fonds et de la saisie. */
+  initialStartAt?: Date
   /** Mois de repos enregistrés (échéances reportées sans pénalité) */
   restMonths?: RestMonth[]
   clientFirstName: string
@@ -1997,7 +2001,7 @@ export interface CreditContract {
   fixedTransitionBy?: string
   fixedTransitionReason?: string
   fixedTransitionStartMonth?: number
-  extendedAt?: Date // Date à laquelle le contrat a été étendu (augmentation)
+  extendedAt?: Date // Date de saisie du rajout ; son départ effectif est porté par le cycle.
   /** Montant initial du crédit (avant rajout). Égal à amount si aucun rajout. */
   initialAmount?: number
   /** Montant du rajout (une seule augmentation autorisée par contrat). */

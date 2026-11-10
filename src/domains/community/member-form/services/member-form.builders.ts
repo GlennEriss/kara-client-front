@@ -294,7 +294,9 @@ function buildSpecialCreditCycleEntries(params: {
   const lastMonth = lastMonthOfReplacedCycle(contract, cycle, nextCycle, payments)
 
   return history.flatMap((row) => {
-    if (cutoff !== null && row.date.getTime() >= cutoff) return []
+    // Le rajout peut prendre effet le jour d'une échéance déjà réglée de
+    // l'ancien cycle. Ne jamais masquer ce versement ou un repos enregistré.
+    if (cutoff !== null && row.date.getTime() >= cutoff && !row.hasPaymentRecord && !row.isRest) return []
     if (lastMonth !== null && row.month > lastMonth) return []
     // Crédit spécial : un versement, même partiel, honore le mois (le reste est
     // reporté sur le capital). Il est à l'heure ou en retard selon sa date.
@@ -351,13 +353,13 @@ function buildSimpleCreditCycleEntries(params: {
   const entries: MemberFormEntry[] = []
   for (let month = 1; month <= duration; month++) {
     const dueAt = addMonths(cycle.firstPaymentDate, month - 1)
-    if (cutoff !== null && dueAt.getTime() >= cutoff) continue
     if (lastMonth !== null && month > lastMonth) continue
     const rest = (cycle.restMonths ?? []).some((item) => item.monthNumber === month)
     const target = rest ? 0 : plannedByMonth.get(month) ?? cycle.monthlyPaymentAmount
     const paymentsForMonth = payments.filter(
       (payment) => getCreditPaymentMonthNumber(contract, payment) === month,
     )
+    if (cutoff !== null && dueAt.getTime() >= cutoff && paymentsForMonth.length === 0 && !rest) continue
     const paidAt = rest ? null : paymentCompletionDate(paymentsForMonth, target)
     const href = contract.creditType === 'FIXE'
       ? `/credit-fixe/contrats/${contract.id}`

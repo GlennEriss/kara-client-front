@@ -1,10 +1,12 @@
 import type { CreditContract, CreditDemand, CreditPayment, GuarantorPayment, GuarantorRemuneration } from '@/types/types'
-import { UNKNOWN_USER_ID } from '@/domains/financial/caisse-imprevue/import/unknownUser'
+import { isUnknownGuarantor } from './credit-guarantor'
 import { customRound } from './credit-speciale-calculations'
 import {
   buildCreditSpecialeTimelineHistory,
   getCreditPaymentCycleNumber,
 } from './credit-speciale-history'
+
+export { isUnknownGuarantor } from './credit-guarantor'
 
 /**
  * Commission du garant (Crédit Spéciale).
@@ -19,11 +21,6 @@ type CycleContract = Parameters<typeof getCreditPaymentCycleNumber>[0]
 
 /** Taux de commission du garant proposé par défaut (modifiable de 0 à 5 %). */
 export const DEFAULT_GUARANTOR_RATE = 2
-
-/** Pas de garant, ou le membre INCONNU (« Contact inconnu ») : personne à rémunérer. */
-export function isUnknownGuarantor(guarantor: Pick<CreditDemand, 'guarantorId'>): boolean {
-  return !guarantor.guarantorId || guarantor.guarantorId === UNKNOWN_USER_ID
-}
 
 /** Taux proposé par défaut : 0 % pour un garant inconnu, 2 % sinon. */
 export function getDefaultGuarantorRate(guarantor: Pick<CreditDemand, 'guarantorId'>): number {
@@ -105,10 +102,11 @@ export function getGuarantorCycleTitle(cycleNumber: number): string {
 }
 
 export function buildGuarantorCommissionRows(
-  contract: Parameters<typeof buildCreditSpecialeTimelineHistory>[0] & Pick<CreditContract, 'guarantorRemunerationPercentage'>,
+  contract: Parameters<typeof buildCreditSpecialeTimelineHistory>[0] & Pick<CreditContract, 'guarantorRemunerationPercentage' | 'guarantorId'>,
   remunerations: GuarantorRemuneration[],
   payments: CreditPayment[]
 ): GuarantorCommissionRow[] {
+  if (isUnknownGuarantor(contract)) return []
   const percentage = contract.guarantorRemunerationPercentage ?? 0
   const historyByKey = new Map(
     buildCreditSpecialeTimelineHistory(contract, payments).map((row) => [
