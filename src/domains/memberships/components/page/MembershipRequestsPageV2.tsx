@@ -7,7 +7,9 @@
 
 'use client'
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import { PageHero } from '@/components/ui/page-hero'
+import { MembershipRequestStats } from '../list/MembershipRequestStats'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { useMyAccess } from '@/hooks/useMyAccess'
@@ -19,18 +21,9 @@ import {
   Search,
   Filter,
   Users,
-  Clock,
-  CheckCircle,
   XCircle,
-  Eye,
-  ChevronLeft,
-  ChevronRight,
   RefreshCw,
   Download,
-  CreditCard,
-  AlertCircle,
-  Inbox,
-  CheckCircle2,
   Plus,
   Grid3x3,
   List,
@@ -109,88 +102,6 @@ function useIsMobile() {
   }, [])
 
   return isMobile
-}
-
-// Hook personnalisé pour le carousel avec drag/swipe
-function useCarousel(itemCount: number, itemsPerView: number = 1) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const [startPos, setStartPos] = useState(0)
-  const [translateX, setTranslateX] = useState(0)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  const maxIndex = Math.max(0, itemCount - itemsPerView)
-
-  const goTo = useCallback((index: number) => {
-    const clampedIndex = Math.max(0, Math.min(index, maxIndex))
-    setCurrentIndex(clampedIndex)
-    setTranslateX(-clampedIndex * (100 / itemsPerView))
-  }, [maxIndex, itemsPerView])
-
-  const goNext = useCallback(() => goTo(currentIndex + 1), [goTo, currentIndex])
-  const goPrev = useCallback(() => goTo(currentIndex - 1), [goTo, currentIndex])
-
-  const handleStart = useCallback((clientX: number) => {
-    setIsDragging(true)
-    setStartPos(clientX)
-  }, [])
-
-  const handleMove = useCallback((clientX: number) => {
-    if (!isDragging || !containerRef.current) return
-    const diff = clientX - startPos
-    const containerWidth = containerRef.current.offsetWidth
-    const percentage = (diff / containerWidth) * 100
-    const maxDrag = 30
-    const clampedPercentage = Math.max(-maxDrag, Math.min(maxDrag, percentage))
-    setTranslateX(-currentIndex * (100 / itemsPerView) + clampedPercentage)
-  }, [isDragging, startPos, currentIndex, itemsPerView])
-
-  const handleEnd = useCallback(() => {
-    if (!isDragging || !containerRef.current) return
-    const dragDistance = translateX + currentIndex * (100 / itemsPerView)
-    const threshold = 15
-    if (dragDistance > threshold && currentIndex > 0) {
-      goPrev()
-    } else if (dragDistance < -threshold && currentIndex < maxIndex) {
-      goNext()
-    } else {
-      setTranslateX(-currentIndex * (100 / itemsPerView))
-    }
-    setIsDragging(false)
-  }, [isDragging, translateX, currentIndex, itemsPerView, maxIndex, goPrev, goNext])
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => { e.preventDefault(); handleStart(e.clientX) }, [handleStart])
-  const handleTouchStart = useCallback((e: React.TouchEvent) => { handleStart(e.touches[0].clientX) }, [handleStart])
-  const handleTouchMove = useCallback((e: React.TouchEvent) => { handleMove(e.touches[0].clientX) }, [handleMove])
-  const handleTouchEnd = useCallback(() => { handleEnd() }, [handleEnd])
-
-  useEffect(() => {
-    if (!isDragging) return
-    const handleGlobalMouseMove = (e: MouseEvent) => handleMove(e.clientX)
-    const handleGlobalMouseUp = () => handleEnd()
-    document.addEventListener('mousemove', handleGlobalMouseMove)
-    document.addEventListener('mouseup', handleGlobalMouseUp)
-    return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove)
-      document.removeEventListener('mouseup', handleGlobalMouseUp)
-    }
-  }, [isDragging, handleMove, handleEnd])
-
-  return {
-    currentIndex,
-    goTo,
-    goNext,
-    goPrev,
-    canGoPrev: currentIndex > 0,
-    canGoNext: currentIndex < maxIndex,
-    translateX,
-    containerRef,
-    handleMouseDown,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
-    isDragging,
-  }
 }
 
 export function MembershipRequestsPageV2() {
@@ -809,238 +720,26 @@ export function MembershipRequestsPageV2() {
     ? `${selectedRequest.identity.firstName} ${selectedRequest.identity.lastName}`
     : ''
 
-  // Carousel de stats avec drag/swipe
-  const [itemsPerView, setItemsPerView] = useState(1)
-
-  useEffect(() => {
-    const update = () => {
-      const w = window.innerWidth
-      if (w >= 1280) setItemsPerView(5)
-      else if (w >= 1024) setItemsPerView(4)
-      else if (w >= 768) setItemsPerView(3)
-      else if (w >= 640) setItemsPerView(2)
-      else setItemsPerView(2) // Mobile : afficher 2 cartes de stats
-    }
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
-
-  const statsData = useMemo(() => {
-    if (!stats) return []
-
-    // Calculer stats dérivées pour stats actionnables
-    const toProcess = (stats.byStatus.pending || 0) + (stats.byStatus.under_review || 0) // À traiter
-    const readyToPay = (stats.byStatus.pending || 0) // Complètes (en attente = prêtes à payer après validation)
-
-    return [
-      { key: 'total', title: 'Total', value: stats.total || 0, icon: Users, bgClass: 'bg-white/5', borderClass: 'border-white/15', hoverClass: 'hover:bg-white/10', iconBgClass: 'bg-white/15', iconColor: 'text-white', tab: null },
-      { key: 'to_process', title: 'À traiter', value: toProcess, icon: Inbox, bgClass: 'bg-purple-400/10', borderClass: 'border-purple-300/40', hoverClass: 'hover:bg-purple-400/20', iconBgClass: 'bg-purple-400/30', iconColor: 'text-purple-100', tab: null, customFilter: { status: ['pending', 'under_review'] } },
-      { key: 'pending', title: 'En attente', value: stats.byStatus.pending || 0, icon: Clock, bgClass: 'bg-amber-400/10', borderClass: 'border-amber-300/40', hoverClass: 'hover:bg-amber-400/20', iconBgClass: 'bg-amber-400/30', iconColor: 'text-amber-100', tab: 'pending' },
-      { key: 'under_review', title: 'En cours', value: stats.byStatus.under_review || 0, icon: Eye, bgClass: 'bg-sky-400/10', borderClass: 'border-sky-300/40', hoverClass: 'hover:bg-sky-400/20', iconBgClass: 'bg-sky-400/30', iconColor: 'text-sky-100', tab: 'under_review' },
-      { key: 'ready_to_pay', title: 'Complètes', value: readyToPay, icon: CheckCircle2, bgClass: 'bg-emerald-400/10', borderClass: 'border-emerald-300/40', hoverClass: 'hover:bg-emerald-400/20', iconBgClass: 'bg-emerald-400/30', iconColor: 'text-emerald-100', tab: 'pending', tooltip: 'Demandes en attente (prêtes à payer)' },
-      { key: 'approved', title: 'Approuvées', value: stats.byStatus.approved || 0, icon: CheckCircle, bgClass: 'bg-green-400/10', borderClass: 'border-green-300/40', hoverClass: 'hover:bg-green-400/20', iconBgClass: 'bg-green-400/30', iconColor: 'text-green-100', tab: 'approved' },
-      { key: 'rejected', title: 'Rejetées', value: stats.byStatus.rejected || 0, icon: XCircle, bgClass: 'bg-red-400/10', borderClass: 'border-red-300/40', hoverClass: 'hover:bg-red-400/20', iconBgClass: 'bg-red-400/30', iconColor: 'text-red-100', tab: 'rejected' },
-      { key: 'paid', title: 'Payées', value: stats.byPayment.paid || 0, icon: CreditCard, bgClass: 'bg-[#CBB171]/10', borderClass: 'border-[#CBB171]/40', hoverClass: 'hover:bg-[#CBB171]/20', iconBgClass: 'bg-[#CBB171]/30', iconColor: 'text-[#E8D9B4]', tab: 'paid' },
-      { key: 'unpaid', title: 'Non payées', value: stats.byPayment.unpaid || 0, icon: AlertCircle, bgClass: 'bg-orange-400/10', borderClass: 'border-orange-300/40', hoverClass: 'hover:bg-orange-400/20', iconBgClass: 'bg-orange-400/30', iconColor: 'text-orange-100', tab: 'unpaid' },
-    ]
-  }, [stats])
-
-  const {
-    goTo,
-    canGoPrev,
-    canGoNext,
-    translateX,
-    containerRef,
-    handleMouseDown,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
-    isDragging,
-    goPrev,
-    goNext,
-  } = useCarousel(statsData.length, itemsPerView)
-
-  // Auto-défilement des stats sur mobile (toutes les ~3.5s)
-  useEffect(() => {
-    if (!isMobile) return
-    if (statsData.length <= 1) return
-
-    const interval = window.setInterval(() => {
-      if (isDragging) return
-      if (canGoNext) {
-        goNext()
-      } else {
-        goTo(0)
-      }
-    }, 3500)
-
-    return () => window.clearInterval(interval)
-  }, [isMobile, statsData.length, isDragging, canGoNext, goNext, goTo])
 
   return (
     <div className="min-h-screen bg-kara-neutral-50 overflow-x-hidden">
-      <div className="space-y-3 md:space-y-6 px-1 py-3 sm:px-3 md:p-4 lg:p-6 xl:p-8">
-        {/* Header avec fond LE KARA - Réduit sur mobile */}
-        <div className="relative overflow-hidden rounded-xl md:rounded-2xl bg-kara-primary-dark p-3 sm:p-4 md:p-6 lg:p-8">
-          {/* Motif décoratif */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-kara-primary-light" />
-            <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-white" />
-          </div>
-
-          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-[1.9rem] leading-[1.05] sm:text-3xl md:text-4xl font-black text-white tracking-tight break-words">
-                Demandes d'Adhésion
-              </h1>
-              <p className="text-kara-primary-light/80 mt-1 md:mt-2 text-xs sm:text-sm md:text-base font-medium line-clamp-2">
-                Gérez les demandes d'inscription des membres LE KARA
-              </p>
-            </div>
-            <div className="flex w-full md:w-auto items-center gap-2 shrink-0 self-start md:self-auto flex-wrap md:flex-nowrap">
-              {can('memberRequests.edit') && (
-              <Button
-                onClick={() => router.push(routes.admin.membershipAdd)}
-                size="sm"
-                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border border-white/80 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 h-9 px-3"
-                title="Créer une nouvelle demande"
-              >
-                <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
-                <span className="hidden sm:inline">Nouvelle demande</span>
-                <span className="sm:hidden">Nouvelle</span>
-              </Button>
-              )}
-              {can('memberRequests.export') && (
-              <Button
-                onClick={() => setExportModalOpen(true)}
-                size="sm"
-                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 group h-9 px-3"
-                title="Exporter les demandes"
-              >
-                <Download className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
-                <span className="hidden sm:inline">Exporter</span>
-                <span className="sm:hidden">Export</span>
-              </Button>
-              )}
-              <Button
-                onClick={() => refetch()}
-                size="sm"
-                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 group h-9 px-3"
-              >
-                <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2 group-hover:animate-spin" />
-                <span className="hidden sm:inline">Actualiser</span>
-                <span className="sm:hidden">Actualiser</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Stats Carousel avec drag/swipe - Responsive */}
-          {stats && (
-            <div className="mt-4 md:mt-8 relative">
-              {/* Bouton précédent - Caché sur mobile très petit */}
-              <div className="absolute top-1/2 -translate-y-1/2 left-0 z-10 hidden sm:block">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className={cn(
-                    'h-8 w-8 md:h-10 md:w-10 rounded-full bg-white/20 backdrop-blur-sm shadow-lg border-0 transition-all duration-300',
-                    canGoPrev ? 'hover:bg-white/30 hover:scale-110 text-white' : 'opacity-30 cursor-not-allowed text-white/50'
-                  )}
-                  onClick={goPrev}
-                  disabled={!canGoPrev}
-                >
-                  <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
-                </Button>
-              </div>
-
-              {/* Bouton suivant - Caché sur mobile très petit */}
-              <div className="absolute top-1/2 -translate-y-1/2 right-0 z-10 hidden sm:block">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className={cn(
-                    'h-8 w-8 md:h-10 md:w-10 rounded-full bg-white/20 backdrop-blur-sm shadow-lg border-0 transition-all duration-300',
-                    canGoNext ? 'hover:bg-white/30 hover:scale-110 text-white' : 'opacity-30 cursor-not-allowed text-white/50'
-                  )}
-                  onClick={goNext}
-                  disabled={!canGoNext}
-                >
-                  <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
-                </Button>
-              </div>
-
-              {/* Container du carousel avec drag/swipe - Padding réduit sur mobile */}
-              <div
-                ref={containerRef}
-                className="overflow-hidden px-0 sm:px-6 md:px-12 py-2"
-                onMouseDown={handleMouseDown}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              >
-                <div
-                  className={cn(
-                    'flex transition-transform duration-300 ease-out gap-4',
-                    isDragging && 'transition-none'
-                  )}
-                  style={{
-                    transform: `translateX(${translateX}%)`,
-                    cursor: isDragging ? 'grabbing' : 'grab'
-                  }}
-                >
-                  {statsData.map((stat) => {
-                    const Icon = stat.icon
-                    return (
-                      <div
-                        key={stat.key}
-                        className="shrink-0"
-                        style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}
-                      >
-                        <div
-                          onClick={() => {
-                            if (stat.tab) {
-                              handleTabChange(stat.tab)
-                            } else if (stat.customFilter) {
-                              // Gestion des filtres personnalisés (ex: "À traiter" = pending + under_review)
-                              setActiveTab('all')
-                              setCurrentPage(1)
-                              // Pour "À traiter", on affiche toutes car on ne peut pas filtrer par plusieurs statuts
-                              // L'utilisateur utilisera les tabs individuels
-                              setFilters({})
-                            }
-                          }}
-                          className={cn(
-                            'backdrop-blur-sm rounded-xl p-3 md:p-4 border transition-all group h-full',
-                            isMobile && itemsPerView === 1 && 'w-[60%] mx-auto',
-                            stat.bgClass,
-                            stat.borderClass,
-                            stat.hoverClass,
-                            (stat.tab || stat.customFilter) ? 'cursor-pointer' : 'cursor-default'
-                          )}
-                          title={stat.tooltip || (stat.tab ? `Voir les ${stat.title.toLowerCase()}` : undefined)}
-                        >
-                          <div className="flex items-center gap-2.5 md:gap-3">
-                            <div className={cn(
-                              'p-2 md:p-2.5 rounded-lg group-hover:scale-110 transition-transform duration-300 shrink-0',
-                              stat.iconBgClass
-                            )}>
-                              <Icon className={cn('w-4 h-4 md:w-5 md:h-5', stat.iconColor)} />
-                            </div>
-                            <div className="min-w-0 flex-1 leading-tight">
-                              <p className="text-2xl md:text-3xl font-black text-white tabular-nums">{stat.value}</p>
-                              <p className="text-[11px] md:text-xs text-white/80 font-semibold whitespace-nowrap">{stat.title}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+        <PageHero icon={Users} title="Demandes d’adhésion"
+          subtitle="Gérez les demandes d’inscription des membres LE KARA"
+          rightSlot={<div className="flex flex-wrap items-center gap-2">
+            {can('memberRequests.edit') && <Button onClick={() => router.push(routes.admin.membershipAdd)} size="sm"
+              className="h-9 border border-white/30 bg-white/10 text-white hover:bg-white/20">
+              <Plus className="mr-1.5 h-4 w-4" />Nouvelle demande
+            </Button>}
+            {can('memberRequests.export') && <Button onClick={() => setExportModalOpen(true)} size="sm"
+              className="h-9 border border-white/20 bg-white/10 text-white hover:bg-white/20">
+              <Download className="mr-1.5 h-4 w-4" />Exporter
+            </Button>}
+            <Button onClick={() => refetch()} size="sm" className="h-9 border border-white/20 bg-white/10 text-white hover:bg-white/20">
+              <RefreshCw className="mr-1.5 h-4 w-4" />Actualiser
+            </Button>
+          </div>} />
+        {stats && <MembershipRequestStats stats={stats} activeTab={activeTab} onSelect={handleTabChange} />}
 
         {/* Alerte doublons */}
         <DuplicatesAlert
@@ -1051,7 +750,7 @@ export function MembershipRequestsPageV2() {
         {/* Tabs comme conteneur principal - Effet classeur (UX optimisée) */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           {/* Conteneur principal avec style Card - Tabs englobent tout le contenu */}
-          <div className="border-0 shadow-lg rounded-xl md:rounded-2xl overflow-hidden">
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
             {/* Tabs : desktop = TabsList, mobile = badges carousel (comme caisse-speciale) */}
             <div className="flex items-center gap-2 border-b border-kara-neutral-200">
               {/* TabsList - Vue desktop uniquement */}
