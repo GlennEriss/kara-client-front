@@ -106,7 +106,7 @@ export const creditSpecialeHelp: HelpTopic = {
         {
           items: [
             '« Augmenter le crédit » (rajout) : ajoute un montant au contrat. Le reste dû et le rajout forment un nouveau cycle, qui repart à M1. Un seul rajout par contrat, possible seulement sur un contrat actif ou partiel, sans pénalité impayée.',
-            'Après un rajout, la date de départ affichée devient celle du rajout ; la date de départ initiale reste visible. Les mois restants correspondent aux mensualités prévues aujourd’hui ou à venir dans le nouvel échéancier.',
+            'Après un rajout, le départ du nouveau cycle est calculé un mois avant sa première échéance : une échéance au 25 mai donne un départ au 25 avril. En fin de mois, le jour est plafonné au dernier jour du mois précédent. Le départ initial du calendrier est conservé séparément de la date réelle de remise des fonds et de la date de saisie du dossier. Lorsqu’aucun départ de calendrier n’a été enregistré, la date de remise sert de référence. Les mois restants correspondent aux mensualités prévues aujourd’hui ou à venir dans le nouvel échéancier.',
             '« Basculer en fixe » : arrête les intérêts dès la prochaine échéance, avec un motif. Irréversible.',
             '« Clôturer en perte » (super admin) : quand le membre ne remboursera plus, le reste dû est enregistré comme perte. Les sommes récupérées ensuite se saisissent comme récupérations.',
             '« Enregistrer un paiement au garant » : verser au garant les commissions gagnées, depuis l’onglet Commission du garant.',

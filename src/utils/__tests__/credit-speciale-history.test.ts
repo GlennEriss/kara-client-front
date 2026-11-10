@@ -17,6 +17,7 @@ const contract = {
   totalAmount: 2_085_158,
   duration: 5,
   guarantorRemunerationPercentage: 2,
+  guarantorId: 'garant-identifie',
   firstPaymentDate: new Date('2026-07-10'),
   createdAt: new Date('2026-07-01'),
   restMonths: [{ monthNumber: 1, reason: 'Repos accordé' }],

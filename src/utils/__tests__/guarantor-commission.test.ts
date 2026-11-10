@@ -19,6 +19,7 @@ const contract = {
   totalAmount: 630_000,
   duration: 7,
   guarantorRemunerationPercentage: 2,
+  guarantorId: 'g-1',
   firstPaymentDate: new Date('2026-05-01'),
   createdAt: new Date('2026-01-01'),
   restMonths: [],
@@ -125,6 +126,15 @@ describe('guarantor commission', () => {
       remaining: 8_500,
     })
     expect(buildGuarantorCommissionBalance(rows, [{ amount: 20_000 }]).remaining).toBe(0)
+  })
+
+  it('ne calcule aucune commission pour LE KARA malgré un ancien taux et des rémunérations enregistrées', () => {
+    const rows = buildGuarantorCommissionRows(
+      { ...contract, guarantorId: UNKNOWN_USER_ID },
+      [remuneration({ guarantorId: UNKNOWN_USER_ID })],
+      payments,
+    )
+    expect(rows).toEqual([])
   })
 })
 

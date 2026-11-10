@@ -61,12 +61,14 @@ import {
   getCreditSpecialeLastRecordedMonth,
 } from '@/utils/credit-speciale-history'
 import { DELETABLE_PAYMENT_CONTRACT_STATUSES, getCreditPaymentDeletionBlocker } from '@/utils/credit-payment-deletion'
+import { findCreditPenaltyHistoryRow, parseCreditInstallmentReference as parseCycleAndMonthFromInstallmentRef } from '@/utils/credit-penalty-history'
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import {
   buildGuarantorCommissionBalance,
   buildGuarantorCommissionRows,
   formatGuarantorCommissionMonth,
   getGuarantorCycleTitle,
+  isUnknownGuarantor,
 } from '@/utils/guarantor-commission'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
@@ -189,6 +191,7 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
     .filter(p => !p.paid)
     .reduce((sum, p) => sum + p.amount, 0)
   const unpaidPenaltiesCount = penalties.filter(p => !p.paid).length
+  const paidPenaltiesTotal = penalties.filter(p => p.paid).reduce((sum, p) => sum + p.amount, 0)
 
   const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
   // Crédit fixe: intérêt unique appliqué une seule fois. Crédit spécial : les
@@ -248,7 +251,9 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
       value: fcfa(unpaidPenaltiesTotal),
       subtitle: unpaidPenaltiesTotal > 0
         ? `${unpaidPenaltiesCount} pénalité${unpaidPenaltiesCount > 1 ? 's' : ''}`
-        : 'Aucune pénalité impayée',
+        : paidPenaltiesTotal > 0
+          ? `${fcfa(paidPenaltiesTotal)} de pénalités déjà réglées`
+          : 'Aucune pénalité impayée',
       tone: unpaidPenaltiesTotal > 0 ? 'danger' : undefined,
     },
     ...(totalLosses > 0 && showMissedEarnings
@@ -399,6 +404,7 @@ export default function CreditContractDetail({
   const shouldLoadGuarantorTabData =
     (activeTab === 'guarantor' || showWriteOffModal) &&
     !!contract.guarantorId &&
+    !isUnknownGuarantor(contract) &&
     !!contract.guarantorIsMember &&
     (contract.guarantorRemunerationPercentage ?? 0) > 0
   const {
@@ -731,36 +737,17 @@ export default function CreditContractDetail({
   const getPaymentDueDate = (payment: CreditPayment): Date | undefined =>
     dueDateByCycleMonth.get(`${getCreditPaymentCycleNumber(contract, payment)}_${getCreditPaymentMonthNumber(contract, payment)}`)
 
-  /**
-   * Date de remise du versement d'une échéance (celui qui l'a soldée), retrouvée
-   * par la date d'échéance, comme le rattachement des pénalités au mois.
-   */
-  const remittanceDateByDueDay = new Map<number, Date>()
-  timelineHistoryRows.forEach((row) => {
-    if (row.status !== 'PAID' || !row.paymentDate) return
-    const dueDay = new Date(row.date)
-    dueDay.setHours(0, 0, 0, 0)
-    remittanceDateByDueDay.set(dueDay.getTime(), new Date(row.paymentDate))
-  })
-  const getPenaltyRemittanceDate = (penalty: CreditPenalty): Date | undefined => {
-    const dueDay = new Date(penalty.dueDate)
-    dueDay.setHours(0, 0, 0, 0)
-    return remittanceDateByDueDay.get(dueDay.getTime())
-  }
-
+  const remittanceDateByPenaltyId = new Map<string, Date>()
   const penaltiesByTimelineKey = new Map<string, number>()
-  if (timelineHistoryRows.length > 0) {
-    timelineHistoryRows.forEach((row) => {
-      const rowDay = new Date(row.date)
-      rowDay.setHours(0, 0, 0, 0)
-      const rowPenaltyAmount = penalties.reduce((sum, penalty) => {
-        const penaltyDay = new Date(penalty.dueDate)
-        penaltyDay.setHours(0, 0, 0, 0)
-        return penaltyDay.getTime() === rowDay.getTime() ? sum + penalty.amount : sum
-      }, 0)
-      penaltiesByTimelineKey.set(row.key, rowPenaltyAmount)
-    })
-  }
+  penalties.forEach((penalty) => {
+    const row = findCreditPenaltyHistoryRow(penalty, timelineHistoryRows)
+    if (!row) return
+    penaltiesByTimelineKey.set(row.key, (penaltiesByTimelineKey.get(row.key) ?? 0) + penalty.amount)
+    if (row.status === 'PAID' && row.paymentDate)
+      remittanceDateByPenaltyId.set(penalty.id, new Date(row.paymentDate))
+  })
+  const getPenaltyRemittanceDate = (penalty: CreditPenalty): Date | undefined =>
+    remittanceDateByPenaltyId.get(penalty.id)
 
   // Mapper les paiements aux échéances (mois) pour savoir combien a été versé pour chaque échéance
   // Utiliser l'ID du paiement qui contient le numéro du mois (M1, M2, etc.)
@@ -1039,6 +1026,7 @@ export default function CreditContractDetail({
     if (
       contract.creditType !== 'SPECIALE' ||
       !contract.guarantorId ||
+      isUnknownGuarantor(contract) ||
       !contract.guarantorIsMember ||
       (contract.guarantorRemunerationPercentage ?? 0) <= 0
     ) {
@@ -1294,25 +1282,6 @@ export default function CreditContractDetail({
       receiptContract,
       receiptSchedule,
     }
-  }
-
-  const parseCycleAndMonthFromInstallmentRef = (ref?: string): { cycleNumber?: number; monthNumber?: number } => {
-    if (!ref) return {}
-    const cycleMatch = ref.match(/^C(\d+)_M(\d+)_/)
-    if (cycleMatch) {
-      return {
-        cycleNumber: parseInt(cycleMatch[1], 10),
-        monthNumber: parseInt(cycleMatch[2], 10),
-      }
-    }
-    const legacyMatch = ref.match(/^M(\d+)_/)
-    if (legacyMatch) {
-      return {
-        cycleNumber: 1,
-        monthNumber: parseInt(legacyMatch[1], 10),
-      }
-    }
-    return {}
   }
 
   const resolvePenaltyCycleNumber = (penalty: CreditPenalty): number => {
@@ -2101,7 +2070,8 @@ export default function CreditContractDetail({
                   <span>
                     <b>Rajout</b>
                     {contract.rajoutAmount != null && contract.rajoutAmount > 0 && <> de <b>+{contract.rajoutAmount.toLocaleString('fr-FR')} FCFA</b></>}
-                    {contract.extendedAt && <> le {format(new Date(contract.extendedAt), 'dd/MM/yyyy', { locale: fr })}</>}
+                    {startDate && <> · départ le {format(startDate, 'dd/MM/yyyy', { locale: fr })}</>}
+                    {contract.extendedAt && <> · enregistré le {format(new Date(contract.extendedAt), 'dd/MM/yyyy', { locale: fr })}</>}
                     {' '}: montant initial {(contract.initialAmount ?? (contract.amount - (contract.rajoutAmount ?? 0))).toLocaleString('fr-FR')} FCFA,
                     nouveau cycle {contract.amount.toLocaleString('fr-FR')} FCFA. L&apos;échéancier repart à M1 ; les versements d&apos;avant restent dans l&apos;historique.
                   </span>
@@ -2166,10 +2136,10 @@ export default function CreditContractDetail({
                   : `${isWeekly ? 'Montant dû' : 'Mensualité'} ${contract.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA`}
               </p>
               <p className="text-sm">
-                Date de départ : <span className="font-semibold text-white">{startDate ? formatDate(startDate) : '—'}</span>
+                Départ du calendrier : <span className="font-semibold text-white">{startDate ? formatDate(startDate) : '—'}</span>
               </p>
               {hasExtension && initialStartDate && (
-                <p className="text-xs">Date de départ initiale : {formatDate(initialStartDate)}</p>
+                <p className="text-xs">Départ initial du calendrier : {formatDate(initialStartDate)}</p>
               )}
               <button
                 type="button"
@@ -2185,9 +2155,9 @@ export default function CreditContractDetail({
                   <p>Contacts client : <span className="font-medium">{contract.clientContacts.join(', ') || '—'}</span></p>
                   <p>Motif du crédit : <span className="font-medium">{originDemand?.cause?.trim() || '—'}</span></p>
                   <p>
-                    Premier versement : <span className="font-medium">{formatDate(contract.firstPaymentDate)}</span>
+                    Première échéance du cycle : <span className="font-medium">{formatDate(contract.firstPaymentDate)}</span>
                     {contract.nextDueAt ? <> · Prochaine échéance : <span className="font-medium">{formatDate(contract.nextDueAt)}</span></> : null}
-                    {getCreditContractEndDate(contract) ? <> · Fin prévue : <span className="font-medium">{formatDate(getCreditContractEndDate(contract)!)}</span></> : null}
+                    {getCreditContractEndDate(contract) ? <> · {contract.creditType === 'SPECIALE' && !isFlat ? 'Dernière échéance simulée' : 'Fin prévue'} : <span className="font-medium">{formatDate(getCreditContractEndDate(contract)!)}</span></> : null}
                   </p>
                   {/* Remise de l'argent au client, saisie à la création du contrat. */}
                   <p>
@@ -2196,8 +2166,8 @@ export default function CreditContractDetail({
                   </p>
                   {contract.guarantorId && (
                     <p>
-                      Garant : <span className="font-medium">{contract.guarantorFirstName} {contract.guarantorLastName}</span>
-                      {contract.guarantorRelation ? <> · Relation : <span className="font-medium">{contract.guarantorRelation}</span></> : null}
+                      Garant : <span className="font-medium">{isUnknownGuarantor(contract) ? 'LE KARA (sans commission)' : `${contract.guarantorFirstName} ${contract.guarantorLastName}`}</span>
+                      {!isUnknownGuarantor(contract) && contract.guarantorRelation ? <> · Relation : <span className="font-medium">{contract.guarantorRelation}</span></> : null}
                     </p>
                   )}
                 </div>
@@ -2341,7 +2311,7 @@ export default function CreditContractDetail({
                   const isDisabled = !canMakePayments || !isPayable
 
                   const isRest = item.status === 'REST' || !!item.isRest
-                  // Pour l'échéancier après rajout, seuls les paiements >= extendedAt comptent
+                  // Après rajout, le rattachement au cycle prévaut sur la date de saisie.
                   const expectedPayment = dueItems.find((due) => due.month === item.month)?.payment
                     ?? Math.min(contract.monthlyPaymentAmount, item.principal)
                   // Crédit en semaines : un versement partiel reste affiché sur l'échéance encore due,
@@ -3063,7 +3033,7 @@ export default function CreditContractDetail({
               {/* Onglet Commission du garant */}
               {!isSimpleCredit && (
               <TabsContent value="guarantor" className="p-6 m-0">
-                {contract.guarantorId && contract.guarantorIsMember && contract.guarantorRemunerationPercentage !== undefined && contract.guarantorRemunerationPercentage > 0 ? (
+                {!isUnknownGuarantor(contract) && contract.guarantorIsMember && contract.guarantorRemunerationPercentage !== undefined && contract.guarantorRemunerationPercentage > 0 ? (
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -3323,11 +3293,11 @@ export default function CreditContractDetail({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {!contract.guarantorId ? (
+                    {isUnknownGuarantor(contract) ? (
                       <div className="text-center py-8">
                         <Shield className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                        <p className="text-gray-600 font-medium">Aucun garant associé à ce contrat</p>
-                        <p className="text-sm text-gray-500 mt-2">Aucune commission n'est applicable</p>
+                        <p className="text-gray-600 font-medium">Garantie assurée par LE KARA</p>
+                        <p className="text-sm text-gray-500 mt-2">Aucune commission externe n'est applicable</p>
                       </div>
                     ) : !contract.guarantorIsMember ? (
                       <div className="text-center py-8">
@@ -3490,6 +3460,7 @@ export default function CreditContractDetail({
                     onClick={() => {
                       const hasGuarantorCommission = !!(
                         contract.guarantorId &&
+                        !isUnknownGuarantor(contract) &&
                         contract.guarantorIsMember &&
                         (contract.guarantorRemunerationPercentage ?? 0) > 0
                       )

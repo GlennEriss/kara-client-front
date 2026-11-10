@@ -15,6 +15,7 @@ const shopContract = {
   totalAmount: 165_000,
   duration: 3,
   guarantorRemunerationPercentage: 2,
+  guarantorId: 'garant-identifie',
   firstPaymentDate: new Date('2026-06-10'),
   createdAt: new Date('2026-05-10'),
   restMonths: [],

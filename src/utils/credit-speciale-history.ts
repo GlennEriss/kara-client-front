@@ -4,6 +4,8 @@ import { getLogicalMonthIndex } from './credit-speciale-rest-months'
 import { addContractMonths } from '@/utils/contract-months'
 import { getFlatInstallmentCount, isFlatCredit, splitFlatInstallments } from './credit-weekly'
 import { isCreditContractEnded } from './credit-write-off'
+import { getCreditExtensionStartDate, getCreditInitialStartDate } from './credit-cycle-dates'
+import { isUnknownGuarantor } from './credit-guarantor'
 
 export const SPECIAL_CREDIT_MAX_LOGICAL_MONTHS = 7
 export const SPECIAL_CREDIT_MAX_HISTORY_MONTHS = 84
@@ -92,8 +94,9 @@ export function getCreditContractCycles(
     | 'monthlyPaymentAmount'
     | 'restMonths'
     | 'totalAmount'
-  >
+  > & Partial<Pick<CreditContract, 'disbursementDate' | 'initialStartAt'>>
 ): CreditContractCycle[] {
+  const initialStart = getCreditInitialStartDate(contract)
   if (contract.creditCycles && contract.creditCycles.length > 0) {
     return [...contract.creditCycles]
       .map((cycle, index) => ({
@@ -101,7 +104,12 @@ export function getCreditContractCycles(
         cycleNumber: cycle.cycleNumber ?? index + 1,
         type: cycle.type ?? (index === 0 ? 'INITIAL' : 'AUGMENTATION'),
         firstPaymentDate: toDateValue(cycle.firstPaymentDate),
-        startedAt: toDateValue(cycle.startedAt ?? cycle.firstPaymentDate),
+        // Les anciens rajouts contiennent la date de saisie dans startedAt.
+        // On conserve cette information sans la confondre avec le départ effectif.
+        recordedAt: cycle.recordedAt ?? (cycle.type === 'AUGMENTATION' || (!cycle.type && index > 0) ? toDateValue(cycle.startedAt) : undefined),
+        startedAt: (cycle.type === 'AUGMENTATION' || (!cycle.type && index > 0))
+          ? getCreditExtensionStartDate(cycle.firstPaymentDate) ?? toDateValue(cycle.startedAt)
+          : initialStart ?? toDateValue(cycle.startedAt ?? cycle.firstPaymentDate),
       }))
       .sort((left, right) => left.cycleNumber - right.cycleNumber)
   }
@@ -116,7 +124,7 @@ export function getCreditContractCycles(
       totalAmount: contract.totalAmount,
       duration: contract.duration,
       firstPaymentDate: toDateValue(contract.firstPaymentDate),
-      startedAt: toDateValue(contract.createdAt ?? contract.firstPaymentDate),
+      startedAt: initialStart ?? toDateValue(contract.firstPaymentDate),
       customSchedule: contract.customSchedule,
       restMonths: contract.restMonths ?? [],
     },
@@ -344,13 +352,13 @@ export function getCreditSpecialeLastRecordedMonth(
 function buildFlatCreditHistory(
   contract: Pick<
     CreditContract,
-    'amount' | 'interestRate' | 'guarantorRemunerationPercentage' | 'firstPaymentDate' | 'duration' | 'durationUnit' | 'repaymentModel'
+    'amount' | 'interestRate' | 'guarantorRemunerationPercentage' | 'guarantorId' | 'firstPaymentDate' | 'duration' | 'durationUnit' | 'repaymentModel'
   >,
   payments: CreditPayment[]
 ): CreditSpecialeHistoryMonth[] {
   const capital = customRound(contract.amount)
   const interest = customRound(capital * (contract.interestRate / 100))
-  const commission = customRound(capital * ((contract.guarantorRemunerationPercentage ?? 0) / 100))
+  const commission = isUnknownGuarantor(contract) ? 0 : customRound(capital * ((contract.guarantorRemunerationPercentage ?? 0) / 100))
   const totalDue = customRound(capital + interest)
   const count = getFlatInstallmentCount(contract)
   const installments = splitFlatInstallments(totalDue, count)
@@ -439,6 +447,7 @@ export function buildCreditSpecialeHistory(
     | 'fixedTransitionReason'
     | 'fixedTransitionStartMonth'
     | 'guarantorRemunerationPercentage'
+    | 'guarantorId'
     | 'interestRate'
     | 'monthlyPaymentAmount'
     | 'totalAmount'
@@ -460,7 +469,7 @@ export function buildCreditSpecialeHistory(
 
   const firstDate = new Date(contract.firstPaymentDate)
   const monthlyRate = contract.interestRate / 100
-  const guarantorRate = (contract.guarantorRemunerationPercentage ?? 0) / 100
+  const guarantorRate = isUnknownGuarantor(contract) ? 0 : (contract.guarantorRemunerationPercentage ?? 0) / 100
   const restMonths = contract.restMonths ?? []
   const manualFixedStartMonth = contract.fixedTransitionStartMonth
   // Simulation personnalisée : le montant prévu de chaque mois (hors mois de repos),
@@ -658,6 +667,7 @@ export function buildCreditSpecialeTimelineHistory(
     | 'fixedTransitionReason'
     | 'fixedTransitionStartMonth'
     | 'guarantorRemunerationPercentage'
+    | 'guarantorId'
     | 'interestRate'
     | 'monthlyPaymentAmount'
     | 'rajoutEffectue'
@@ -689,6 +699,7 @@ export function buildCreditSpecialeTimelineHistory(
       fixedTransitionReason: cycle.fixedTransitionReason,
       fixedTransitionStartMonth: cycle.fixedTransitionStartMonth,
       guarantorRemunerationPercentage: contract.guarantorRemunerationPercentage,
+      guarantorId: contract.guarantorId,
       interestRate: cycle.interestRate,
       monthlyPaymentAmount: cycle.monthlyPaymentAmount,
       totalAmount: cycle.totalAmount,

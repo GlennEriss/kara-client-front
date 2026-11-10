@@ -1,5 +1,6 @@
 import routes from "@/constantes/routes";
 import type { CreditType } from "@/types/types";
+import { isUnknownGuarantor } from "@/utils/credit-guarantor";
 import type {
   FinancialReport,
   FinancialReportModule,
@@ -133,7 +134,9 @@ function* entities(sources: FinancialReportSources): Generator<Entity> {
     ];
     scoped.creditPayments = payments.get(contract.id) ?? [];
     scoped.creditPenalties = penalties.get(contract.id) ?? [];
-    scoped.guarantorPayments = guarantors.get(contract.id) ?? [];
+    scoped.guarantorPayments = (guarantors.get(contract.id) ?? []).filter(
+      (payment) => !isUnknownGuarantor(payment),
+    );
     yield {
       id: contract.id,
       module: modules[contract.creditType],
@@ -433,6 +436,8 @@ function contractFacts(entity: Entity): FinancialContractReport["facts"] {
   if (entity.creditType) {
     money("Montant du contrat", c.amount);
     money("Mensualité enregistrée", c.monthlyPaymentAmount);
+    if (isUnknownGuarantor({ guarantorId: text(c.guarantorId) }))
+      facts.push({ label: "Garantie", value: "LE KARA — aucune commission externe" });
   } else if (entity.module === "placements") money("Capital placé", c.amount);
   else if (
     entity.module === "caisse_speciale" ||
@@ -469,7 +474,7 @@ export function buildFinancialReportContracts(
       )
         relatedParties.push(party);
     };
-    if (c.guarantorId)
+    if (!isUnknownGuarantor({ guarantorId: text(c.guarantorId) }))
       add({
         id: text(c.guarantorId),
         name:

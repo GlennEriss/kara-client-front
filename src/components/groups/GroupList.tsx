@@ -31,6 +31,7 @@ import { isOpenProject, PROJECT_KINDS } from "@/domains/groups/group-model";
 import { useGroupWorkspace } from "@/domains/groups/useGroupWorkspace";
 import { useListUrlSync } from "@/hooks/useListUrlSync";
 import type { Group, GroupProjectKind } from "@/types/types";
+import { GroupTutorialButton } from "@/domains/groups/tutorial/GroupTutorialButton";
 import { CreateGroupWizard } from "./CreateGroupWizard";
 
 export default function GroupList() {
@@ -102,21 +103,24 @@ export default function GroupList() {
   };
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <p className="max-w-xl text-sm leading-relaxed text-gray-600">
           Des personnes qui s&apos;unissent, des projets qui prennent forme.
           Retrouvez vos caisses collectives, achats collectifs et autres
           initiatives.
         </p>
-        {canManage && (
-          <Button
-            className="shrink-0 bg-[#234D65] text-white hover:bg-[#1b3d50]"
-            onClick={() => setCreating(true)}
-          >
-            <Plus className="h-4 w-4" />
-            Créer un groupe
-          </Button>
-        )}
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <GroupTutorialButton />
+          {canManage && (
+            <Button
+              className="shrink-0 bg-[#234D65] text-white hover:bg-[#1b3d50]"
+              onClick={() => setCreating(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Créer un groupe
+            </Button>
+          )}
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {[

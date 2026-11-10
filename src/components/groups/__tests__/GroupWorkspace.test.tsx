@@ -295,6 +295,9 @@ describe("groupes existants et droits", () => {
     mount(<GroupDetails groupId="g1" />);
     await screen.findByRole("heading", { name: "Les Entrepreneurs" });
     expect(
+      screen.getByRole("button", { name: "Voir une démonstration" }),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByRole("button", { name: "Nouveau projet" }),
     ).not.toBeInTheDocument();
     expect(
