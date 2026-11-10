@@ -1,4 +1,4 @@
-import type { ContributionPayment } from "./contribution-model";
+import type { ContributionPayment, ContributionFrequency } from "./contribution-model";
 export interface PayoutFee {
   enabled: boolean;
   amount: number;
@@ -11,6 +11,7 @@ export interface GroupPayout {
   projectId: string;
   projectName: string;
   period: string;
+  frequency?: ContributionFrequency;
   beneficiaryId: string;
   beneficiaryName: string;
   grossAmount: number;

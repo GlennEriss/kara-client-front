@@ -68,7 +68,7 @@ export function CreateGroupWizard({
       return;
     }
     if (step === 1 && !guarantor) {
-      setError("Choisissez un membre Kara comme garant du groupe.");
+      setError("Choisissez un membre Kara ou INCONNU comme garant du groupe.");
       return;
     }
     if (step === 1 && !participantsInitialized) {
@@ -193,8 +193,8 @@ export function CreateGroupWizard({
                   onChange={setGuarantor}
                 />
                 <p className="text-xs text-gray-500">
-                  Le garant doit être membre de Kara. Il peut appartenir à un
-                  autre groupe ; son rôle est distinct de celui du référent.
+                  Choisissez un membre Kara, même d’un autre groupe, ou « Contact inconnu »
+                  lorsque LE KARA assure la garantie sans commission. Ce rôle est distinct de celui du référent.
                 </p>
                 {!!members.length && (
                   <div className="space-y-2">

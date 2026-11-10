@@ -10,6 +10,10 @@ import { listContributions } from "@/domains/groups/contribution-service";
 import {
   paidContribution,
   todayLibreville,
+  contributionFrequency,
+  contributionPeriodLabel,
+  currentContributionPeriod,
+  CONTRIBUTION_FREQUENCIES,
 } from "@/domains/groups/contribution-model";
 import {
   activePayoutDraw,
@@ -22,11 +26,6 @@ import {
   type PayoutInput,
 } from "@/domains/groups/payout-service";
 const money = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
-const monthLabel = (p: string) =>
-  new Date(`${p}-01T12:00:00`).toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric",
-  });
 export function GroupProjectPayouts(props: {
   groupId: string;
   project: GroupProject;
@@ -44,10 +43,13 @@ function PayoutWorkspace({
 }) {
   const { actor, canManage, refresh } = useGroupWorkspace(groupId);
   const plan = project.contributionPlan!;
-  const [selected, setSelected] = useState(todayLibreville().slice(0, 7));
+  const frequency = contributionFrequency(plan);
+  const unit = CONTRIBUTION_FREQUENCIES[frequency].unit;
+  const monthLabel = (p: string) => contributionPeriodLabel(p, frequency);
+  const [selected, setSelected] = useState(() => currentContributionPeriod(plan));
   const period =
     plan.periods.find((p) => p.period === selected)?.period ||
-    plan.periods[0]?.period ||
+    currentContributionPeriod(plan) ||
     "";
   const [enabled, setEnabled] = useState(project.payoutFee?.enabled ?? false);
   const [fee, setFee] = useState(project.payoutFee?.amount || 1000);
@@ -117,7 +119,7 @@ function PayoutWorkspace({
           Remises aux bénéficiaires
         </h3>
         <p className="mt-1 text-xs text-gray-500">
-          Une remise par mois, après règlement de toutes les cotisations.
+          Une remise par {unit}, après règlement de toutes les cotisations de la période.
           L’enregistrement constate une remise effective ; il ne déclenche aucun
           transfert.
         </p>
@@ -180,7 +182,7 @@ function PayoutWorkspace({
         </details>
       )}
       <div>
-        <Label htmlFor={`payout-period-${project.id}`}>Mois de remise</Label>
+        <Label htmlFor={`payout-period-${project.id}`}>{frequency === "MONTHLY" ? "Mois de remise" : frequency === "DAILY" ? "Jour de remise" : "Semaine de remise"}</Label>
         <select
           id={`payout-period-${project.id}`}
           className="h-10 w-full rounded-md border bg-white px-2 text-sm"
@@ -244,7 +246,7 @@ function PayoutWorkspace({
           {!complete && (
             <p className="text-sm text-amber-800">
               En attente du règlement ou de la prise en charge de toutes les
-              cotisations de ce mois.
+              cotisations de cette période.
             </p>
           )}
           {canManage && complete && project.status !== "CANCELLED" && (
@@ -422,7 +424,7 @@ function PayoutWorkspace({
             {payouts.data.map((p) => (
               <li key={p.id} className="rounded-lg bg-gray-50 p-3 text-xs">
                 <strong>
-                  {monthLabel(p.period)} · {p.beneficiaryName}
+                  {contributionPeriodLabel(p.period, p.frequency ?? frequency)} · {p.beneficiaryName}
                 </strong>
                 <p className="mt-1">
                   Caisse {money(p.grossAmount)} · Redevance {money(p.feeAmount)}{" "}

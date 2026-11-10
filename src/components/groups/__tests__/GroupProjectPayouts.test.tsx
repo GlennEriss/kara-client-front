@@ -42,14 +42,14 @@ const project = {
     periods: [{ period: "2026-11", dueDate: "2026-11-05" }],
   },
 } as GroupProject;
-function mount() {
+function mount(p = project) {
   return render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <GroupProjectPayouts groupId="g1" project={project} />
+      <GroupProjectPayouts groupId="g1" project={p} />
     </QueryClientProvider>,
   );
 }
@@ -69,6 +69,19 @@ beforeEach(() => {
   mock.refresh.mockResolvedValue(undefined);
 });
 describe("remise de caisse par l’admin", () => {
+  it.each(['DAILY', 'WEEKLY'] as const)('propose le bénéficiaire de la période %s selon l’ordre du tirage', async frequency => {
+    const next = frequency === 'DAILY' ? '2026-11-02' : '2026-11-08';
+    const periods = [{ period: '2026-11-01', dueDate: '2026-11-01' }, { period: next, dueDate: next }];
+    const p = { ...project, contributionPlan: { ...project.contributionPlan!, frequency, periods }, payoutOrderDrawId: 'draw1',
+      payoutDraws: [{ id: 'draw1', participantIds: ['alice', 'bob'] }] } as GroupProject;
+    mock.contributions.mockResolvedValue(['alice', 'bob'].map(memberId => ({ memberId, period: next, payments: [{ amount: 25000 }] })));
+    mount(p);
+    fireEvent.change(screen.getByLabelText(frequency === 'DAILY' ? 'Jour de remise' : 'Semaine de remise'), { target: { value: next } });
+    expect(await screen.findByLabelText('Bénéficiaire de la remise')).toHaveValue('bob');
+    fireEvent.click(screen.getByRole('button', { name: 'Vérifier la remise' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer la remise effective' }));
+    await waitFor(() => expect(mock.record).toHaveBeenCalledWith('g1', 'p1', next, expect.objectContaining({ beneficiaryId: 'bob' }), expect.anything()));
+  });
   it("affiche brut, redevance et net, puis exige une vérification avant enregistrement", async () => {
     mount();
     const choose = await screen.findByLabelText("Bénéficiaire de la remise");

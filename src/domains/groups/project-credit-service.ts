@@ -31,7 +31,8 @@ import {
   sameProject,
 } from "./project-credit-model";
 import type { GroupActor } from "./group-service";
-import { isGroupGuarantor } from "./group-guarantor";
+import { isGroupGuarantor, isIdentifiedGroupMember, isKaraGroupGuarantor } from "./group-guarantor";
+import { UNKNOWN_USER_ID } from "@/domains/financial/caisse-imprevue/import/unknownUser";
 import { memberName } from "./group-model";
 import {
   validateCollectiveCredit,
@@ -215,6 +216,10 @@ export async function createLinkedCreditRecord(
     writeContributionReservation(transaction, contribution, actor.id);
     transaction.set(target, {
       ...input,
+      ...(input.guarantorId === UNKNOWN_USER_ID ? {
+        guarantorIsMember: false,
+        ...(kind === "creditContracts" ? { guarantorRemunerationPercentage: 0 } : {}),
+      } : {}),
       groupProject: checked.link,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -705,7 +710,7 @@ export async function createCollectiveCreditRequest(
       !isGroupGuarantor({ ...primary.data(), id: primary.id } as User)
     )
       throw new Error(
-        "Le garant du groupe doit être un membre Kara identifié.",
+        "Le garant du groupe doit être un membre Kara identifié ou le compte INCONNU de LE KARA.",
       );
     const payloads = input.shares.map((share) => {
       const borrower = byId.get(share.memberId)!;
@@ -724,7 +729,7 @@ export async function createCollectiveCreditRequest(
         );
       const member = { ...borrower.data(), id: borrower.id } as User;
       if (
-        !isGroupGuarantor(member) ||
+        !isIdentifiedGroupMember(member) ||
         !member.matricule ||
         (member.lastName?.trim().length ?? 0) < 2 ||
         !member.contacts?.length ||
@@ -737,7 +742,7 @@ export async function createCollectiveCreditRequest(
         !guarantor.exists() ||
         !isGroupGuarantor({ ...guarantor.data(), id: guarantor.id } as User)
       )
-        throw new Error("Chaque garant doit être un membre Kara identifié.");
+        throw new Error("Chaque garant doit être un membre Kara identifié ou le compte INCONNU de LE KARA.");
       if (
         guarantor.id === borrower.id ||
         (guarantor.data().matricule &&
@@ -760,7 +765,7 @@ export async function createCollectiveCreditRequest(
         guarantorFirstName: guarantor.data().firstName || "",
         guarantorLastName: guarantor.data().lastName,
         guarantorRelation: "Autre",
-        guarantorIsMember: true,
+        guarantorIsMember: !isKaraGroupGuarantor(guarantor),
         groupProject: {
           groupId: group.id,
           projectId: project.id,

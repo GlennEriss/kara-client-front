@@ -11,6 +11,7 @@ import {
 } from "../group-service";
 import { emptyProject } from "../group-model";
 import { getGroupById } from "@/db/group.db";
+import { UNKNOWN_USER_ID, buildUnknownUserBase } from "@/domains/financial/caisse-imprevue/import/unknownUser";
 
 const memory = vi.hoisted(() => ({
   data: new Map<string, Record<string, any>>(),
@@ -142,6 +143,20 @@ beforeEach(() => {
 });
 
 describe("création du collectif", () => {
+  it("réutilise INCONNU comme garant à la création et à la modification sans en faire un participant", async () => {
+    memory.data.set(`users/${UNKNOWN_USER_ID}`, buildUnknownUserBase());
+    const id = await createCollectiveGroup({ name: "Collectif", description: "", guarantorId: UNKNOWN_USER_ID, memberIds: ["m1"] }, actor);
+    expect(memory.data.get(`groups/${id}`)).toMatchObject({ guarantorId: UNKNOWN_USER_ID, guarantorName: "INCONNU — LE KARA" });
+    expect(memory.writes).not.toContain(`users/${UNKNOWN_USER_ID}`);
+    await updateCollectiveGroup(id, { name: "Collectif", description: "", guarantorId: "m2" }, actor);
+    await updateCollectiveGroup(id, { name: "Collectif", description: "", guarantorId: UNKNOWN_USER_ID }, actor);
+    expect(memory.data.get(`groups/${id}`)?.guarantorId).toBe(UNKNOWN_USER_ID);
+    expect(memory.data.get(`users/${UNKNOWN_USER_ID}`)?.groupIds).toBeUndefined();
+  });
+  it("ne crée ni groupe ni compte INCONNU si le garant technique est absent", async () => {
+    await expect(createCollectiveGroup({ name: "Collectif", description: "", guarantorId: UNKNOWN_USER_ID, memberIds: [] }, actor)).rejects.toThrow("garant");
+    expect(memory.writes).toEqual([]);
+  });
   it("crée le groupe, ses membres et son premier projet atomiquement, sans remplacer les autres groupes", async () => {
     const id = await createCollectiveGroup(
       {

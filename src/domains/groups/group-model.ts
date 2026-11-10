@@ -98,5 +98,5 @@ export function validateGroup(input: {
       );
   }
   if (!input.guarantorId)
-    throw new Error("Choisissez un membre Kara comme garant du groupe.");
+    throw new Error("Choisissez un membre Kara ou INCONNU comme garant du groupe.");
 }

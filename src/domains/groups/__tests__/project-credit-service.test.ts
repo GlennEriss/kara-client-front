@@ -22,6 +22,7 @@ import {
 import { CreditDemandRepository } from "@/repositories/credit-speciale/CreditDemandRepository";
 import { CreditContractRepository } from "@/repositories/credit-speciale/CreditContractRepository";
 import type { CreditContract, CreditDemand } from "@/types/types";
+import { UNKNOWN_USER_ID, buildUnknownUserBase } from "@/domains/financial/caisse-imprevue/import/unknownUser";
 
 const memory = vi.hoisted(() => ({
   records: new Map<string, any>(),
@@ -547,6 +548,28 @@ describe("demande collective de crédit fixe", () => {
       groupIds: ["autre"],
     });
   });
+  it("reprend INCONNU sur chaque demande collective sans statut de garant rémunéré", async () => {
+    memory.records.set(`users/${UNKNOWN_USER_ID}`, buildUnknownUserBase());
+    memory.records.get("groups/g1").guarantorId = UNKNOWN_USER_ID;
+    const ids = await createCollectiveCreditRequest({ ...request(), expectedGuarantorId: UNKNOWN_USER_ID }, actor);
+    expect(ids).toHaveLength(2);
+    for (const id of ids) expect(memory.records.get(`creditDemands/${id}`)).toMatchObject({ guarantorId: UNKNOWN_USER_ID, guarantorIsMember: false });
+  });
+  it("autorise INCONNU comme garant alternatif de la propre part du garant du groupe", async () => {
+    memory.records.set(`users/${UNKNOWN_USER_ID}`, buildUnknownUserBase());
+    memory.records.get("groups/g1").guarantorId = "alice";
+    const initial = request();
+    const ids = await createCollectiveCreditRequest({ ...initial, expectedGuarantorId: "alice", shares: [{ ...initial.shares[0], guarantorId: UNKNOWN_USER_ID }, initial.shares[1]] }, actor);
+    expect(memory.records.get(`creditDemands/${ids[0]}`)).toMatchObject({ guarantorId: UNKNOWN_USER_ID, guarantorIsMember: false });
+    expect(memory.records.get(`creditDemands/${ids[1]}`)).toMatchObject({ guarantorId: "alice", guarantorIsMember: true });
+  });
+  it("n’autorise pas INCONNU à devenir emprunteur même avec un profil complété", async () => {
+    memory.records.set(`users/${UNKNOWN_USER_ID}`, { ...buildUnknownUserBase(), groupIds: ["g1"], contacts: ["077000001"] });
+    memory.records.get("groups/g1").projects[0].participantIds.push(UNKNOWN_USER_ID);
+    const initial = request();
+    await expect(createCollectiveCreditRequest({ ...initial, shares: [{ ...initial.shares[0], memberId: UNKNOWN_USER_ID }, initial.shares[1]] }, actor)).rejects.toThrow("Complétez");
+    expect(memory.writes).toEqual([]);
+  });
   it("crée atomiquement une demande ordinaire par membre avec le même garant et ne duplique pas une relance identique", async () => {
     const ids = await createCollectiveCreditRequest(request(), actor);
     expect(ids).toHaveLength(2);
@@ -684,6 +707,16 @@ describe("cotisations mensuelles et crédit fixe lié", () => {
       actor,
     );
     memory.writes = [];
+  });
+  it("accepte INCONNU pour financer une cotisation et impose zéro commission au contrat", async () => {
+    memory.records.set(`users/${UNKNOWN_USER_ID}`, buildUnknownUserBase());
+    const data = { ...input(), guarantorId: UNKNOWN_USER_ID, guarantorIsMember: false, status: "PENDING" };
+    await createLinkedCreditRecord("creditDemands", "unknown-demand", data);
+    expect(stored().financingDemandId).toBe("unknown-demand");
+    expect(memory.records.get("creditDemands/unknown-demand").guarantorIsMember).toBe(false);
+    memory.records.get("creditDemands/unknown-demand").status = "APPROVED";
+    await createLinkedCreditRecord("creditContracts", "unknown-contract", { ...data, demandId: "unknown-demand", guarantorIsMember: true, guarantorRemunerationPercentage: 5 });
+    expect(memory.records.get("creditContracts/unknown-contract")).toMatchObject({ guarantorId: UNKNOWN_USER_ID, guarantorIsMember: false, guarantorRemunerationPercentage: 0 });
   });
   it("utilise les participants du cycle pour financer un mois, tout en exigeant l’appartenance actuelle au groupe", async () => {
     project().participantIds = [];
@@ -887,6 +920,29 @@ function fundedPayoutCycle() {
 }
 const payoutInput = () => ({ operationId: 'remise-1', beneficiaryId: 'alice', date: '2026-11-05', source: 'CASH' as const, reference: 'recu-1', note: 'Remis en agence', expectedGross: 50000, expectedFee: 1000 });
 describe('remises des caisses collectives et redevance facultative', () => {
+  it.each(['DAILY', 'WEEKLY'] as const)('enregistre deux prises %s dans le même mois, une seule par période, avec la redevance conservée', async frequency => {
+    const project = memory.records.get('groups/g1').projects[0];
+    Object.assign(project, { kind: 'TONTINE', status: 'ACTIVE', participantIds: ['alice', 'bob'], payoutFee: { enabled: true, amount: 1000 } });
+    memory.records.set('users/bob', { groupIds: ['g1'], firstName: 'Bob' });
+    await configureContributions('g1', 'p1', { amount: 25000, frequency, startDate: '2026-11-01', periodCount: 2 }, actor);
+    expect(project.contributionPlan).toBeUndefined();
+    const plan = memory.records.get('groups/g1').projects[0].contributionPlan;
+    expect(plan.frequency).toBe(frequency);
+    for (const [i, period] of plan.periods.entries()) {
+      for (const memberId of ['alice', 'bob']) await recordContributionPayment('g1', 'p1', period.period, memberId,
+        { id: `${memberId}-${i}`, amount: 25000, date: period.dueDate, source: 'CASH' }, actor);
+      const input = { ...payoutInput(), operationId: `remise-${i}`, beneficiaryId: i ? 'bob' : 'alice', date: period.dueDate };
+      await recordGroupPayout('g1', 'p1', period.period, input, actor);
+      const saved = memory.records.get(`groupPayouts/${payoutId('g1', 'p1', period.period)}`);
+      expect(saved).toMatchObject({ frequency, grossAmount: 50000, feeAmount: 1000, netAmount: 49000 });
+      const writes = memory.writes.length;
+      await recordGroupPayout('g1', 'p1', period.period, input, actor);
+      expect(memory.writes).toHaveLength(writes);
+      await expect(recordGroupPayout('g1', 'p1', period.period, { ...input, operationId: 'doublon' }, actor)).rejects.toThrow(/déjà enregistrée/);
+    }
+    expect([...memory.records.keys()].filter(key => key.startsWith('groupPayouts/'))).toHaveLength(2);
+    await expect(configureContributions('g1', 'p1', { amount: 25000, frequency, startDate: '2026-12-01', periodCount: 2 }, actor)).rejects.toThrow(/déjà des opérations/);
+  });
   it('calcule le net et refuse les retenues fractionnaires, négatives ou supérieures à la caisse', () => {
     expect(payoutAmounts(50000, { enabled: true, amount: 1000 })).toEqual({ grossAmount: 50000, feeAmount: 1000, netAmount: 49000 });
     expect(payoutAmounts(50000)).toMatchObject({ feeAmount: 0, netAmount: 50000 });

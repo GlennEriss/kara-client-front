@@ -102,6 +102,15 @@ beforeEach(() => {
   );
 });
 describe("gestion des cotisations par l’admin", () => {
+  it.each(['DAILY', 'WEEKLY'] as const)('configure un cycle %s avec une première date et un nombre de prises', async frequency => {
+    mount({ ...project, contributionPlan: undefined });
+    fireEvent.change(screen.getByLabelText('Fréquence des cotisations et des prises'), { target: { value: frequency } });
+    fireEvent.change(screen.getByLabelText('Première cotisation / prise'), { target: { value: '2026-11-01' } });
+    fireEvent.change(screen.getByLabelText(frequency === 'DAILY' ? 'Nombre de jours' : 'Nombre de semaines'), { target: { value: '3' } });
+    expect(screen.queryByLabelText('Jour d’échéance du mois')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le cycle' }));
+    await waitFor(() => expect(mock.configure).toHaveBeenCalledWith('g1', 'p1', { amount: 10000, frequency, startDate: '2026-11-01', periodCount: 3 }, { id: 'admin', name: 'Admin' }));
+  });
   it("préremplit un crédit fixe pour le solde exact, le membre et le mois, sans le marquer payé", async () => {
     mount();
     fireEvent.click(

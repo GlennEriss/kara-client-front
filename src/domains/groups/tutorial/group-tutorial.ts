@@ -125,7 +125,7 @@ export const GROUP_TUTORIAL_LESSONS: readonly GroupTutorialLesson[] = [
         id: "caisse-plan",
         title: "Configurer les cotisations",
         instruction:
-          "Indiquez le montant par membre, le premier mois, la durée et le jour d’échéance. Dès la première opération, le cycle est conservé.",
+          "Choisissez le rythme : journalier, hebdomadaire ou mensuel. Cet exemple est mensuel : indiquez le montant par membre, le premier mois, la durée et le jour d’échéance. Dès la première opération, le cycle est conservé.",
         action: "Créer le cycle",
         outcome:
           "L’exemple prévoit 10 000 FCFA par membre pendant trois mois : la caisse attend donc 30 000 FCFA chaque mois.",
