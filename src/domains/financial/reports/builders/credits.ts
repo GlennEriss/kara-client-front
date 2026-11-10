@@ -10,6 +10,7 @@ import {
   getCreditPaymentsForCurrentCycle,
 } from '@/utils/credit-speciale-history'
 import { isFlatCredit } from '@/utils/credit-weekly'
+import { isUnknownGuarantor } from '@/utils/credit-guarantor'
 import type { FinancialReportModule, FinancialReportModuleKey, MonthKey } from '../entities/financial-report.types'
 import type { FinancialReportContext, FinancialReportSources } from '../entities/financial-report-sources.types'
 import { monthKeyOf } from '../utils/report-months'
@@ -311,7 +312,9 @@ export function buildCreditModule(
   }
 
   const guarantorPaid: MonthAmount[] = sources.guarantorPayments
-    .filter((payment) => contractIds.has(payment.creditId))
+    // Les anciennes saisies sur le compte technique INCONNU sont internes à
+    // LE KARA : elles ne sont ni une sortie de trésorerie ni une charge.
+    .filter((payment) => contractIds.has(payment.creditId) && !isUnknownGuarantor(payment))
     .map((payment) => ({ month: monthKeyOf(payment.paymentDate), amount: toNumber(payment.amount) }))
 
   const repayments = flowValues(months, all.repayments)
@@ -407,6 +410,7 @@ export function buildCreditModule(
       ]),
     ],
     notes: [
+      'Le compte garant INCONNU représente LE KARA : aucune commission externe. Les anciennes saisies sur ce compte sont exclues des sorties et des charges.',
       'Les fonds remis comptent à la date de remise (à défaut, à la création du contrat) ; un rajout compte à sa date. Achat en boutique : le montant versé au vendeur.',
       isSpeciale
         ? 'Intérêts perçus : un versement paie au plus les intérêts de son mois (règle de l’application). Les intérêts d’un mois impayé passent dans le reste dû et ne sont pas comptés comme perçus.'

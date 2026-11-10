@@ -1748,7 +1748,7 @@ const ListContrats = ({
                       {/* Stats 2×2 — même grille que les cartes de caisse */}
                       <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Date de départ</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Départ du calendrier</p>
                           <p className="font-bold text-gray-900 tabular-nums text-sm">
                             {startDate?.toLocaleDateString('fr-FR') ?? '—'}
                           </p>
@@ -1980,7 +1980,7 @@ const ListContrats = ({
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-900">
                         <p className="font-mono break-all">{contract.id}</p>
-                        <p className="mt-1 text-gray-500">Départ : {getCreditContractStartDates(contract).startDate?.toLocaleDateString('fr-FR') ?? '—'}</p>
+                        <p className="mt-1 text-gray-500">Départ du calendrier : {getCreditContractStartDates(contract).startDate?.toLocaleDateString('fr-FR') ?? '—'}</p>
                         {getCreditContractStartDates(contract).hasExtension && (
                           <p className="text-gray-500">Départ initial : {getCreditContractStartDates(contract).initialStartDate?.toLocaleDateString('fr-FR') ?? '—'}</p>
                         )}
@@ -2307,7 +2307,7 @@ const ListContrats = ({
                           </div>
                           <div className="space-y-3">
                             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
-                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Date de départ</p>
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Départ du calendrier</p>
                               <p className="text-base font-semibold text-slate-900">{startDate?.toLocaleDateString('fr-FR') ?? '—'}</p>
                               {hasExtension && initialStartDate && (
                                 <p className="mt-1 text-xs text-slate-500">Départ initial : {initialStartDate.toLocaleDateString('fr-FR')}</p>

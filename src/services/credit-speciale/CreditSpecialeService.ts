@@ -44,8 +44,10 @@ import {
     buildGuarantorRemunerationDocId,
     getDefaultGuarantorRate,
     getGuarantorRemunerationCycleNumber,
+    isUnknownGuarantor,
 } from "@/utils/guarantor-commission";
 import { addContractMonths } from '@/utils/contract-months'
+import { getCreditExtensionStartDate, getCreditInitialStartDate } from '@/utils/credit-cycle-dates'
 
 export class CreditSpecialeService implements ICreditSpecialeService {
     readonly name = "CreditSpecialeService";
@@ -81,6 +83,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             fixedTransitionReason: cycle.fixedTransitionReason,
             fixedTransitionStartMonth: cycle.fixedTransitionStartMonth,
             createdAt: cycle.startedAt ?? contract.createdAt,
+            disbursementDate: cycle.type === 'INITIAL' ? contract.disbursementDate : cycle.startedAt,
+            initialStartAt: cycle.startedAt,
             creditCycles: undefined,
         };
     }
@@ -432,7 +436,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 // Erreur lors de la vérification du parrain - continue sans
             }
         }
-        const shouldApplyGuarantorRemuneration = demand.creditType === 'SPECIALE';
+        const shouldApplyGuarantorRemuneration = demand.creditType === 'SPECIALE' && !isUnknownGuarantor(demand);
 
         // La prochaine échéance d'un contrat nouvellement créé correspond au premier versement.
         const nextDueAt = new Date(simulationData.firstPaymentDate);
@@ -556,6 +560,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             disbursementWithFees: simulationData.disbursementWithFees,
             disbursementLocation: simulationData.disbursementLocation,
             disbursementDate: simulationData.disbursementDate,
+            initialStartAt: simulationData.disbursementDate,
             disbursementPaymentMethodOther: simulationData.disbursementPaymentMethodOther,
             createdBy: adminId,
             updatedBy: adminId,
@@ -1671,6 +1676,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             if (contract.creditType === 'SPECIALE' &&
                 contract.guarantorIsMember &&
                 contract.guarantorId &&
+                !isUnknownGuarantor(contract) &&
                 contract.guarantorRemunerationPercentage > 0 &&
                 !isZeroPayment &&
                 data.amount > 0) {
@@ -2612,6 +2618,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const contract = await this.creditContractRepository.getContractById(creditId);
         if (!contract) throw new Error('Contrat introuvable');
         if (!contract.guarantorId) throw new Error('Ce contrat n\'a pas de garant');
+        if (isUnknownGuarantor(contract)) throw new Error('LE KARA assure la garantie de ce contrat : aucune commission à verser');
         if (contract.creditType !== 'SPECIALE') throw new Error('Le paiement au garant ne s\'applique qu\'aux contrats crédit spéciale');
         if (contract.status === 'WRITTEN_OFF') throw new Error('Contrat clôturé en perte : la commission du garant a été annulée');
         if (data.amount <= 0) throw new Error('Le montant doit être strictement positif');
@@ -3738,6 +3745,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const carriedCapital = Math.max(0, extensionAmounts.remainingCapital);
         const newAmount = carriedCapital + additionalAmount;
         const now = new Date();
+        const extensionStartDate = getCreditExtensionStartDate(simulationData.firstPaymentDate);
+        if (!extensionStartDate) {
+            throw new Error('La date de première échéance du nouveau cycle est invalide.');
+        }
         const normalizedDuration = contract.creditType === 'SPECIALE'
             ? Math.min(Math.max(1, simulationData.duration), 7)
             : simulationData.duration;
@@ -3773,7 +3784,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 totalAmount: simulationData.totalAmount,
                 duration: normalizedDuration,
                 firstPaymentDate: simulationData.firstPaymentDate,
-                startedAt: now,
+                startedAt: extensionStartDate,
+                recordedAt: now,
                 additionalAmount,
                 carriedCapital,
                 cause,
@@ -3786,6 +3798,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const updated = await this.creditContractRepository.updateContract(contractId, {
             creditCycles,
             initialAmount,
+            initialStartAt: getCreditInitialStartDate(contract) ?? undefined,
             rajoutAmount: additionalAmount,
             rajoutEffectue: true,
             amount: newAmount,

@@ -119,6 +119,17 @@ describe('member form builders', () => {
     expect(entries[2]).toMatchObject({ outcome: 'missed' })
   })
 
+  it.each(['SPECIALE', 'FIXE'] as const)('conserve le paiement du dernier mois de %s même si le rajout prend effet ce jour-là', (creditType) => {
+    const first = { cycleNumber: 1, type: 'INITIAL', amount: 1_500_000, totalAmount: 1_500_000, interestRate: 0, monthlyPaymentAmount: 300_000, duration: 5, firstPaymentDate: new Date('2026-04-10'), startedAt: new Date('2026-03-10'), restMonths: [] }
+    const next = { ...first, cycleNumber: 2, type: 'AUGMENTATION', amount: 600_000, totalAmount: 600_000, duration: 2, firstPaymentDate: new Date('2026-07-10'), startedAt: new Date('2026-10-12') }
+    const contract = { id: 'credit-meme-jour', creditType, createdAt: first.startedAt, ...next, creditCycles: [first, next] } as unknown as CreditContract
+    const payments = [1, 2, 3].map(month => ({ id: `C1_M${month}_${contract.id}`, creditId: contract.id, amount: 300_000, paymentDate: new Date(2026, month + 2, 10), comment: '' })) as CreditPayment[]
+    const entries = buildCreditEntries([{ contract, payments }], new Date('2026-10-12'))
+    const previous = entries.filter(entry => !entry.label?.startsWith('Cycle 2'))
+    expect(previous.map(entry => entry.label)).toEqual(['Échéance 1', 'Échéance 2', 'Échéance 3'])
+    expect(previous.every(entry => entry.outcome === 'onTime')).toBe(true)
+  })
+
   it('ignore les échéances de l’ancien cycle remplacées par une augmentation saisie après coup', () => {
     const now = new Date('2026-10-12T10:00:00')
     const contract = {
