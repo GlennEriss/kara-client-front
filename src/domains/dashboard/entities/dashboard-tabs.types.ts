@@ -6,6 +6,7 @@ export const DASHBOARD_TAB_DEFINITIONS = [
   { key: 'credit_fixe', label: 'Crédit fixe', shortLabel: 'CFixe' },
   { key: 'caisse_aide', label: 'Caisse aide', shortLabel: 'CAide' },
   { key: 'placements', label: 'Placements', shortLabel: 'Place' },
+  { key: 'vehicules', label: 'Véhicules', shortLabel: 'Véh.' },
   { key: 'administration', label: 'Administration', shortLabel: 'Admin' },
   { key: 'recouvrement', label: 'Recouvrement', shortLabel: 'Reco' },
   { key: 'groupes', label: 'Groupes', shortLabel: 'Groupes' },

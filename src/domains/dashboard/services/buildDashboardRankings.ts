@@ -5,6 +5,7 @@ import type { FinancialReport } from '@/domains/financial/reports/entities/finan
 import type { CreditType } from '@/types/types'
 import { toReportDate } from '@/domains/financial/reports/utils/report-months'
 import type { DashboardRankingBlock, DashboardRankingItem } from '../entities/dashboard.types'
+import { buildGuarantorRankings } from './buildGuarantorRankings'
 
 type FinancialTab = 'caisse_speciale' | 'caisse_imprevue' | 'credit_speciale' | 'credit_fixe' | 'credit_aide' | 'placements'
 type Member = { id: string; matricule?: string; firstName?: string; lastName?: string; createdAt?: unknown; dossier?: unknown }
@@ -25,7 +26,6 @@ function recentRanking(key: string, title: string, description: string, entries:
     key, title, description, kind: 'recent',
     items: [...latest.values()]
       .sort((a, b) => b.date.getTime() - a.date.getTime() || a.item.id!.localeCompare(b.item.id!))
-      .slice(0, 10)
       .map(({ item, date }) => ({ ...item, value: 0, date: date.toISOString() })),
   }
 }
@@ -167,7 +167,6 @@ export function buildDashboardFinancialRankings(
     .map(item => ({ ...item, value: Math.round(item.value) }))
     .filter(item => item.value > 0)
     .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, 'fr') || (a.id ?? '').localeCompare(b.id ?? ''))
-    .slice(0, 10)
   const periodDescription = range
     ? `Versements du ${range.from.toLocaleDateString('fr-FR', { timeZone: 'Africa/Libreville' })} au ${range.to.toLocaleDateString('fr-FR', { timeZone: 'Africa/Libreville' })}, regroupés par membre.`
     : 'Versements enregistrés depuis le début, regroupés par membre.'
@@ -191,5 +190,6 @@ export function buildDashboardFinancialRankings(
   })
   rankings.push(recentRanking('recent_subscribers', 'Les 10 dernières souscriptions de membres',
     'Derniers dossiers créés dans cette section et la période choisie, hors brouillons et demandes non finalisées. Un membre apparaît une seule fois, avec sa souscription la plus récente.', recent, range, now))
+  if (creditType) rankings.push(...buildGuarantorRankings(sources, creditType, members, range, now))
   return rankings
 }

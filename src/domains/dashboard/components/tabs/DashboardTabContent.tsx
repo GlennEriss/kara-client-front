@@ -15,6 +15,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import dynamic from 'next/dynamic';
 import { DeferredRender } from '@/components/ui/deferred-render';
 import { DashboardRankingCards } from './DashboardRankingCards';
+import type { DashboardExportContext } from '../../exports/dashboard-export-model';
 
 const DistributionChart = dynamic(() => import('./DashboardDistributionChart'), {
   ssr: false,
@@ -28,6 +29,7 @@ import type {
 
 interface DashboardTabContentProps {
   payload: DashboardTabPayload;
+  exportContext?: DashboardExportContext;
   executiveMembersPage?: ExecutiveActiveMembersPage | null;
   executiveMembersPageIndex?: number;
   executiveMembersLoading?: boolean;
@@ -161,6 +163,7 @@ function shortDistributionLabel(label: string): string {
 
 export function DashboardTabContent({
   payload,
+  exportContext,
   executiveMembersPage,
   executiveMembersPageIndex = 0,
   executiveMembersLoading = false,
@@ -678,7 +681,7 @@ export function DashboardTabContent({
         </section>
       )}
 
-      <DashboardRankingCards rankings={rankingsToRender} />
+      <DashboardRankingCards key={exportContext ? `${exportContext.generatedAt}-${JSON.stringify(exportContext.filters)}` : payload.title} rankings={rankingsToRender} context={exportContext} />
 
       {payload.notes && payload.notes.length > 0 && (
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">

@@ -1,8 +1,51 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DashboardRankingCards } from '../components/tabs/DashboardRankingCards'
 
+const { download } = vi.hoisted(() => ({ download: vi.fn() }))
+vi.mock('../exports/exportDashboard', () => ({ exportDashboard: download }))
+beforeEach(() => { download.mockReset(); download.mockResolvedValue(undefined) })
+
 describe('classements du dashboard', () => {
+  it('exporte le classement complet depuis la deuxième page et préserve le rang après recherche', async () => {
+    render(<DashboardRankingCards rankings={[{ key: 'full', title: 'Top 10 des garants', unit: 'FCFA', items: Array.from({ length: 43 }, (_, index) => ({ id: `g${index + 1}`, label: `Garant ${index + 1}`, value: 50000 - index })) }]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Voir plus : Top 10 des garants' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Exporter le classement' }), { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Exporter en Excel' }))
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1))
+    expect(download.mock.calls[0][0].payload.rankings[0].items).toHaveLength(43)
+    expect(download.mock.calls[0][1]).toBe('excel')
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Garant 43' } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Exporter le classement' })).toBeEnabled())
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Exporter le classement' }), { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Exporter en PDF' }))
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(2))
+    expect(download.mock.calls[1][0].payload.rankings[0].items).toMatchObject([{ id: 'g43', rank: 43 }])
+    expect(download.mock.calls[1][0].search).toBe('Garant 43')
+  })
+  it('limite l’aperçu à dix, ouvre toutes les pages et conserve les rangs après recherche', () => {
+    render(<DashboardRankingCards rankings={[{ key: 'full', title: 'Top 10 des membres', unit: 'FCFA', items: Array.from({ length: 45 }, (_, index) => ({
+      id: `m${index + 1}`, label: `Membre ${index + 1}`, subLabel: `MK-${index + 1}`, value: 50000 - index, href: `/memberships/m${index + 1}`,
+    })) }]} />)
+    const preview = screen.getByRole('list', { name: 'Top 10 des membres' })
+    expect(within(preview).getAllByRole('listitem')).toHaveLength(10)
+    expect(screen.getByText('10 sur 45')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Voir plus : Top 10 des membres' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('table', { name: 'Classement complet' })).toBeInTheDocument()
+    expect(within(dialog).getByText('Page 1 sur 3')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Suivant' }))
+    expect(within(dialog).getByRole('link', { name: 'Membre 21' })).toHaveAttribute('href', '/memberships/m21')
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Rechercher dans le classement' }), { target: { value: 'MK-45' } })
+    expect(within(dialog).getByText('Page 1 sur 1')).toBeInTheDocument()
+    expect(within(dialog).getByRole('cell', { name: '45' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('link', { name: 'Membre 45' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Exporter le classement' })).toBeEnabled()
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'introuvable' } })
+    expect(within(dialog).getByText('Aucun résultat pour cette recherche.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Exporter le classement' })).toBeDisabled()
+  })
   it('présente les rangs, la période, les montants et des liens utilisables au clavier', () => {
     render(<DashboardRankingCards rankings={[{
       key: 'received', title: 'Top 10 des membres — Versements reçus', description: 'Versements du 01/11/2026 au 10/11/2026.', unit: 'FCFA', items: [
