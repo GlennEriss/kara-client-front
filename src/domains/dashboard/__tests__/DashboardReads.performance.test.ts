@@ -42,6 +42,18 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 
 describe('dashboard : parité avec les lectures indépendantes', () => {
+  it('classe les parrains de véhicules selon leur périmètre, même pour un titulaire non membre', async () => {
+    fixture.collections.set('vehicle-insurances', [
+      { id: 'v1', holderType: 'non-member', sponsorMemberId: 'M1', declarationStatus: 'validated', validatedAt: '2026-11-02' },
+      { id: 'v2', holderType: 'member', memberId: 'M1', sponsorMemberId: 'M2', createdAt: '2026-11-02' },
+    ])
+    fixture.collections.set(names.vehicleInsuranceRewards, [{ id: 'r1', insuranceId: 'v1', beneficiaryId: 'M1', memberAmount: 3000,
+      partnerReceipt: { amount: 10000, receivedAt: '2026-11-02' }, memberPayment: { paidAt: '2026-11-03' } }])
+    const result = await getDashboardSnapshot('vehicules', { ...DEFAULT_DASHBOARD_FILTERS, zoneProvince: 'Estuaire' })
+    expect(result.snapshot.rankings![0].items).toMatchObject([{ id: 'M1', value: 1 }])
+    expect(result.snapshot.rankings![1].items).toMatchObject([{ id: 'M1', value: 3000 }])
+    expect(result.snapshot.kpis.find(k => k.key === 'kara_income')?.value).toBe(7000)
+  })
   it.each(DASHBOARD_TAB_KEYS)('conserve exactement la réponse de l’onglet %s', async (tab) => {
     const collectionSpy = vi.spyOn(FirestoreReadScope.prototype, 'collection').mockImplementation(name => fixture.db.collection(name).get() as never)
     const groupSpy = vi.spyOn(FirestoreReadScope.prototype, 'collectionGroup').mockImplementation(name => fixture.db.collectionGroup(name).get() as never)

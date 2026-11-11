@@ -21,6 +21,7 @@ import { useDashboardTabs } from "../hooks/useDashboardTabs";
 import { DashboardFiltersBar } from "./DashboardFiltersBar";
 import { DashboardTabs } from "./DashboardTabs";
 import { DashboardTabContent } from "./tabs/DashboardTabContent";
+import { DashboardExportButton } from './DashboardExportButton';
 
 function DashboardSkeleton() {
   return (
@@ -137,7 +138,10 @@ export default function DashboardPage() {
         icon={LayoutDashboard}
         title="Tableau de bord"
         subtitle="Les priorités, les risques et les performances de chaque activité."
-        rightSlot={
+        rightSlot={<div className="flex flex-wrap items-center gap-2">
+          {snapshot && !error && <DashboardExportButton label="Exporter la section" disabled={isFetching} data={{
+            context: { title: snapshot.snapshot.title, generatedAt: snapshot.generatedAt, filters }, payload: snapshot.snapshot,
+          }} />}
           <Button
             type="button"
             onClick={handleRefresh}
@@ -148,7 +152,7 @@ export default function DashboardPage() {
               className={`h-4 w-4 sm:mr-2 ${isFetching ? "animate-spin" : ""}`}
             />
             <span className="hidden sm:inline">Actualiser</span>
-          </Button>
+          </Button></div>
         }
       />
 
@@ -188,6 +192,7 @@ export default function DashboardPage() {
       ) : snapshot ? (
         <DashboardTabContent
           payload={snapshot.snapshot}
+          exportContext={{ title: snapshot.snapshot.title, generatedAt: snapshot.generatedAt, filters }}
           executiveMembersPage={executiveMembersPage}
           executiveMembersPageIndex={executiveCursorHistory.length}
           executiveMembersLoading={isExecutiveMembersLoading}

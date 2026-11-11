@@ -43,6 +43,8 @@ export interface DashboardDistributionBlock {
 }
 
 export interface DashboardRankingItem {
+  /** Original position, retained when a full ranking is searched/exported. */
+  rank?: number
   id?: string
   label: string
   value: number

@@ -21,6 +21,7 @@ import { loadFinancialReportSources } from '@/domains/financial/reports/services
 import { FirestoreReadScope } from '@/domains/financial/reports/services/FirestoreReadScope'
 import { currentMonthKey } from '@/domains/financial/reports/utils/report-months'
 import { buildDashboardFinancialRankings, buildRecentMembersRanking } from './buildDashboardRankings'
+import { buildVehicleDashboard } from './buildVehicleDashboard'
 
 type FirestoreRecord = Record<string, unknown> & { id: string }
 
@@ -1385,7 +1386,6 @@ function buildAdministrationPayload(
       subLabel: adminId,
     }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 8)
 
   return {
     title: 'Administration',
@@ -1503,7 +1503,6 @@ function buildRecouvrementPayload(
       subLabel: agentId,
     }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 10)
 
   const totalPaymentCount = relevantPayments.length
   const tauxSansAgent = totalPaymentCount > 0 ? (countWithoutAgent / totalPaymentCount) * 100 : 0
@@ -1537,7 +1536,6 @@ function buildRecouvrementPayload(
   const contactRanking = Array.from(contactsByAdmin.values())
     .map((contact) => ({ label: contact.name, value: contact.count, href: routes.admin.relances }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 10)
 
   return {
     title: 'Recouvrement',
@@ -1613,7 +1611,6 @@ function buildGroupesPayload(groupsRaw: FirestoreRecord[], memberScope: MemberSc
       }
     })
     .sort((a, b) => b.value - a.value)
-    .slice(0, 10)
 
   return {
     title: 'Groupes',
@@ -1651,7 +1648,7 @@ function buildMetiersPayload(professionsRaw: FirestoreRecord[], memberScope: Mem
   }
 
   const withoutProfession = Math.max(members.length - withProfession, 0)
-  const topProfessions = topNFromMap(professionCountMap, 10)
+  const topProfessions = topNFromMap(professionCountMap, Infinity)
   const mostRepresented = topProfessions[0]
 
   return {
@@ -1727,10 +1724,10 @@ function buildGeographiePayload(memberScope: MemberScopeContext): DashboardTabPa
       percentKpi('coverage_rate', 'Taux couverture adresse', coverage, `${membersWithProvinceAndCity}/${members.length} membres`),
     ],
     rankings: [
-      createRanking('top_provinces', 'Principales provinces', topNFromMap(provinceMap, 10), 'membres'),
-      createRanking('top_cities', 'Principales villes', topNFromMap(cityMap, 10), 'membres'),
-      createRanking('top_districts', 'Principaux quartiers', topNFromMap(districtMap, 10), 'membres'),
-      createRanking('top_arrondissements', 'Principaux arrondissements', topNFromMap(arrondissementMap, 10), 'membres'),
+      createRanking('top_provinces', 'Principales provinces', topNFromMap(provinceMap, Infinity), 'membres'),
+      createRanking('top_cities', 'Principales villes', topNFromMap(cityMap, Infinity), 'membres'),
+      createRanking('top_districts', 'Principaux quartiers', topNFromMap(districtMap, Infinity), 'membres'),
+      createRanking('top_arrondissements', 'Principaux arrondissements', topNFromMap(arrondissementMap, Infinity), 'membres'),
     ],
   }
 }
@@ -2513,6 +2510,13 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     const commissions = filterRecordsByDate(commissionsRaw, dateRange, ['paidAt', 'dueDate', 'createdAt'])
 
     snapshot = buildPlacementsPayload(demands, placements, commissions)
+  } else if (activeTab === 'vehicules') {
+    const [insurances, rewards] = await Promise.all([
+      readCollection('vehicle-insurances'),
+      readCollection(firebaseCollectionNames.vehicleInsuranceRewards),
+    ])
+    snapshot = buildVehicleDashboard(insurances, rewards, memberScope.allMembers, dateRange, new Date(),
+      memberScope.hasMemberScope ? memberScope.scopedMemberIds : undefined)
   } else if (activeTab === 'administration') {
     const [adminsRaw, membershipRequestsRaw, csDemandsRaw, ciDemandsRaw, creditDemandsRaw, placementDemandsRaw] = await Promise.all([
       readCollection(firebaseCollectionNames.admins),
@@ -2579,7 +2583,7 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     snapshot = applyAuthoritativeModuleFinancials(snapshot, report, financialModule)
     snapshot.rankings = [
       ...(snapshot.rankings ?? []),
-      ...buildDashboardFinancialRankings(sources, report, financialModule, memberScope.scopedMembers, dateRange, new Date()),
+      ...buildDashboardFinancialRankings(sources, report, financialModule, memberScope.allMembers, dateRange, new Date()),
     ]
   }
 

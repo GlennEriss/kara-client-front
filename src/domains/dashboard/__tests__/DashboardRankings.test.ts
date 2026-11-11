@@ -65,13 +65,13 @@ describe('classements financiers du dashboard', () => {
     expect(rank(s, 'caisse_imprevue')[0].items[0].value).toBe(25_000)
   })
 
-  it('retient dix membres aux montants positifs, dans un ordre stable, sans versements futurs ou non réglés', () => {
+  it('conserve le classement complet dans un ordre stable, sans versements futurs ou non réglés', () => {
     const s = sources()
     s.caisseSpecialeContracts = Array.from({ length: 13 }, (_, i) => ({ id: `c${i}`, memberId: `m${i}` }))
     s.caisseSpecialePayments = s.caisseSpecialeContracts.map((c, i) => ({ id: `p${i}`, parentId: c.id, status: 'PAID', amount: i * 1000, paidAt: '2026-11-05' }))
     s.caisseSpecialePayments.push({ id: 'future', parentId: 'c0', status: 'PAID', amount: 1_000_000, paidAt: '2026-12-01' })
     s.caisseSpecialePayments.push({ id: 'not-paid', parentId: 'c0', status: 'PENDING', amount: 1_000_000, paidAt: '2026-11-05' })
-    expect(rank(s, 'caisse_speciale')[0].items.map(i => i.value)).toEqual([12000, 11000, 10000, 9000, 8000, 7000, 6000, 5000, 4000, 3000])
+    expect(rank(s, 'caisse_speciale')[0].items.map(i => i.value)).toEqual([12000, 11000, 10000, 9000, 8000, 7000, 6000, 5000, 4000, 3000, 2000, 1000])
   })
 
   it('ne limite pas l’épargne actuelle à la période et déduit les remboursements payés', () => {
@@ -158,12 +158,12 @@ describe('classements financiers du dashboard', () => {
     expect(recent.items).toHaveLength(2)
   })
 
-  it('limite aussi les dernières souscriptions à dix membres distincts', () => {
+  it('conserve toutes les dernières souscriptions de membres distincts pour Voir plus', () => {
     const s = sources()
     s.placements = Array.from({ length: 12 }, (_, i) => ({ id: `p${i}`, benefactorId: `m${i}`, status: 'Active',
       createdAt: `2026-11-09T${String(i).padStart(2, '0')}:00:00Z` }))
     const recent = rank(s, 'placements').find(block => block.key === 'recent_subscribers')!
-    expect(recent.items.map(item => item.id)).toEqual(['m11', 'm10', 'm9', 'm8', 'm7', 'm6', 'm5', 'm4', 'm3', 'm2'])
+    expect(recent.items.map(item => item.id)).toEqual(['m11', 'm10', 'm9', 'm8', 'm7', 'm6', 'm5', 'm4', 'm3', 'm2', 'm1', 'm0'])
   })
 
   it('date les nouveaux membres par leur approbation, sinon par la création de leur fiche', () => {
