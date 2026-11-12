@@ -1,5 +1,5 @@
 import type { CreditContract, CreditPayment } from '@/types/types'
-import { addContractMonths } from './contract-months'
+import { getCreditPeriodDueDate } from './credit-periods'
 import { getCreditPaymentMonthNumber } from './credit-speciale-history'
 import { LATE_TOLERANCE_DAYS } from './credit-payment-punctuality'
 
@@ -50,16 +50,15 @@ export function getMonthPenaltyReferenceDate(
   cyclePayments: CreditPayment[],
   month: number
 ): Date {
-  const firstDueDate = new Date(cycleContract.firstPaymentDate)
   let toleratedDays = 0
   for (let previousMonth = 1; previousMonth < month; previousMonth++) {
     const paymentDate = getMonthFirstPaymentDate(cycleContract, cyclePayments, previousMonth)
     if (!paymentDate) continue
-    const plannedDueDate = addContractMonths(firstDueDate, previousMonth - 1)
+    const plannedDueDate = getCreditPeriodDueDate(cycleContract, previousMonth)
     const referenceDate = getPenaltyReferenceDate(plannedDueDate, toleratedDays)
     if (daysBetween(referenceDate, paymentDate) > LATE_TOLERANCE_DAYS) {
       toleratedDays = daysBetween(plannedDueDate, paymentDate)
     }
   }
-  return getPenaltyReferenceDate(addContractMonths(firstDueDate, month - 1), toleratedDays)
+  return getPenaltyReferenceDate(getCreditPeriodDueDate(cycleContract, month), toleratedDays)
 }

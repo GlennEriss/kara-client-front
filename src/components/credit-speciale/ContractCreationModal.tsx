@@ -625,7 +625,7 @@ export default function ContractCreationModal({
               <div>
                 <h4 className="font-semibold mb-3 text-sm">
                   {isWeeklySimulation
-                    ? 'Échéance unique'
+                    ? 'Première échéance du forfait'
                     : `Échéancier calculé (${schedule.filter(row => row.payment > 0).length} mois)`}
                 </h4>
                 <div className="max-h-60 overflow-y-auto border rounded-lg">
@@ -716,13 +716,13 @@ export default function ContractCreationModal({
           <div className="space-y-6">
             <div className="text-center mb-4">
               <h3 className="text-lg font-semibold text-[#234D65]">Rémunération du garant</h3>
-              <p className="text-gray-600 text-sm">Le garant membre gagne un pourcentage du reste dû (capital restant au début de chaque échéance) (0% à 5%, calculé sur maximum 7 mois)</p>
+              <p className="text-gray-600 text-sm">Le garant membre gagne un pourcentage du reste dû au début de chaque échéance (0% à 5%). {isWeeklySimulation ? 'Pour le forfait en semaines, cette commission cesse un mois après le départ du calendrier.' : 'Calcul limité aux 7 mois de la partie spéciale.'}</p>
             </div>
 
             <Alert className="border-purple-200 bg-purple-50">
               <Users className="h-4 w-4 text-purple-600" />
               <AlertDescription className="text-purple-800">
-                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est un membre de l'association et recevra une rémunération sur chaque échéance (calculée sur le reste dû, maximum 7 mois).
+                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est un membre de l'association et recevra une rémunération sur chaque échéance de la partie spéciale, calculée sur le reste dû. {isWeeklySimulation ? 'Les nouvelles commissions cessent un mois après le départ du calendrier.' : 'La limite est de 7 mois.'}
               </AlertDescription>
             </Alert>
 
@@ -771,7 +771,7 @@ export default function ContractCreationModal({
               <CardHeader className="py-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Percent className="w-4 h-4" />
-                  Tableau de rémunération ({guarantorRemunerationPercentage}% du reste dû, max 7 mois)
+                  Tableau de rémunération ({guarantorRemunerationPercentage}% du reste dû, {isWeeklySimulation ? 'limite d’un mois après le départ' : 'max 7 mois'})
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">

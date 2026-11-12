@@ -1,10 +1,12 @@
 import type { CharityEvent, User } from '@/types/types'
 import type { Event } from '../entities/event.types'
 import { normalizePhoneNumber, resolveWhatsappNumber } from '@/domains/memberships/utils/whatsappUrl'
+import { renderDefaultMessage, type MessageRenderer } from '@/domains/messaging/utils/renderMessage'
 
 export const DEFAULT_MEMBERS_APP_URL = 'https://association-le-kara.com'
 
 export interface EventInvitation {
+  templateKey?: 'communityEventInvitation' | 'charityEventInvitation'
   id: string
   title: string
   description?: string
@@ -29,6 +31,7 @@ export function charityEventInvitation(event: CharityEvent): EventInvitation {
   const publicEvent = event.isPublic && ['upcoming', 'ongoing'].includes(event.status)
   return {
     id: `charity-${event.id}`,
+    templateKey: 'charityEventInvitation',
     title: event.title,
     description: event.description,
     startDate: event.startDate,
@@ -52,6 +55,7 @@ export function communityEventInvitation(event: Event, charity?: CharityEvent | 
   const published = ['published', 'poll_open', 'location_confirmed'].includes(event.status)
   return {
     id: `event-${event.id}`,
+    templateKey: 'communityEventInvitation',
     title: event.title,
     description: event.description,
     startDate: event.startDate,
@@ -95,42 +99,25 @@ export function memberInvitationLink(baseUrl: string, path: string): string {
   }
 }
 
-export function buildEventInvitationMessage({ event, recipient, introduction, includeContribution, memberAppUrl }: {
+export function buildEventInvitationMessage({ event, recipient, introduction, includeContribution, memberAppUrl, renderMessage = renderDefaultMessage }: {
   event: EventInvitation
   recipient: InvitationRecipient
   introduction: string
   includeContribution: boolean
   memberAppUrl: string
+  renderMessage?: MessageRenderer
 }): string {
   const date = (value: Date) => new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'full', timeStyle: event.dateOnly ? undefined : 'short', timeZone: 'Africa/Libreville',
   }).format(value)
-  const lines = [
-    `Bonjour ${recipient.name},`, '', introduction.trim(), '',
-    `*${event.title}*`,
-    ...(event.description?.trim() ? [event.description.trim(), ''] : []),
-    `Début : ${date(event.startDate)}`,
-    ...(event.endDate ? [`Fin : ${date(event.endDate)}`] : []),
-    `Lieu : ${event.location}`,
-  ]
   const eventLink = memberInvitationLink(memberAppUrl, event.memberPath)
-  if (eventLink) lines.push('', `Voir l’événement : ${eventLink}`)
+  let contributionText = ''
   if (includeContribution && event.contribution) {
     const contribution = event.contribution
     const link = memberInvitationLink(memberAppUrl, contribution.memberPath)
-    lines.push('', `Vous pouvez contribuer à la collecte « ${contribution.title} », en argent ou en nature.`)
-    if (contribution.minimum && contribution.minimum > 0) {
-      lines.push(`Contribution minimale indiquée : ${contribution.minimum.toLocaleString('fr-FR')} ${contribution.currency}.`)
-    }
-    if (link) {
-      lines.push(`Pour contribuer : ${link}`,
-        'Choisissez « Je veux contribuer ». Votre déclaration sera vérifiée par l’association ; elle ne vaut pas confirmation de réception.')
-    } else {
-      lines.push('Pour contribuer, répondez à ce message en indiquant le montant que vous souhaitez remettre ou la nature du don proposé.',
-        'L’association vous indiquera les modalités de remise. Une intention de don ne confirme pas la réception du versement ou du don en nature.')
-    }
+    contributionText = renderMessage('eventContributionNotice', { collecte: contribution.title,
+      minimum: contribution.minimum && contribution.minimum > 0 ? `Contribution minimale indiquée : ${contribution.minimum.toLocaleString('fr-FR')} ${contribution.currency}.` : '', lien: link,
+      instructions: link ? `Pour contribuer : ${link}\nChoisissez « Je veux contribuer ». Votre déclaration sera vérifiée par l’association ; elle ne vaut pas confirmation de réception.` : 'Pour contribuer, répondez à ce message en indiquant le montant que vous souhaitez remettre ou la nature du don proposé.\nL’association vous indiquera les modalités de remise. Une intention de don ne confirme pas la réception du versement ou du don en nature.' })
   }
-  lines.push('', 'Pour toute information, vous pouvez répondre à ce message.')
-  lines.push('', 'LE KARA')
-  return lines.join('\n')
+  return renderMessage(event.templateKey || 'communityEventInvitation', { nom: recipient.name, introduction: introduction.trim(), evenement: event.title, description: event.description?.trim() || '', dateDebut: date(event.startDate), fin: event.endDate ? `Fin : ${date(event.endDate)}` : '', lieu: event.location, lien: eventLink, lienEvenement: eventLink ? `Voir l’événement : ${eventLink}` : '', contribution: contributionText }).replace(/\n{3,}/g, '\n\n')
 }

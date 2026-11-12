@@ -62,11 +62,31 @@ const SAMPLE_VALUES: Record<string, string> = {
   compagnie: ', NSIA Assurances',
   echeance: 'dans 7 jours (le 12/03/2026)',
   dateFin: '12/03/2026',
+  beneficiaire: 'ONDO Alice',
+  objet: 'Vente de ventilateurs',
+  reference: 'ACCORD-001',
+  evenement: 'Rencontre des membres',
+  introduction: 'LE KARA vous invite à participer à cette rencontre.',
+  description: 'Un moment d’échange entre les membres.',
+  dateDebut: 'vendredi 20 novembre 2026 à 10:00',
+  fin: 'Fin : samedi 21 novembre 2026',
+  lieu: 'Salle LE KARA, Libreville',
+  lienEvenement: 'Voir l’événement : https://association-le-kara.com/evenements/exemple',
+  contribution: 'Vous pouvez contribuer à la collecte en argent ou en nature.',
+  collecte: 'Collecte solidaire',
+  minimum: 'Contribution minimale indiquée : 1 000 FCFA.',
+  instructions: 'Choisissez « Je veux contribuer ». La réception du don sera vérifiée par l’association.',
+  montantFinal: '110 000',
+  bonus: '10 000',
+  duree: '3 mois',
+  date: '12/11/2026',
+  interets: '15 000',
 }
 
-function previewOf(body: string): string {
+function previewOf(body: string, key?: string): string {
+  const samples: Record<string, string> = key === 'groupAgreementReminder' ? { ...SAMPLE_VALUES, montant: '25 000 FCFA', echeance: ' Échéance : 19/11/2026, 25 000 FCFA.' } : SAMPLE_VALUES
   const variables = Object.fromEntries(
-    extractTemplateVariables(body).map((name) => [name, SAMPLE_VALUES[name] ?? `«${name}»`])
+    extractTemplateVariables(body).map((name) => [name, samples[name] ?? `«${name}»`])
   )
   return renderTemplate(body, variables)
 }
@@ -178,7 +198,7 @@ function TemplateEditor({ template, value, onChange, onResetDefault, readOnly }:
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-700">
               Aperçu avec des données d’exemple
             </p>
-            <p className="whitespace-pre-wrap text-sm text-gray-800">{previewOf(value)}</p>
+            <p className="whitespace-pre-wrap text-sm text-gray-800">{previewOf(value, template.key)}</p>
           </div>
         )}
       </CardContent>
@@ -344,7 +364,7 @@ export default function MessageTemplatesSettings() {
       </Card>
 
       <Tabs defaultValue={CATEGORIES[0]} className="space-y-4">
-        <TabsList className="flex flex-wrap gap-2">
+        <TabsList className="flex h-auto flex-wrap gap-2">
           {CATEGORIES.map((category) => {
             const count = templatesByCategory.get(category)?.length ?? 0
             return (

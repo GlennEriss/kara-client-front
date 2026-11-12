@@ -46,6 +46,8 @@ export function buildSynthesisModule(modules: FinancialReportModule[], size: num
       'Avances de la caisse imprévue pas encore remboursées par les membres.', { kind: 'stock' }),
   ]
   const payableLines: FinancialReportLine[] = [
+    makeLine('member_agreements_funds', 'Fonds à reverser — Accords entre membres', values('accords_membres', 'outstanding', 'funds_held'),
+      'Versements reçus par KARA pour un bénéficiaire, moins les fonds qui lui ont été effectivement remis. Aucun revenu pour KARA.', { kind: 'stock' }),
     makeLine('vehicle_sponsors', 'Parts à reverser — Parrains des assurances', values('vehicules', 'outstanding', 'sponsors_payable'),
       'Parts des commissions déjà reçues réservées aux parrains, tant que leur remise n’est pas confirmée.', { kind: 'stock' }),
     makeLine('cs_funds', 'Épargne détenue — Caisse spéciale', values('caisse_speciale', 'outstanding', 'funds_held'),

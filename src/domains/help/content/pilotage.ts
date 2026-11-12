@@ -136,6 +136,7 @@ export const calendrierHelp: HelpTopic = {
     {
       kind: 'howto',
       blocks: [
+        { type: 'text', text: 'Dans les tableaux larges du calendrier, une barre horizontale flottante apparaît pendant la lecture tant que le bas du tableau est hors de la zone visible. Faites glisser sa poignée pour aller de gauche à droite sans remonter au début ni descendre jusqu’à la fin. Elle suit aussi les tableaux ouverts dans une fenêtre. Au clavier, utilisez les flèches, Page précédente / suivante, Début et Fin. La barre du haut et celle du bas restent disponibles et synchronisées.' },
         {
           type: 'steps',
           title: 'Encaisser depuis le calendrier',

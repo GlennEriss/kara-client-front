@@ -88,6 +88,16 @@ export const creditSpecialeHelp: HelpTopic = {
         },
         {
           type: 'steps',
+          title: 'Corriger un versement mensuel ou hebdomadaire',
+          items: [
+            'Dans la fiche du contrat, cliquez sur « Modifier » sur l’échéance ou dans la liste des versements enregistrés.',
+            'Corrigez la date, l’heure, le montant, le moyen de paiement, le commentaire ou la preuve. Indiquez obligatoirement le motif de la modification.',
+            'Pour un crédit hebdomadaire, une correction du montant recalcule le total versé, le solde et la répartition entre capital et intérêts. Les compléments ne paient pas deux fois les mêmes intérêts. Si un versement suivant devient trop élevé, corrigez d’abord celui-ci.',
+            'Un contrat soldé ou terminé reste en lecture seule. La suppression est distincte de la modification : elle est réservée au SuperAdmin, en commençant par le dernier versement.',
+          ],
+        },
+        {
+          type: 'steps',
           title: 'Accorder un mois de repos',
           items: [
             'Sur l’échéance due, cliquez sur « Mois de repos » et indiquez le motif (maladie, force majeure…).',
@@ -147,7 +157,7 @@ export const creditSpecialeHelp: HelpTopic = {
             },
             {
               term: 'Crédit en semaines',
-              text: 'De 1 à 3 semaines, une seule échéance. Le taux s’applique une fois ; ni partie fixe, ni mois de repos, ni rajout.',
+              text: 'Le forfait initial dure 1 à 3 semaines. S’il reste un solde après un versement, une nouvelle échéance arrive 7 jours après la précédente, même pour un forfait initial de 2 ou 3 semaines. Les intérêts sont recalculés sur le solde restant. À partir d’un mois calendaire après le départ du calendrier, les échéances passent en partie fixe : ni nouveaux intérêts ni nouvelle commission du garant. Le remboursement du solde continue chaque semaine. Les trois jours de tolérance et la formule des pénalités restent applicables ; le rajout et les mois de repos ne sont pas proposés.',
             },
             {
               term: 'Achat en boutique',

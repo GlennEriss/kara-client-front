@@ -199,7 +199,7 @@ export function WeeklyCallPlan() {
           </div>}
 
           <div className="min-w-0 rounded-xl border border-gray-100">
-          <Table topScroll>
+          <Table topScroll floatingScroll>
             <TableHeader className="bg-gray-50">
               <TableRow>
                 <TableHead>Membre / Groupe</TableHead>
@@ -287,7 +287,7 @@ export function WeeklyCallPlan() {
 
         {viewMode === 'batches' && isSuperAdmin && (
           <div className="min-w-0 rounded-xl border border-gray-100">
-            <Table topScroll>
+            <Table topScroll floatingScroll>
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead>Date prévue</TableHead>
@@ -364,7 +364,7 @@ export function WeeklyCallPlan() {
               </DialogDescription>
             </DialogHeader>
             <div className="min-w-0 rounded-xl border">
-              <Table topScroll>
+              <Table topScroll floatingScroll>
                 <TableHeader className="bg-gray-50">
                   <TableRow>
                     <TableHead>Membre / Groupe</TableHead>

@@ -3,6 +3,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventWhatsAppInvitations } from '../components/EventWhatsAppInvitations'
 import type { EventInvitation } from '../utils/event-invitations'
+vi.mock('@/domains/messaging/hooks/useMessageTemplates', async () => {
+  const { renderDefaultMessage } = await import('@/domains/messaging/utils/renderMessage')
+  return { useRenderMessageTemplate: () => renderDefaultMessage }
+})
 
 const { load, replace, anchorClick, hrefs, query } = vi.hoisted(() => ({ load: vi.fn(), replace: vi.fn(), anchorClick: vi.fn(), hrefs: [] as string[], query: { value: '' } }))
 vi.mock('../services/loadInvitationRecipients', () => ({ loadInvitationRecipients: load }))

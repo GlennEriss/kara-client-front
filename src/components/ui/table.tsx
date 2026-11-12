@@ -3,12 +3,17 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { FloatingTableScrollbar } from './floating-table-scrollbar';
 
 function Table({
   className,
   topScroll = false,
+  floatingScroll = false,
+  id,
   ...props
-}: React.ComponentProps<"table"> & { topScroll?: boolean }) {
+}: React.ComponentProps<"table"> & { topScroll?: boolean; floatingScroll?: boolean }) {
+  const generatedId = React.useId();
+  const tableId = id || `table-${generatedId}`;
   const containerRef = React.useRef<HTMLDivElement>(null);
   const topScrollRef = React.useRef<HTMLDivElement>(null);
   const [scrollWidth, setScrollWidth] = React.useState(0);
@@ -23,10 +28,11 @@ function Table({
       setScrollWidth(container.scrollWidth > container.clientWidth ? container.scrollWidth : 0);
     };
     measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(container);
-    observer.observe(table);
-    return () => observer.disconnect();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(container);
+    observer?.observe(table);
+    window.addEventListener('resize', measure);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', measure); };
   }, [topScroll]);
 
   React.useEffect(() => {
@@ -47,6 +53,7 @@ function Table({
       }}
     >
       <table
+        id={tableId}
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
@@ -54,7 +61,7 @@ function Table({
     </div>
   );
 
-  if (!topScroll) return container;
+  if (!topScroll) return <>{container}{floatingScroll && <FloatingTableScrollbar containerRef={containerRef} tableId={tableId} />}</>;
 
   return (
     <div className="min-w-0 w-full">
@@ -75,6 +82,7 @@ function Table({
         </div>
       )}
       {container}
+      {floatingScroll && <FloatingTableScrollbar containerRef={containerRef} tableId={tableId} />}
     </div>
   );
 }

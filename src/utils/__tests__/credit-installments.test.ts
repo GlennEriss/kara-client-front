@@ -21,6 +21,11 @@ const payment = (id: string, amount: number, date: string) =>
   ({ id, creditId: 'spec-cal', amount, paymentDate: new Date(date), comment: '' }) as CreditPayment
 
 describe('échéances du calendrier crédit', () => {
+  it('reporte un versement partiel du forfait sur la semaine suivante et conserve les dates hebdomadaires', () => {
+    const weekly = { ...contract, durationUnit: 'WEEKS' as const, repaymentModel: 'DEGRESSIVE' as const, firstPaymentDate: new Date('2026-01-15'), duration: 2, monthlyPaymentAmount: 110000, restMonths: [] }
+    const installments = computeCreditInstallments(weekly, [payment(`M1_${contract.id}`, 60000, '2026-01-15')], new Date('2026-01-23'))
+    expect(installments).toMatchObject([{ installmentNumber: 1, status: 'PAID' }, { installmentNumber: 2, status: 'OVERDUE', dueDate: new Date('2026-01-22'), totalAmount: 55000, remainingAmount: 55000 }])
+  })
   it('calcule les échéances sans échéances enregistrées : payée, en retard, à venir, sans les mois de repos', () => {
     const today = new Date('2026-10-14')
     const installments = computeCreditInstallments(contract, [payment('M1_spec-cal', 15_000, '2026-08-10')], today)

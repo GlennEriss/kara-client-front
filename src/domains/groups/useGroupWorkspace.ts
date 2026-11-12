@@ -38,6 +38,7 @@ export function useGroupWorkspace(groupId?: string) {
       queryClient.invalidateQueries({ queryKey: ["group-project-credits"] }),
       queryClient.invalidateQueries({ queryKey: ["group-contributions"] }),
       queryClient.invalidateQueries({ queryKey: ["group-payouts"] }),
+      queryClient.invalidateQueries({ queryKey: ['group-agreements'] }),
       queryClient.invalidateQueries({
         queryKey: ["participant-project-credits"],
       }),

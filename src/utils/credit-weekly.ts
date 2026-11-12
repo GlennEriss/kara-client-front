@@ -2,15 +2,15 @@ import type { CreditDurationUnit, CreditRepaymentModel, CreditShopPurchase, Shop
 import { customRound } from './credit-speciale-calculations'
 
 /**
- * Crédit spécial court terme : 1 à 3 semaines, une seule échéance.
+ * Crédit spécial court terme : premier forfait de 1 à 3 semaines, puis
+ * échéances hebdomadaires sur le solde non remboursé.
  *
  * Règles (validées métier) :
- * - le taux saisi par l'admin s'applique une fois, sur toute la durée ;
- * - le membre rembourse capital + intérêts en une seule fois, à la date de fin ;
- * - en retard : pénalités (3 jours de tolérance), sans intérêts supplémentaires ;
- * - un paiement partiel laisse le reste dû sur la même échéance ;
- * - commission du garant : taux du garant × montant, une seule fois ;
- * - ni partie fixe, ni mois de repos, ni rajout.
+ * - le taux s'applique au premier forfait, puis au reste dû chaque semaine ;
+ * - intérêts et commissions cessent un mois après le départ du calendrier ;
+ * - les échéances suivantes remboursent le solde en partie fixe ;
+ * - les pénalités gardent la tolérance de 3 jours et leur formule existante ;
+ * - les paiements déjà enregistrés conservent leur période et leur identité.
  */
 
 export const WEEKLY_CREDIT_MAX_WEEKS = 3
@@ -83,11 +83,16 @@ type FlatCreditLike = {
   durationUnit?: CreditDurationUnit
   repaymentModel?: CreditRepaymentModel
   duration?: number
+  status?: string
 } | null | undefined
 
-/** Intérêts appliqués une seule fois : crédit en semaines ou achat en boutique. */
+/** Explicit flat purchases and historical weekly contracts already ended before
+ * the recurring model. New/updated weekly contracts store DEGRESSIVE so their
+ * history remains recurring after settlement. */
 export const isFlatCredit = (contract?: FlatCreditLike): boolean =>
-  isWeeklyCredit(contract) || contract?.repaymentModel === 'FLAT'
+  isWeeklyCredit(contract)
+    ? contract?.repaymentModel !== 'DEGRESSIVE' && ['DISCHARGED', 'CLOSED', 'WRITTEN_OFF'].includes(contract?.status || '')
+    : contract?.repaymentModel === 'FLAT'
 
 /** Nombre d'échéances d'un crédit à intérêts uniques (1 pour un crédit en semaines). */
 export const getFlatInstallmentCount = (contract?: FlatCreditLike): number => {

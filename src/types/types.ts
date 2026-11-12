@@ -1930,7 +1930,7 @@ export interface CreditContract {
   monthlyPaymentAmount: number
   totalAmount: number // Montant + intérêts
   duration: number // Durée en mois, ou en semaines si `durationUnit` vaut 'WEEKS'
-  /** Absent = 'MONTHS'. 'WEEKS' : une seule échéance, intérêts appliqués une fois. */
+  /** Absent = 'MONTHS'. 'WEEKS' : forfait initial de 1 à 3 semaines, puis échéances hebdomadaires. */
   durationUnit?: CreditDurationUnit
   /** Absent = 'DEGRESSIVE'. 'FLAT' : intérêts une fois, N mensualités égales. */
   repaymentModel?: CreditRepaymentModel

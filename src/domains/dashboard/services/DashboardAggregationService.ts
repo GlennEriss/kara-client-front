@@ -346,6 +346,7 @@ function scopeFinancialSources(
     caisseSpecialeContracts,
     caisseSpecialePayments: sources.caisseSpecialePayments.filter((payment) => caisseSpecialeIds.has(payment.parentId)),
     caisseSpecialeRefunds: sources.caisseSpecialeRefunds.filter((refund) => caisseSpecialeIds.has(refund.parentId)),
+    groupAgreements: sources.groupAgreements?.filter(a => [a.creditorId, a.debtorId, a.creditorMatricule, a.debtorMatricule].some(id => typeof id === 'string' && memberIds.has(id))),
     caisseImprevueContracts,
     caisseImprevuePayments: sources.caisseImprevuePayments.filter((payment) => caisseImprevueIds.has(payment.parentId)),
     caisseImprevueSupports: sources.caisseImprevueSupports.filter((support) => caisseImprevueIds.has(support.parentId)),

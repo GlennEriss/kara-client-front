@@ -27,7 +27,8 @@ import { getNationalityName } from '@/constantes/nationality'
 import type { CreditContract } from '@/types/types'
 import { addContractMonths } from '@/utils/contract-months'
 import { calculateSchedule } from '@/utils/credit-speciale-calculations'
-import { computeWeeklyCreditTotals, formatCreditDuration, isWeeklyCredit, splitFlatInstallments } from '@/utils/credit-weekly'
+import { computeWeeklyCreditTotals, formatCreditDuration, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from '@/utils/credit-weekly'
+import { getWeeklyInterestEndDate } from '@/utils/credit-periods'
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
 
@@ -162,7 +163,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
   const memberQuarter = memberData?.address?.district || memberData?.address?.arrondissement || ''
   const memberPhone = read(fields.member[2][1]).split(' / ')[0]
 
-  const creditAmount = contract.totalAmount ?? contract.amount
+  const creditAmount = isWeeklyCredit(contract) && !isFlatCredit(contract) ? contract.amount : contract.totalAmount ?? contract.amount
   const guaranteeAmount = contract.totalAmount || contract.amount
   const firstPaymentDate = toDate(contract.firstPaymentDate)
   // Crédit en semaines : une seule échéance (firstPaymentDate), qui est aussi la fin de la créance.
@@ -238,11 +239,17 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
             </Text>
           )}
           <Text style={styles.paragraph}>
-            {isWeekly ? (
+            {isWeekly && !isFlatCredit(contract) ? (
               <>
-                Cette somme doit être restituée à la trésorerie de l’Association en une seule échéance, dans
-                un délai de {durationLabel}, le {formatDate(firstPaymentDate)}, date de fin de créance.
+                Le remboursement intégral est prévu à la première échéance, au terme du forfait de{' '}
+                {durationLabel}, le {formatDate(firstPaymentDate)}. En cas de solde restant, les échéances
+                suivantes sont espacées de sept jours. Le taux de {contract.interestRate} % s’applique
+                au forfait initial puis au solde restant chaque semaine, jusqu’au{' '}
+                {formatDate(getWeeklyInterestEndDate(contract))}. Les échéances à partir de cette date
+                remboursent le solde sans nouveaux intérêts.
               </>
+            ) : isWeekly ? (
+              <>Cette somme doit être restituée à la trésorerie de l’Association en une seule échéance, dans un délai de {durationLabel}, le {formatDate(firstPaymentDate)}.</>
             ) : (
               <>
                 Cette somme doit être restituée à la trésorerie de l’Association selon un échéancier de{' '}
@@ -290,7 +297,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <MutuelleSection title="ARTICLE 2 : REMBOURSEMENT DE SOMME">
           <Text style={styles.paragraph}>
             {isWeekly
-              ? `Le membre s’engage sur l’honneur à rembourser ledit accompagnement en une seule échéance, sous un délai de ${durationLabel}.`
+              ? isFlatCredit(contract) ? `Le membre s’engage à rembourser ledit accompagnement en une seule échéance, sous un délai de ${durationLabel}.` : `Le membre s’engage à rembourser ledit accompagnement à la première échéance, après ${durationLabel}. Tout solde restant est suivi par échéances hebdomadaires. Les intérêts cessent un mois après le départ du calendrier ; le remboursement se poursuit ensuite en partie fixe, sans nouveaux intérêts.`
               : `Le membre s’engage sur l’honneur à rembourser ledit accompagnement en plusieurs échéances mensuelles sous un délai maximum de ${durationLabel}.`}
           </Text>
           <Text style={styles.paragraph}>Le tableau ci-dessous représente l’échéancier convenu entre les parties.</Text>
@@ -302,15 +309,16 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
             </View>
             {schedule.map((item, index) => (
               <View key={item.month} style={[styles.row, ...(index % 2 === 0 ? [localStyles.scheduleBand] : [])]} wrap={false}>
-                <Text style={localStyles.scheduleCell}>{isWeekly ? 'Échéance unique' : `M${item.month}`}</Text>
+                <Text style={localStyles.scheduleCell}>{isWeekly ? 'Première échéance' : `M${item.month}`}</Text>
                 <Text style={localStyles.scheduleCell}>{formatDate(item.date)}</Text>
                 <Text style={localStyles.scheduleCell}>{formatAmount(item.payment)}</Text>
               </View>
             ))}
           </View>
           <Text style={[styles.paragraph, { marginTop: 4 }]}>
-            {isWeekly ? 'Tout remboursement' : 'Tout remboursement mensuel'} portant sur des sommes en dessous de
-            celles prévues dans ledit échéancier est non valable et irrecevable.
+            {isWeekly && !isFlatCredit(contract)
+              ? 'Tout versement partiel est enregistré et vient réduire le solde. Les intérêts des échéances suivantes sont calculés sur ce solde, jusqu’à la limite d’un mois après le départ du calendrier.'
+              : `${isWeekly ? 'Tout remboursement' : 'Tout remboursement mensuel'} portant sur des sommes en dessous de celles prévues dans ledit échéancier est non valable et irrecevable.`}
           </Text>
         </MutuelleSection>
 

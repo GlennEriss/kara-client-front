@@ -184,7 +184,7 @@ export function UpcomingPaymentsList({ product }: UpcomingPaymentsListProps) {
       <Card className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
         <CardContent className="p-0">
           <div className="min-w-0">
-            <Table topScroll>
+            <Table topScroll floatingScroll>
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead>Matricule</TableHead>

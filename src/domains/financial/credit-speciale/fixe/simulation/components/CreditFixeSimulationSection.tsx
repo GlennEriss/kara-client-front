@@ -1,4 +1,5 @@
 'use client'
+import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
 
 import React, { useMemo, useState, useRef, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
@@ -231,6 +232,7 @@ export function CreditFixeSimulationSection({
   creditType = 'FIXE',
   onSimulationSelect,
 }: CreditFixeSimulationSectionProps = {}) {
+  const renderMessage = useRenderMessageTemplate()
   const config = simulationConfigByCreditType[creditType]
   const schemas = useMemo(
     () => buildFixedSimulationSchemas({
@@ -426,6 +428,7 @@ export function CreditFixeSimulationSection({
     try {
       shareFixedSimulationWhatsApp(result, {
         moduleTitle: config.whatsappTitle,
+        renderMessage,
       })
     } catch {
       toast.error("Erreur lors du partage WhatsApp")

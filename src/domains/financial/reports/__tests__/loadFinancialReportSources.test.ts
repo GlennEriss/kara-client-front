@@ -32,6 +32,14 @@ function fixture() {
 }
 
 describe('sources financières : mêmes chiffres avec moins de lectures', () => {
+  it('lit uniquement les accords imbriqués sous les groupes et conserve les deux circuits', async () => {
+    const { db, groups } = fixture()
+    const row = (parent: string) => ({ id: 'a1', data: () => ({ groupId: 'g1', payments: [{ date: '2026-10-01', amount: 20000, receivedBy: 'KARA' }, { date: '2026-10-02', amount: 10000, receivedBy: 'CREDITOR' }], remittances: [{ date: '2026-11-01', amount: 5000 }] }), ref: { parent: { parent: { id: 'g1', parent: { id: parent } } } } })
+    groups.set('agreements', [row('groups'), row('other-module')] as never)
+    const loaded = await loadFinancialReportSources(db)
+    expect(loaded.groupAgreements).toHaveLength(1)
+    expect(loaded.groupAgreements![0]).toMatchObject({ id: 'a1', parentId: 'g1', payments: [{ receivedBy: 'KARA' }, { receivedBy: 'CREDITOR' }], remittances: [{ amount: 5000 }] })
+  })
   it('lit les réceptions et remises historiques puis seulement les métadonnées des assurances concernées', async () => {
     const { db, collections } = fixture()
     const at = Timestamp.fromDate(new Date('2026-10-10T12:00:00Z'))

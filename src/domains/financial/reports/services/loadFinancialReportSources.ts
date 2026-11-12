@@ -70,6 +70,7 @@ export async function loadFinancialReportSources(db: Firestore, reader = new Fir
     groupPayouts,
     groupContributions,
     vehicleRewards,
+    groupAgreements,
   ] = await Promise.all([
     readCollection(reader, names.caisseContracts),
     readChildren(reader, names.caisseContracts, 'payments'),
@@ -89,10 +90,12 @@ export async function loadFinancialReportSources(db: Firestore, reader = new Fir
     readCollection(reader, 'groupPayouts'),
     readChildren(reader, 'groups', 'contributions'),
     readCollection(reader, names.vehicleInsuranceRewards),
+    readChildren(reader, 'groups', 'agreements'),
   ])
   const vehicleInsurances = await loadVehicleInsuranceMetadata(db, vehicleRewards)
 
   return {
+    groupAgreements,
     caisseSpecialeContracts,
     caisseSpecialePayments,
     caisseSpecialeRefunds,

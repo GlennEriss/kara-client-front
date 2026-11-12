@@ -27,6 +27,8 @@ import { buildCreditModule } from "./credits";
 import { buildPlacementsModule } from "./placements";
 import { buildSynthesisModule } from "./synthesis";
 import { buildVehiclesModule } from "./vehicles";
+import { buildMemberAgreementsModule } from './member-agreements';
+import { agreementBalance, AGREEMENT_STATUS_LABELS, type GroupAgreement } from '@/domains/groups/agreements/agreement-model';
 import { toReportDate } from "../utils/report-months";
 import { monthKeyOf } from "../utils/report-months";
 
@@ -76,6 +78,10 @@ interface Entity {
 /** Partition each source once. Parent/child credit context remains available to
  * the credit engine, but only the selected contract contributes to its rows. */
 function* entities(sources: FinancialReportSources): Generator<Entity> {
+  for (const record of sources.groupAgreements || []) yield {
+    id: `${record.parentId}:${record.id}`, module: 'accords_membres', record: { ...record, groupId: record.parentId, sourceLabel: text(record.title) || record.id, status: Array.isArray(record.schedule) && Array.isArray(record.payments) ? AGREEMENT_STATUS_LABELS[agreementBalance(record as unknown as GroupAgreement).status] : record.status === 'CANCELLED' ? 'Annulé' : 'Accord suivi par KARA' },
+    exists: true, sources: { ...emptySources(), groupAgreements: [record] },
+  };
   const caisse = (
     module: Entity["module"],
     contracts: SourceRecord[],
@@ -243,6 +249,8 @@ function sourceHref(entity: Entity): string | undefined {
       return entity.record.insurance
         ? routes.admin.vehiculeDetails(encodeURIComponent(text(entity.record.insuranceId)))
         : undefined;
+    case 'accords_membres':
+      return `${routes.admin.groupDetails(encodeURIComponent(text(entity.record.groupId)))}?tab=agreements&agreement=${encodeURIComponent(entity.record.id)}`;
     case "caisses_collectives":
       return routes.admin.groupDetails(
         encodeURIComponent(text(entity.record.groupId)),
@@ -251,6 +259,10 @@ function sourceHref(entity: Entity): string | undefined {
 }
 
 function insuredMember(entity: Entity): FinancialDetailParty[] {
+  if (entity.module === 'accords_membres') return [
+    { id: text(entity.record.debtorId), matricule: text(entity.record.debtorMatricule), name: text(entity.record.debtorName) || 'Membre qui paie', kind: 'member' },
+    { id: text(entity.record.groupId), name: text(entity.record.groupName) || 'Groupe', kind: 'group' },
+  ];
   if (entity.module !== "vehicules") return [];
   const insurance = entity.record.insurance as Record<string, unknown> | undefined;
   if (insurance?.holderType !== "member" || !text(insurance.memberId) || insurance.memberId === entity.record.beneficiaryId) return [];
@@ -264,6 +276,7 @@ function insuredMember(entity: Entity): FinancialDetailParty[] {
 
 function owner(entity: Entity): FinancialDetailParty {
   const c = entity.record;
+  if (entity.module === 'accords_membres') return { id: text(c.creditorId), matricule: text(c.creditorMatricule), name: text(c.creditorName) || 'Bénéficiaire', kind: 'member' };
   if (entity.module === "vehicules")
     return {
       id: text(c.beneficiaryId) || undefined,
@@ -446,6 +459,9 @@ function moduleForEntity(
     case "vehicules":
       scoped = buildVehiclesModule(entity.sources, context);
       break;
+    case 'accords_membres':
+      scoped = buildMemberAgreementsModule(entity.sources, context);
+      break;
     default:
       scoped = buildCreditModule(entity.creditType!, entity.sources, context, {
         contractId: entity.id,
@@ -456,6 +472,11 @@ function moduleForEntity(
 function contractFacts(entity: Entity): FinancialContractReport["facts"] {
   const c = entity.record;
   const facts: FinancialContractReport["facts"] = [];
+  if (entity.module === 'accords_membres') facts.push(
+    { label: 'Objet', value: text(c.title) }, { label: 'Membre qui paie', value: text(c.debtorName) }, { label: 'Bénéficiaire', value: text(c.creditorName) },
+    { label: 'Montant convenu', value: `${Number(c.totalAmount || 0).toLocaleString('fr-FR')} FCFA` },
+    { label: 'Lecture du bilan', value: 'Fonds transitant par KARA uniquement. Les paiements directs restent dans le suivi du groupe ; aucun revenu KARA.' },
+  );
   const addDate = (label: string, value: unknown) => {
     const date = toReportDate(value);
     if (date)
@@ -581,7 +602,7 @@ export function buildFinancialReportContracts(
       });
     const link = c.groupProject as Record<string, unknown> | undefined;
     const groupId =
-      entity.module === "caisses_collectives"
+      entity.module === "caisses_collectives" || entity.module === 'accords_membres'
         ? text(c.groupId)
         : text(link?.groupId);
     if (groupId)
@@ -602,7 +623,7 @@ export function buildFinancialReportContracts(
       sourceKind:
         entity.module === "adhesions"
           ? "Dossier"
-          : entity.module === "caisses_collectives" || entity.module === "vehicules"
+          : entity.module === "caisses_collectives" || entity.module === "vehicules" || entity.module === 'accords_membres'
             ? "Opération"
             : "Contrat",
       status: entity.exists

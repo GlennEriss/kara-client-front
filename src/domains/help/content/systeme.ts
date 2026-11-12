@@ -306,7 +306,7 @@ export const groupesHelp: HelpTopic = {
   demonstration: 'groups',
   title: 'Groupes',
   category: 'Membres',
-  summary: 'Créer des groupes de membres et organiser leurs caisses collectives, achats collectifs et autres projets.',
+  summary: 'Créer des groupes de membres, organiser leurs projets et suivre leurs accords de vente, prestation ou prêt entre membres.',
   pages: [{ path: '/groups', label: 'Groupes', summary: 'Créer un groupe, sélectionner ses membres et suivre ses projets collectifs.' }],
   sections: [
     {
@@ -325,6 +325,10 @@ export const groupesHelp: HelpTopic = {
           type: 'steps',
           title: 'Découvrir les groupes avec une démonstration interactive',
           items: ['Cliquez sur « Voir une démonstration » depuis la liste des groupes, la fiche d’un groupe ou cette aide.', 'Choisissez un parcours : créer un groupe, gérer une caisse et ses remises, ou financer un achat collectif.', 'Lisez le cas concret et son objectif, puis cliquez sur « Commencer le parcours ». « Montrer » anime le curseur pour une seule étape ; vous pouvez aussi cliquer sur l’action encadrée. Comparez l’avant et l’après, lisez « Ce qui a changé » et ouvrez « Pourquoi cette étape ? » si nécessaire.', 'Le résultat reste affiché jusqu’à « Suivant ». « Enchaîner automatiquement les étapes » active une lecture continue avec un temps de lecture adapté. « Retour », la liste des étapes et « Recommencer » permettent de revoir les actions. À la dernière étape, « Bilan » ouvre le récapitulatif et une question avec une explication. Les noms et montants sont fictifs : aucune opération réelle n’est enregistrée.'],
+        },
+        {
+          type: 'steps', title: 'Ventes, prestations et prêts entre membres',
+          items: ['Ouvrez le groupe puis « Accords entre membres ». Cliquez sur « Créer des accords ». Les deux parties doivent être des membres identifiés du groupe ; INCONNU représente KARA pour les garanties existantes, pas un vendeur ou un acheteur.', 'Choisissez le type, le bénéficiaire, l’objet, la date et les membres qui paient. Pour une vente, précisez les quantités et les prix. Proposez un rythme mensuel, hebdomadaire ou journalier, puis ajustez les conditions pour chaque membre.', 'Vérifiez chaque échéancier : ses dates et montants peuvent être modifiés avant confirmation. Leur somme doit correspondre au montant de l’accord. Une création produit un accord distinct pour chaque acheteur, sans enregistrer de versement.', 'Ouvrez un accord pour enregistrer un versement réellement reçu : directement par le bénéficiaire, ou encaissé par KARA. Indiquez sa date effective, son mode, une référence et éventuellement un justificatif réservé à l’administration.', 'Si KARA encaisse, le membre a payé cette somme, mais le bénéficiaire ne l’a pas encore reçue. Utilisez « Confirmer un reversement » uniquement après la remise effective. Une remise partielle laisse le complément à reverser.', 'Notez les appels, les promesses et les dates de relance dans l’accord. Le filtre « Relance / promesse arrivée à date » retrouve les suivis à effectuer. WhatsApp ouvre un brouillon à envoyer manuellement ; l’application ne garantit ni son envoi ni sa lecture. Ces suivis restent dans l’accord et ne créent pas de tâche dans le calendrier central.', 'Une erreur de saisie se corrige avec un motif obligatoire : l’écriture reste dans l’historique et est exclue des calculs. Une correction ne constate pas de remboursement. Un accord ne peut être annulé tant qu’il possède des opérations actives.'],
         },
         {
           type: 'steps',
@@ -554,7 +558,7 @@ export const modelesMessagesHelp: HelpTopic = {
   key: 'modeles-messages',
   title: 'Modèles de messages',
   category: 'Système',
-  summary: 'Les textes des messages WhatsApp envoyés aux membres : rappels de versement, anniversaires, adhésion, assurance.',
+  summary: 'Les textes WhatsApp : rappels, invitations aux événements et collectes, accords entre membres, simulations, anniversaires, adhésion et assurance.',
   pages: [{ path: '/parametres-messages', label: 'Modèles de messages', summary: 'Personnaliser le texte de chaque message WhatsApp.' }],
   sections: [
     {
@@ -568,6 +572,9 @@ export const modelesMessagesHelp: HelpTopic = {
             'Information sur une échéance de placement échue.',
             'Assurance véhicule : échéance proche, ou déjà expirée.',
             'Adhésion : demande rejetée, ou corrections demandées.',
+            'Invitations aux événements et collectes Bienfaiteur, avec un bloc facultatif pour contribuer.',
+            'Relances des accords entre membres d’un groupe.',
+            'Partage des simulations : crédit calculé, crédit personnalisé, fixe / aide et caisse spéciale avec bonus.',
           ],
         },
       ],

@@ -1,7 +1,9 @@
 import type { FixedSimulationResult } from '../entities/fixed-simulation.types'
+import { renderDefaultMessage, type MessageRenderer } from '@/domains/messaging/utils/renderMessage'
 
 interface FixedSimulationWhatsAppOptions {
   moduleTitle?: string
+  renderMessage?: MessageRenderer
 }
 
 function formatAmount(value: number): string {
@@ -21,17 +23,11 @@ export function shareFixedSimulationWhatsApp(
   options: FixedSimulationWhatsAppOptions = {}
 ): void {
   const moduleTitle = options.moduleTitle ?? 'CREDIT FIXE'
-  // Même structure que credit-speciale/simulations : titre + tableau 3 colonnes (Échéances | Date | Montant) + Total
-  let message = `*ÉCHÉANCIER DE ${moduleTitle}*\n\n`
-  message += `Echéances | Date | Montant\n`
-  message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
-
-  for (const row of result.schedule) {
-    message += `${row.month} | ${formatDate(row.date)} | ${formatAmount(row.payment)} FCFA\n`
-  }
-
-  message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
-  message += `Total: | | ${formatAmount(result.summary.totalPlanned)} FCFA`
+  const message = (options.renderMessage || renderDefaultMessage)('fixedSimulationSchedule', {
+    produit: moduleTitle,
+    detail: result.schedule.map(row => `${row.month} | ${formatDate(row.date)} | ${formatAmount(row.payment)} FCFA`).join('\n'),
+    montantTotal: formatAmount(result.summary.totalPlanned),
+  })
 
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`
   window.open(whatsappUrl, '_blank')
