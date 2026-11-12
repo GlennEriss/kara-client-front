@@ -25,6 +25,7 @@ import {
 } from "./group-model";
 import { sameParticipants, supportsPayoutOrder } from "./payout-order";
 import { groupGuarantorName, isGroupGuarantor } from "./group-guarantor";
+import { agreementLedgerRef } from './agreements/agreement-service';
 
 export interface GroupActor {
   id: string;
@@ -203,8 +204,11 @@ export async function removeGroupMember(
   await runTransaction(db, async (transaction) => {
     const group = await transaction.get(doc(groups(), groupId));
     const member = await transaction.get(doc(users(), memberId));
+    const agreements = await transaction.get(agreementLedgerRef(groupId));
     if (!group.exists() || !member.exists())
       throw new Error("Le groupe ou le membre n’est plus disponible.");
+    if (Number(agreements.data()?.openByMember?.[memberId] || 0) > 0)
+      throw new Error('Ce membre participe à des accords encore en cours de règlement ou de reversement. Terminez leur suivi avant de le retirer du groupe.');
     const data = group.data();
     const projects = (data.projects ?? []).map((project: GroupProject) =>
       isOpenProject(project)
@@ -498,6 +502,7 @@ export async function deleteEmptyGroup(groupId: string): Promise<void> {
   await runTransaction(db, async (transaction) => {
     const group = await transaction.get(doc(groups(), groupId));
     if (!group.exists()) return;
+    const agreements = await transaction.get(agreementLedgerRef(groupId));
     const data = group.data();
     if (
       JSON.stringify(data.updatedAt ?? null) !==
@@ -506,9 +511,9 @@ export async function deleteEmptyGroup(groupId: string): Promise<void> {
       throw new Error(
         "Le groupe vient d’être modifié. Actualisez avant de réessayer.",
       );
-    if (data.projects?.length || data.caisseContractIds?.length)
+    if (data.projects?.length || data.caisseContractIds?.length || Number(agreements.data()?.agreementCount || 0) > 0)
       throw new Error(
-        "Ce groupe possède des projets ou des contrats. Conservez-le pour préserver son historique.",
+        "Ce groupe possède des projets, des contrats ou des accords entre membres. Conservez-le pour préserver son historique.",
       );
     transaction.delete(group.ref);
   });

@@ -33,6 +33,8 @@ export interface FinancialReportSources {
   membershipRequests: SourceRecord[]
   groupPayouts?: SourceRecord[]
   groupContributions?: ChildRecord[]
+  /** Private agreements, each with its own payments and actual remittances. */
+  groupAgreements?: ChildRecord[]
   /** Une opération par période d'assurance, avec réception et remise confirmées. */
   vehicleRewards?: SourceRecord[]
   /** Métadonnées des assurances ; aucun montant calculé depuis leurs primes. */

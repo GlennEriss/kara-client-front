@@ -30,6 +30,26 @@ before(async () => {
 })
 after(async () => { await env?.cleanup() })
 
+test('accords privés : admin gère les accords et index, les membres passent par la projection serveur', async () => {
+  const admin = env.authenticatedContext('agreement-admin', { role: 'Admin' }).firestore()
+  const paths = ['groups/own/agreements/agreement-1', 'groupAgreementLedgers/own', 'groups/own/agreementOperations/request-1']
+  for (const path of paths) {
+    await assertSucceeds(setDoc(doc(admin, path), { groupId: 'own', debtorId: 'alice', creditorId: 'bob', partyIds: ['alice', 'bob'], note: 'Privé' }))
+    await assertSucceeds(getDoc(doc(admin, path)))
+    await assertFails(deleteDoc(doc(admin, path)))
+    for (const db of [env.authenticatedContext('alice', { role: 'Adherant' }).firestore(), env.authenticatedContext('bob').firestore(), env.unauthenticatedContext().firestore()]) {
+      await assertFails(getDoc(doc(db, path)))
+      await assertFails(setDoc(doc(db, path), { note: 'Faux' }))
+      await assertFails(deleteDoc(doc(db, path)))
+    }
+  }
+  await assertSucceeds(updateDoc(doc(admin, paths[0]), { title: 'Ventilateur' }))
+  await assertSucceeds(updateDoc(doc(admin, paths[1]), { agreementCount: 1 }))
+  await assertFails(updateDoc(doc(admin, paths[2]), { signature: 'autre' }))
+  const member = env.authenticatedContext('alice').firestore()
+  await assertFails(getDocs(query(collection(member, 'groups/own/agreements'), where('partyIds', 'array-contains', 'alice'))))
+})
+
 test('les crédits du projet restent privés : seul l’emprunteur ou un admin peut lire le contrat', async () => {
   const db = env.authenticatedContext('alice', { role: 'Adherant' }).firestore()
   await assertSucceeds(getDoc(doc(db, 'creditContracts/alice-credit')))

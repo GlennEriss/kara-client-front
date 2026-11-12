@@ -336,7 +336,7 @@ export default function FinancialReportDetailDialog({
                                 {row.moduleTitle}
                                 {row.module === "adhesions"
                                   ? " · Dossier"
-                                  : row.module === "caisses_collectives" || row.module === "vehicules"
+                                  : row.module === "caisses_collectives" || row.module === "vehicules" || row.module === 'accords_membres'
                                     ? " · Opération"
                                     : " · Contrat"}
                               </p>

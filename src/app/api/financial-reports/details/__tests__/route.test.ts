@@ -119,3 +119,8 @@ it('autorise le détail des reversements des assurances', async () => {
   mock.build.mockReturnValue({modules:[{key:'vehicules',blocks:[{key:'treasury',lines:[{key:'out_total'}]}]}]});
   expect((await GET(request({module:'vehicules',block:'treasury',line:'out_total'}))).status).toBe(200);
 });
+
+it('autorise le détail des fonds à reverser sur les accords entre membres', async () => {
+  mock.build.mockReturnValue({ modules: [{ key: 'accords_membres', blocks: [{ key: 'outstanding', lines: [{ key: 'funds_held' }] }] }] });
+  expect((await GET(request({ module: 'accords_membres', block: 'outstanding', line: 'funds_held' }))).status).toBe(200);
+});

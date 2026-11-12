@@ -143,6 +143,17 @@ beforeEach(() => {
 });
 
 describe("création du collectif", () => {
+  it('préserve le groupe qui possède un historique d’accords et les membres encore engagés', async () => {
+    memory.data.set('groups/g1', { name: 'Groupe', projects: [] });
+    memory.data.set('users/m1', member('Jeanne', ['g1']));
+    memory.data.set('groupAgreementLedgers/g1', { agreementCount: 1, openByMember: { m1: 1 } });
+    await expect(removeGroupMember('g1', 'm1', actor)).rejects.toThrow(/reversement/);
+    expect(memory.data.get('users/m1')?.groupIds).toEqual(['g1']);
+    memory.data.set('groupAgreementLedgers/g1', { agreementCount: 1, openByMember: { m1: 0 } });
+    await removeGroupMember('g1', 'm1', actor);
+    await expect(deleteEmptyGroup('g1')).rejects.toThrow(/historique/);
+    expect(memory.data.has('groups/g1')).toBe(true);
+  });
   it("réutilise INCONNU comme garant à la création et à la modification sans en faire un participant", async () => {
     memory.data.set(`users/${UNKNOWN_USER_ID}`, buildUnknownUserBase());
     const id = await createCollectiveGroup({ name: "Collectif", description: "", guarantorId: UNKNOWN_USER_ID, memberIds: ["m1"] }, actor);
@@ -513,14 +524,14 @@ describe("compatibilité et suppression", () => {
     memory.data.set("users/m1", member("Jeanne"));
     memory.data.set("groups/g1", { name: "Collectif", projects: [project] });
     await expect(deleteEmptyGroup("g1")).rejects.toThrow(
-      "projets ou des contrats",
+      "projets, des contrats ou des accords",
     );
     memory.data.set("groups/g1", {
       name: "Collectif",
       caisseContractIds: ["contrat-1"],
     });
     await expect(deleteEmptyGroup("g1")).rejects.toThrow(
-      "projets ou des contrats",
+      "projets, des contrats ou des accords",
     );
     expect(memory.data.has("groups/g1")).toBe(true);
   });

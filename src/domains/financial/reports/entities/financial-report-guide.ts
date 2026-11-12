@@ -1,5 +1,6 @@
 /** Guide de lecture du bilan, repris sur la page et dans les exports. */
 export const FINANCIAL_REPORT_GUIDE: Array<{ title: string; text: string }> = [
+  { title: 'Accords entre membres', text: 'Les règlements directs entre membres restent hors trésorerie de KARA. Lorsqu’un versement transite par KARA, il entre en trésorerie et reste dans les fonds à reverser jusqu’à sa remise effective au bénéficiaire. Aucun de ces mouvements ne constitue un revenu de l’association. Les détails et les annexes identifient l’accord, le membre qui paie, le bénéficiaire et le groupe.' },
   {
     title: 'Quatre parties',
     text: 'Chaque onglet présente la trésorerie (l’argent entré et sorti), le résultat (ce que l’association gagne ou perd), les encours (ce qui reste dû ou à rendre en fin de mois) et les pertes et risques.',

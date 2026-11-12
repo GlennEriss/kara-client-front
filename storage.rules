@@ -549,6 +549,13 @@ service firebase.storage {
     // RÈGLE PAR DÉFAUT
     // ==========================================
 
+    match /group-agreements/{groupId}/{agreementId}/{paymentId}/{filename} {
+      allow read: if isAdmin();
+      allow create: if resource == null && isAdmin()
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('application/pdf|image/jpeg|image/png|image/webp');
+      allow update, delete: if false;
+    }
     match /{allPaths=**} {
       allow read, write: if false;
     }

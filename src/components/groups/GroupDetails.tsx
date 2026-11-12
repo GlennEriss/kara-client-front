@@ -56,6 +56,7 @@ const GroupCaisseContractModal = dynamic(
   () => import("./GroupCaisseContractModal"),
   { ssr: false },
 );
+const GroupAgreements = dynamic(() => import('./GroupAgreements'), { ssr: false });
 const dateLabel = (value: Date) => new Date(value).toLocaleDateString("fr-FR");
 const statusClass = (status: GroupProject["status"]) =>
   status === "ACTIVE"
@@ -99,7 +100,7 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
   const [isRemoving, setIsRemoving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   useEffect(() => {
-    setTab("overview");
+    setTab(new URLSearchParams(window.location.search).get('tab') === 'agreements' ? 'agreements' : 'overview');
     setAddOpen(false);
     setEditOpen(false);
     setProjectEditor(null);
@@ -453,7 +454,7 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
         </div>
       )}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-5 w-full justify-start">
+        <TabsList className="mb-5 h-auto w-full flex-wrap justify-start">
           <TabsTrigger value="overview">Vue d&apos;ensemble</TabsTrigger>
           <TabsTrigger value="members">
             Membres
@@ -464,6 +465,7 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
           <TabsTrigger value="projects">
             Projets ({projects.length})
           </TabsTrigger>
+          <TabsTrigger value="agreements">Accords entre membres</TabsTrigger>
           <TabsTrigger value="history">Historique</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-6">
@@ -675,6 +677,7 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
             </p>
           )}
         </TabsContent>
+        <TabsContent value="agreements"><GroupAgreements groupId={groupId} members={groupMembers} actor={actor} canManage={canManage} /></TabsContent>
         <TabsContent value="history">
           <section className="rounded-2xl border border-gray-200 bg-white p-5">
             <h2 className="mb-5 flex items-center gap-2 !text-base font-semibold">

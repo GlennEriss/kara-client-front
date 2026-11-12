@@ -36,6 +36,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:rules:groups": "firebase emulators:exec --only firestore --project demo-kara-groups 'node --test tests/rules/groups.test.mjs'",
+    "test:rules:agreements": "firebase emulators:exec --only firestore,storage --project demo-kara-groups 'node --test tests/rules/groups.test.mjs tests/rules/agreements-storage.test.mjs'",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
     "test:coverage:json": "vitest run --coverage --reporter=json --outputFile=tests/results/unit-tests.json",
