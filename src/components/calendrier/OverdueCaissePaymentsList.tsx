@@ -592,7 +592,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       <Card className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
         <CardContent className="p-0">
           <div className="min-w-0">
-            <Table topScroll>
+            <Table topScroll floatingScroll>
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   {isSuperAdmin && (
