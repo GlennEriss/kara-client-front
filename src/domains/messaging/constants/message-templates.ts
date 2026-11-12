@@ -9,7 +9,7 @@
  * Les variables s'écrivent `{{nomDeLaVariable}}` et sont remplacées à l'envoi.
  */
 
-export type MessageTemplateCategory = 'relance' | 'evenement' | 'adhesion' | 'assurance'
+export type MessageTemplateCategory = 'relance' | 'evenement' | 'adhesion' | 'assurance' | 'groupe' | 'simulation'
 
 export interface MessageTemplateVariable {
   /** Nom utilisé dans le corps, sans les accolades. */
@@ -32,11 +32,61 @@ export const MESSAGE_TEMPLATE_CATEGORY_LABELS: Record<MessageTemplateCategory, s
   evenement: 'Vie de l’association',
   adhesion: 'Demandes d’adhésion',
   assurance: 'Assurance véhicule',
+  groupe: 'Groupes et accords',
+  simulation: 'Simulations et échéanciers',
 }
 
 const V = (name: string, description: string): MessageTemplateVariable => ({ name, description })
 
 export const MESSAGE_TEMPLATES: MessageTemplateDefinition[] = [
+  {
+    key: 'communityEventInvitation', label: 'Événement — invitation aux membres', category: 'evenement',
+    description: 'Invitation depuis un événement publié, avec une contribution facultative à sa collecte associée.',
+    variables: [V('nom', 'Nom du destinataire'), V('introduction', 'Introduction saisie dans la fenêtre d’invitation'), V('evenement', 'Titre de l’événement'), V('description', 'Description publique'), V('dateDebut', 'Date et heure au Gabon'), V('fin', 'Ligne de fin, vide si aucune date de fin'), V('lieu', 'Lieu ou consigne de choix'), V('lien', 'Lien de la fiche membre'), V('lienEvenement', 'Ligne complète avec le lien, vide si indisponible'), V('contribution', 'Bloc de contribution, uniquement si l’option est cochée et une collecte est disponible')],
+    defaultBody: `Bonjour {{nom}},\n\n{{introduction}}\n\n*{{evenement}}*\n{{description}}\nDébut : {{dateDebut}}\n{{fin}}\nLieu : {{lieu}}\n{{lienEvenement}}\n\n{{contribution}}\n\nPour toute information, vous pouvez répondre à ce message.\n\nLE KARA`,
+  },
+  {
+    key: 'charityEventInvitation', label: 'Bienfaiteur — invitation à une collecte', category: 'evenement',
+    description: 'Invitation depuis une collecte publique à venir ou en cours.',
+    variables: [V('nom', 'Nom du destinataire'), V('introduction', 'Introduction saisie pour l’invitation'), V('evenement', 'Titre de la collecte'), V('description', 'Description publique'), V('dateDebut', 'Date de début au Gabon'), V('fin', 'Ligne complète de fin, facultative'), V('lieu', 'Lieu de la collecte'), V('lien', 'Lien de la collecte dans l’espace membre'), V('lienEvenement', 'Ligne complète avec le lien, facultative'), V('contribution', 'Bloc de contribution si l’option est cochée')],
+    defaultBody: `Bonjour {{nom}},\n\n{{introduction}}\n\n*{{evenement}}*\n{{description}}\nDébut : {{dateDebut}}\n{{fin}}\nLieu : {{lieu}}\n{{lienEvenement}}\n\n{{contribution}}\n\nPour toute information, vous pouvez répondre à ce message.\n\nLE KARA`,
+  },
+  {
+    key: 'eventContributionNotice', label: 'Événement / collecte — possibilité de contribuer', category: 'evenement',
+    description: 'Bloc ajouté à l’invitation uniquement lorsque la contribution est proposée. Ne confirme aucun encaissement.',
+    variables: [V('collecte', 'Titre de la collecte'), V('minimum', 'Ligne de contribution minimale, vide si aucune'), V('lien', 'Lien pour contribuer, facultatif'), V('instructions', 'Étapes selon la disponibilité du lien, avec la réserve sur la réception du don')],
+    defaultBody: `Vous pouvez contribuer à la collecte « {{collecte}} », en argent ou en nature.\n{{minimum}}\n{{instructions}}`,
+  },
+  {
+    key: 'groupAgreementReminder', label: 'Groupe — relance d’un accord entre membres', category: 'groupe',
+    description: 'Brouillon ouvert depuis le suivi d’un accord. Le message n’est pas envoyé automatiquement.',
+    variables: [V('nom', 'Nom du membre qui paie'), V('beneficiaire', 'Nom du bénéficiaire'), V('objet', 'Objet de l’accord'), V('reference', 'Référence de l’accord'), V('montant', 'Solde à régler, avec la devise'), V('echeance', 'Phrase avec la prochaine échéance et son montant, vide si aucune')],
+    defaultBody: `Bonjour {{nom}}, LE KARA vous contacte pour le suivi de votre accord « {{objet}} » avec {{beneficiaire}}. Solde à régler : {{montant}}.{{echeance}} Merci de nous indiquer la date prévue de votre règlement.`,
+  },
+  {
+    key: 'creditSimulationCalculated', label: 'Simulation — échéancier calculé', category: 'simulation',
+    description: 'Partage WhatsApp de l’échéancier calculé dans les simulations de crédit.',
+    variables: [V('produit', 'Nom du service'), V('detail', 'Lignes : échéance, date et montant'), V('montantTotal', 'Total formaté sans devise')],
+    defaultBody: `*ÉCHÉANCIER DE CRÉDIT*\n\nEchéances | Date | Montant\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{{detail}}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nTotal: | | {{montantTotal}} FCFA`,
+  },
+  {
+    key: 'creditSimulationCustom', label: 'Simulation — échéancier personnalisé', category: 'simulation',
+    description: 'Partage WhatsApp d’une simulation personnalisée, avec capital, intérêts et reste dû.',
+    variables: [V('montant', 'Montant emprunté sans devise'), V('duree', 'Durée avec son unité'), V('date', 'Date de préparation'), V('detail', 'Détail de chaque échéance'), V('montantTotal', 'Total à rembourser sans devise'), V('interets', 'Total des intérêts sans devise')],
+    defaultBody: `📊 *ÉCHÉANCIER DE CRÉDIT PERSONNALISÉ*\n\n💰 Montant: {{montant}} FCFA\n📅 Durée: {{duree}}\n📆 Fait le: {{date}}\n\n━━━━━━━━━━━━━━━━━━━━━\n*DÉTAIL DES ÉCHÉANCES*\n━━━━━━━━━━━━━━━━━━━━━\n\n{{detail}}\n\n━━━━━━━━━━━━━━━━━━━━━\n💰 *Total à rembourser: {{montantTotal}} FCFA*\n📈 *Total intérêts: {{interets}} FCFA*`,
+  },
+  {
+    key: 'fixedSimulationSchedule', label: 'Simulation — échéancier fixe / aide', category: 'simulation',
+    description: 'Partage de la simulation des modules fixe et aide.',
+    variables: [V('produit', 'Titre du module'), V('detail', 'Lignes : échéance, date et montant'), V('montantTotal', 'Total formaté sans devise')],
+    defaultBody: `*ÉCHÉANCIER DE {{produit}}*\n\nEchéances | Date | Montant\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{{detail}}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nTotal: | | {{montantTotal}} FCFA`,
+  },
+  {
+    key: 'caisseSimulationSchedule', label: 'Caisse spéciale — simulation et bonus', category: 'simulation',
+    description: 'Partage de la simulation de caisse spéciale : versements, bonus et dates de remise.',
+    variables: [V('montantTotal', 'Total des versements sans devise'), V('bonus', 'Bonus final sans devise'), V('montantFinal', 'Montant final sans devise'), V('detail', 'Lignes des échéances et remises'), V('date', 'Date de préparation')],
+    defaultBody: `*TABLEAU RÉCAPITULATIF*\nCaisse Spéciale LE KARA\n----------------------\n\n*RÉSUMÉ*\n- Total versements : *{{montantTotal}} FCFA*\n- Bonus final : *{{bonus}} FCFA*\n- Montant final : *{{montantFinal}} FCFA*\n\n----------------------\n*ÉCHÉANCIER*\n----------------------\n\n{{detail}}\n\n----------------------\nFait le {{date}}\nLE KARA - Association de solidarite`,
+  },
   // ── Vie de l'association ────────────────────────────────────────────────
   {
     key: 'birthday',

@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/responsive-dialog'
 import { generateWhatsAppUrl } from '@/domains/memberships/utils/whatsappUrl'
+import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
 import { useCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
 import type { CharityEvent } from '@/types/types'
 import type { Event } from '../entities/event.types'
@@ -35,6 +36,7 @@ export function CharityEventWhatsAppInvitations({ event }: { event: CharityEvent
 }
 
 export function EventWhatsAppInvitations({ event, contributionNotice }: { event: EventInvitation; contributionNotice?: string }) {
+  const renderMessage = useRenderMessageTemplate()
   const router = useRouter()
   const params = useSearchParams()
   const [open, setOpen] = useState(false)
@@ -67,6 +69,7 @@ export function EventWhatsAppInvitations({ event, contributionNotice }: { event:
   const previewRecipient = nextRecipient || chosen[0] || available[0]
   const canOpen = !event.blockedReason && !!introduction.trim()
   const message = (recipient: InvitationRecipient) => buildEventInvitationMessage({ event, recipient, introduction, includeContribution,
+    renderMessage,
     memberAppUrl: process.env.NEXT_PUBLIC_MEMBERS_APP_URL || DEFAULT_MEMBERS_APP_URL })
 
   const toggle = (id: string, checked: boolean) => setSelected(current => {

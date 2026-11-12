@@ -1,4 +1,5 @@
 'use client'
+import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -569,36 +570,17 @@ function SimulationExportExcelButton({ result }: { result: CaisseSpecialeSimulat
 }
 
 function SimulationShareWhatsAppButton({ result }: { result: CaisseSpecialeSimulationResult }) {
+  const renderMessage = useRenderMessageTemplate()
   const handleShare = () => {
     if (!result?.rows.length) return
 
     const lastBonusInTable = result.rows[result.rows.length - 1]?.bonusAmount ?? 0
-    const separator = '----------------------'
-    const lines = [
-      '*TABLEAU R\u00c9CAPITULATIF*',
-      'Caisse Sp\u00e9ciale LE KARA',
-      separator,
-      '',
-      '*R\u00c9SUM\u00c9*',
-      `- Total versements : *${formatAmount(result.totalAmount)} FCFA*`,
-      `- Bonus final : *${formatAmount(lastBonusInTable)} FCFA*`,
-      `- Montant final : *${formatAmount(result.totalAmount + lastBonusInTable)} FCFA*`,
-      '',
-      separator,
-      '*\u00c9CH\u00c9ANCIER*',
-      separator,
-      '',
-      ...result.rows.map((r) => {
+    const detail = result.rows.map((r) => {
         const bonusIcon = r.bonusAmount > 0 ? '[OK]' : '[EN ATTENTE]'
         return `${bonusIcon} *${r.monthLabel}* - Echeance: ${formatDateFr(r.dueAt)} | Remise: ${formatDateFr(getWithdrawalDate(r.dueAt))}\n    Montant: ${formatAmount(r.amount)} FCFA | Bonus = ${formatAmount(r.bonusAmount)} FCFA`
-      }),
-      '',
-      separator,
-      'Fait le ' + formatDateFr(new Date()),
-      'LE KARA - Association de solidarite',
-    ]
+      })
 
-    const text = lines.join('\n')
+    const text = renderMessage('caisseSimulationSchedule', { montantTotal: formatAmount(result.totalAmount), bonus: formatAmount(lastBonusInTable), montantFinal: formatAmount(result.totalAmount + lastBonusInTable), detail: detail.join('\n'), date: formatDateFr(new Date()) })
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`
     window.open(url, '_blank', 'noopener,noreferrer')
     toast.success('Ouverture de WhatsApp')

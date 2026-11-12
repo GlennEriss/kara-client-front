@@ -1,4 +1,5 @@
 'use client'
+import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -961,6 +962,7 @@ function StandardSimulationResults({
   onReset: () => void
   isProposed?: boolean
 }) {
+  const renderMessage = useRenderMessageTemplate()
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
   
   // Calculer l'échéancier en utilisant la fonction utilitaire partagée
@@ -1207,22 +1209,11 @@ function StandardSimulationResults({
     const filteredSchedule = schedule.filter(row => row.payment > 0)
     const totalAmount = filteredSchedule.reduce((sum, row) => sum + row.payment, 0)
     
-    // Construire le message formaté avec 3 colonnes comme le PDF
-    let message = `*ÉCHÉANCIER DE CRÉDIT*\n\n`
-    
-    // En-tête du tableau
-    message += `Echéances | Date | Montant\n`
-    message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
-    
-    // Lignes de données
-    filteredSchedule.forEach((row) => {
+    const detail = filteredSchedule.map((row) => {
       const dateStr = row.date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      message += `${row.month} | ${dateStr} | ${formatNumberForPDF(row.payment)} FCFA\n`
-    })
-    
-    // Ligne Total
-    message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
-    message += `Total: | | ${formatNumberForPDF(customRound(totalAmount))} FCFA`
+      return `${row.month} | ${dateStr} | ${formatNumberForPDF(row.payment)} FCFA`
+    }).join('\n')
+    const message = renderMessage('creditSimulationCalculated', { produit: creditType, detail, montantTotal: formatNumberForPDF(customRound(totalAmount)) })
     
     // Encoder le message pour l'URL WhatsApp
     const encodedMessage = encodeURIComponent(message)
@@ -1628,6 +1619,7 @@ function CustomSimulationResults({
   creditType: CreditType
   onReset: () => void
 }) {
+  const renderMessage = useRenderMessageTemplate()
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
   
   // Calculer l'échéancier personnalisé
@@ -1882,26 +1874,17 @@ function CustomSimulationResults({
 
   // Fonction pour partager l'échéancier personnalisé sur WhatsApp
   const handleShareWhatsAppCustom = () => {
-    // Construire le message formaté
-    let message = `📊 *ÉCHÉANCIER DE CRÉDIT PERSONNALISÉ*\n\n`
-    message += `💰 Montant: ${formatNumberForPDF(result.amount)} FCFA\n`
-    message += `📅 Durée: ${schedule.length} mois\n`
-    message += `📆 Fait le: ${new Date().toLocaleDateString('fr-FR')}\n\n`
-    message += `━━━━━━━━━━━━━━━━━━━━━\n`
-    message += `*DÉTAIL DES ÉCHÉANCES*\n`
-    message += `━━━━━━━━━━━━━━━━━━━━━\n\n`
+    let detail = ''
     
     schedule.forEach((row) => {
-      message += `📌 *Mois ${row.month}* (${row.date.toLocaleDateString('fr-FR')})\n`
-      message += `   • Mensualité: ${formatNumberForPDF(customRound(row.payment))} FCFA\n`
-      message += `   • Intérêts: ${formatNumberForPDF(customRound(row.interest))} FCFA\n`
-      message += `   • Montant global: ${formatNumberForPDF(customRound(row.principal))} FCFA\n`
-      message += `   • Reste dû: ${formatNumberForPDF(customRound(row.remaining))} FCFA\n\n`
+      detail += `📌 *Mois ${row.month}* (${row.date.toLocaleDateString('fr-FR')})\n`
+      detail += `   • Mensualité: ${formatNumberForPDF(customRound(row.payment))} FCFA\n`
+      detail += `   • Intérêts: ${formatNumberForPDF(customRound(row.interest))} FCFA\n`
+      detail += `   • Montant global: ${formatNumberForPDF(customRound(row.principal))} FCFA\n`
+      detail += `   • Reste dû: ${formatNumberForPDF(customRound(row.remaining))} FCFA\n\n`
     })
     
-    message += `━━━━━━━━━━━━━━━━━━━━━\n`
-    message += `💰 *Total à rembourser: ${formatNumberForPDF(customRound(calculatedTotalAmount))} FCFA*\n`
-    message += `📈 *Total intérêts: ${formatNumberForPDF(customRound(calculatedTotalInterest))} FCFA*`
+    const message = renderMessage('creditSimulationCustom', { montant: formatNumberForPDF(result.amount), duree: `${schedule.length} mois`, date: new Date().toLocaleDateString('fr-FR'), detail: detail.trim(), montantTotal: formatNumberForPDF(customRound(calculatedTotalAmount)), interets: formatNumberForPDF(customRound(calculatedTotalInterest)) })
     
     // Encoder le message pour l'URL WhatsApp
     const encodedMessage = encodeURIComponent(message)
