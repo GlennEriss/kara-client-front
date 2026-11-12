@@ -6,6 +6,8 @@ import { getFlatInstallmentCount, isFlatCredit, splitFlatInstallments } from './
 import { isCreditContractEnded } from './credit-write-off'
 import { getCreditExtensionStartDate, getCreditInitialStartDate } from './credit-cycle-dates'
 import { isUnknownGuarantor } from './credit-guarantor'
+import { creditPeriodLabel, getCreditPeriodDueDate, getCreditPeriodIndex, getWeeklyInterestEndDate } from './credit-periods'
+import { isWeeklyCredit } from './credit-weekly'
 
 export const SPECIAL_CREDIT_MAX_LOGICAL_MONTHS = 7
 export const SPECIAL_CREDIT_MAX_HISTORY_MONTHS = 84
@@ -191,16 +193,10 @@ export function getCreditPaymentCycleNumber(
 }
 
 export function getContractCalendarMonthFromDate(
-  contract: Pick<CreditContract, 'firstPaymentDate'>,
+  contract: Pick<CreditContract, 'firstPaymentDate'> & Partial<Pick<CreditContract, 'durationUnit'>>,
   date: Date
 ): number {
-  const firstDate = new Date(contract.firstPaymentDate)
-  const currentDate = new Date(date)
-  const monthsDiff =
-    (currentDate.getFullYear() - firstDate.getFullYear()) * 12 +
-    (currentDate.getMonth() - firstDate.getMonth())
-
-  return Math.max(1, monthsDiff + 1)
+  return getCreditPeriodIndex(contract, date)
 }
 
 export function getCreditPaymentMonthNumber(
@@ -218,7 +214,7 @@ export function getCreditPaymentMonthNumber(
     | 'rajoutEffectue'
     | 'restMonths'
     | 'totalAmount'
-  >,
+  > & Partial<Pick<CreditContract, 'durationUnit'>>,
   payment: Pick<CreditPayment, 'id' | 'paymentDate'>
 ): number {
   const parsed = parsePaymentId(payment.id)
@@ -230,7 +226,7 @@ export function getCreditPaymentMonthNumber(
   const cycle = getCreditContractCycles(contract).find((entry) => entry.cycleNumber === cycleNumber)
 
   return getContractCalendarMonthFromDate(
-    { firstPaymentDate: cycle?.firstPaymentDate ?? contract.firstPaymentDate },
+    { firstPaymentDate: cycle?.firstPaymentDate ?? contract.firstPaymentDate, durationUnit: contract.durationUnit },
     new Date(payment.paymentDate)
   )
 }
@@ -275,7 +271,7 @@ export function getCreditPaymentDisplayMonthLabel(
     | 'rajoutEffectue'
     | 'restMonths'
     | 'totalAmount'
-  >,
+  > & Partial<Pick<CreditContract, 'durationUnit'>>,
   payment: Pick<CreditPayment, 'id' | 'paymentDate'>
 ): string {
   const monthNumber = getCreditPaymentMonthNumber(contract, payment)
@@ -285,7 +281,7 @@ export function getCreditPaymentDisplayMonthLabel(
     return `Apres augmentation - M${monthNumber}`
   }
 
-  return `M${monthNumber}`
+  return creditPeriodLabel(contract, monthNumber)
 }
 
 export function getCreditPaymentsForCurrentCycle(
@@ -455,7 +451,7 @@ export function buildCreditSpecialeHistory(
     | 'durationUnit'
     | 'repaymentModel'
     | 'restMonths'
-  >,
+  > & Partial<Pick<CreditContract, 'status'>>,
   payments: CreditPayment[],
   options: BuildCreditSpecialeHistoryOptions = {}
 ): CreditSpecialeHistoryMonth[] {
@@ -467,7 +463,6 @@ export function buildCreditSpecialeHistory(
     return buildFlatCreditHistory(contract, payments)
   }
 
-  const firstDate = new Date(contract.firstPaymentDate)
   const monthlyRate = contract.interestRate / 100
   const guarantorRate = isUnknownGuarantor(contract) ? 0 : (contract.guarantorRemunerationPercentage ?? 0) / 100
   const restMonths = contract.restMonths ?? []
@@ -512,13 +507,15 @@ export function buildCreditSpecialeHistory(
       break
     }
 
-    const date = addContractMonths(firstDate, month - 1)
+    const date = getCreditPeriodDueDate(contract, month)
 
     const restEntry = restMonths.find((restMonth) => restMonth.monthNumber === month)
     const logicalMonth = getLogicalMonthIndex(month, restMonths)
     const isFixedPhase =
       (manualFixedStartMonth !== undefined && month >= manualFixedStartMonth) ||
-      logicalMonth > SPECIAL_CREDIT_MAX_LOGICAL_MONTHS
+      (isWeeklyCredit(contract)
+        ? date >= getWeeklyInterestEndDate(contract)
+        : logicalMonth > SPECIAL_CREDIT_MAX_LOGICAL_MONTHS)
     const phase: CreditSpecialeHistoryMonth['phase'] = isFixedPhase ? 'FIXE' : 'SPECIALE'
 
     const capitalStart = customRound(capital)
@@ -526,7 +523,7 @@ export function buildCreditSpecialeHistory(
     const interest = restEntry || isFixedPhase ? 0 : customRound(capitalStart * monthlyRate)
     const commission = restEntry || isFixedPhase ? 0 : customRound(capitalStart * guarantorRate)
     const amountDue = customRound(capitalStart + interest)
-    const plannedPayment = plannedByMonth.size === 0
+    const plannedPayment = isWeeklyCredit(contract) ? amountDue : plannedByMonth.size === 0
       ? contract.monthlyPaymentAmount
       : logicalMonth <= lastPlannedMonth
         ? (plannedByMonth.get(logicalMonth) ?? 0)
@@ -675,7 +672,7 @@ export function buildCreditSpecialeTimelineHistory(
     | 'totalAmount'
     | 'durationUnit'
     | 'repaymentModel'
-  >,
+  > & Partial<Pick<CreditContract, 'status'>>,
   payments: CreditPayment[]
 ): CreditSpecialeTimelineMonth[] {
   const cycles = getCreditContractCycles(contract)
@@ -690,6 +687,7 @@ export function buildCreditSpecialeTimelineHistory(
       creditType: contract.creditType,
       durationUnit: contract.durationUnit,
       repaymentModel: contract.repaymentModel,
+      status: contract.status,
       createdAt: cycle.startedAt,
       creditCycles: undefined,
       firstPaymentDate: cycle.firstPaymentDate,

@@ -6,7 +6,8 @@ import {
   getCreditSpecialeLastRecordedMonth,
   getCurrentCreditContractCycle,
 } from './credit-speciale-history'
-import { isFlatCredit } from './credit-weekly'
+import { isFlatCredit, isWeeklyCredit } from './credit-weekly'
+import { creditPeriodLabel } from './credit-periods'
 
 /** Statuts où un paiement peut encore être supprimé (contrat en cours de remboursement). */
 export const DELETABLE_PAYMENT_CONTRACT_STATUSES: CreditContract['status'][] = ['ACTIVE', 'PARTIAL', 'OVERDUE', 'BLOCKED']
@@ -37,12 +38,13 @@ export function getCreditPaymentDeletionBlocker(
   const lastRecordedMonth = getCreditSpecialeLastRecordedMonth(contract, cyclePayments)
   const month = getCreditPaymentMonthNumber(contract, payment)
   if (month !== lastRecordedMonth) {
+    if (isWeeklyCredit(contract)) return `Seule la dernière échéance enregistrée (${creditPeriodLabel(contract, lastRecordedMonth)}) peut être corrigée. Supprimez les versements dans l’ordre inverse.`
     return `Seul le dernier mois enregistré (M${lastRecordedMonth}) peut être supprimé. Supprimez les paiements dans l'ordre inverse.`
   }
 
   // Crédit à intérêts uniques (semaines, achat en boutique) : les versements
   // sont imputés dans l'ordre des échéances ; seul le plus récent se supprime.
-  if (isFlatCredit(contract)) {
+  if (isFlatCredit(contract) || isWeeklyCredit(contract)) {
     const latest = [...cyclePayments]
       .sort((left, right) => new Date(right.paymentDate).getTime() - new Date(left.paymentDate).getTime())[0]
     if (latest && latest.id !== payment.id) {

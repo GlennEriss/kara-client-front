@@ -21,7 +21,7 @@ const NOT_DISBURSED_STATUSES = new Set(['DRAFT', 'PENDING', 'APPROVED', 'SIMULAT
 const SETTLED_STATUSES = new Set(['DISCHARGED', 'CLOSED'])
 
 const MODULE_INFO: Record<CreditType, { key: FinancialReportModuleKey; title: string; description: string }> = {
-  SPECIALE: { key: 'credit_speciale', title: 'Crédit spécial', description: 'Crédits à intérêts mensuels, partie spéciale puis partie fixe.' },
+  SPECIALE: { key: 'credit_speciale', title: 'Crédit spécial', description: 'Crédits à intérêts mensuels ou hebdomadaires, partie spéciale puis partie fixe. En semaines, les intérêts cessent un mois après le départ du calendrier.' },
   FIXE: { key: 'credit_fixe', title: 'Crédit fixe', description: 'Crédits à intérêt unique, remboursés sur la durée prévue.' },
   AIDE: { key: 'credit_aide', title: 'Crédit aide', description: 'Crédits d’aide à intérêt unique, sur 3 mois au plus.' },
 }

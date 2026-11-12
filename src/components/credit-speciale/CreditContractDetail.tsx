@@ -15,6 +15,7 @@ import { canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from 
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate, getCreditContractRemainingMonths, getCreditContractStartDates } from '@/services/credit-speciale/creditContractDates'
 import { computeWeeklyCreditTotals, formatCreditDuration, getFlatInstallmentCount, getWeeklyCreditStartDate, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from '@/utils/credit-weekly'
+import { creditPeriodLabel, getCreditPeriodIndex, getWeeklyInterestEndDate } from '@/utils/credit-periods'
 
 import { backOr } from '@/lib/backNavigation'
 import { Badge } from '@/components/ui/badge'
@@ -217,7 +218,7 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
     { title: 'Montant emprunté', value: fcfa(contract.amount) },
     {
       // Durée et période : la fiche n'affichait aucune date d'échéancier.
-      title: 'Durée',
+      title: isWeeklyCredit(contract) ? 'Forfait initial' : 'Durée',
       value: formatCreditDuration(contract.duration, contract.durationUnit),
       subtitle: startDate && !Number.isNaN(startDate.getTime()) && endDate
         ? `du ${startDate.toLocaleDateString('fr-FR')} au ${endDate.toLocaleDateString('fr-FR')}`
@@ -716,7 +717,7 @@ export default function CreditContractDetail({
     (contract.creditType === 'FIXE' || contract.creditType === 'SPECIALE') &&
     isContractRepaying &&
     !contract.rajoutEffectue &&
-    !isFlat
+    !isFlat && !isWeekly
   const canSwitchToFixed = contract.creditType === 'SPECIALE' && isContractRepaying && !hasEnteredFixedPhase && !isFlat
   const hasRajoutNotice = !!contract.rajoutEffectue && (contract.initialAmount != null || contract.rajoutAmount != null)
   const hasManualFixedNotice = fixedTransitionMeta.mode === 'MANUAL' && !!fixedTransitionMeta.at
@@ -972,7 +973,7 @@ export default function CreditContractDetail({
         .map((row) => ({
           month: row.month,
           date: row.date,
-          echeance: `M${row.month} - ${format(row.date, 'dd/MM/yyyy')}`,
+          echeance: `${creditPeriodLabel(contract, row.month)} - ${format(row.date, 'dd/MM/yyyy')}`,
           lossAmount: customRound(row.principal * FIXED_LOSS_RATE),
         }))
     }
@@ -987,7 +988,7 @@ export default function CreditContractDetail({
       .map((row) => ({
         month: row.month,
         date: row.date,
-        echeance: `${cyclePrefix}M${row.month} - ${format(row.date, 'dd/MM/yyyy')}`,
+        echeance: `${cyclePrefix}${creditPeriodLabel(contract, row.month)} - ${format(row.date, 'dd/MM/yyyy')}`,
         lossAmount: customRound(row.capitalStart * monthlyRate),
       }))
   }, [actualSchedule, contract.creditType, contract.duration, contract.interestRate, currentCycle, specialHistory])
@@ -1345,13 +1346,7 @@ export default function CreditContractDetail({
       return itemDate.getTime() === penaltyDueDate.getTime()
     })?.month
 
-    const cycleFirstDate = new Date(receiptContract.firstPaymentDate)
-    const fallbackMonth = Math.max(
-      1,
-      (dueDate.getFullYear() - cycleFirstDate.getFullYear()) * 12 +
-        (dueDate.getMonth() - cycleFirstDate.getMonth()) +
-        1
-    )
+    const fallbackMonth = getCreditPeriodIndex(receiptContract, dueDate)
     const installmentNumber = cycleHints.monthNumber ?? scheduleMonth ?? fallbackMonth
     const resolvedDueDate = receiptSchedule.find((item) => item.month === installmentNumber)?.date ?? dueDate
 
@@ -2083,7 +2078,7 @@ export default function CreditContractDetail({
                   <span>
                     <b>Basculé en partie fixe</b> le {format(new Date(fixedTransitionMeta.at), 'dd/MM/yyyy', { locale: fr })}
                     {' '}par {fixedTransitionAdmin ? `${fixedTransitionAdmin.firstName} ${fixedTransitionAdmin.lastName}`.trim() : (fixedTransitionMeta.by || '—')}
-                    {fixedTransitionMeta.startMonth ? <>, à partir de M{fixedTransitionMeta.startMonth}</> : null}
+                    {fixedTransitionMeta.startMonth ? <>, à partir de {creditPeriodLabel(contract, fixedTransitionMeta.startMonth)}</> : null}
                     {fixedTransitionMeta.reason ? <> — {fixedTransitionMeta.reason}</> : null}
                   </span>
                 </p>
@@ -2138,6 +2133,7 @@ export default function CreditContractDetail({
               <p className="text-sm">
                 Départ du calendrier : <span className="font-semibold text-white">{startDate ? formatDate(startDate) : '—'}</span>
               </p>
+              {isWeekly && !isFlat && <p className="text-sm">Puis une échéance tous les 7 jours · Fin des intérêts : <span className="font-semibold">{formatDate(getWeeklyInterestEndDate(contract))}</span></p>}
               {hasExtension && initialStartDate && (
                 <p className="text-xs">Départ initial du calendrier : {formatDate(initialStartDate)}</p>
               )}
@@ -2157,7 +2153,7 @@ export default function CreditContractDetail({
                   <p>
                     Première échéance du cycle : <span className="font-medium">{formatDate(contract.firstPaymentDate)}</span>
                     {contract.nextDueAt ? <> · Prochaine échéance : <span className="font-medium">{formatDate(contract.nextDueAt)}</span></> : null}
-                    {getCreditContractEndDate(contract) ? <> · {contract.creditType === 'SPECIALE' && !isFlat ? 'Dernière échéance simulée' : 'Fin prévue'} : <span className="font-medium">{formatDate(getCreditContractEndDate(contract)!)}</span></> : null}
+                    {getCreditContractEndDate(contract) ? <> · {isWeekly ? 'Fin du forfait initial' : contract.creditType === 'SPECIALE' && !isFlat ? 'Dernière échéance simulée' : 'Fin prévue'} : <span className="font-medium">{formatDate(getCreditContractEndDate(contract)!)}</span></> : null}
                   </p>
                   {/* Remise de l'argent au client, saisie à la création du contrat. */}
                   <p>
@@ -2376,7 +2372,7 @@ export default function CreditContractDetail({
                             'rounded-lg px-3 py-1 text-sm font-bold text-white',
                             isRest ? 'bg-blue-600' : 'bg-[#224D62]'
                           )}>
-                            {isRest ? `Mois ${item.month} – Repos` : isWeekly ? 'Échéance unique' : `Échéance ${item.month}`}
+                            {isRest ? `Mois ${item.month} – Repos` : `Échéance ${item.month}`}
                           </div>
                           <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
@@ -2524,6 +2520,7 @@ export default function CreditContractDetail({
                             !isDisabled &&
                             contract.creditType === 'SPECIALE' &&
                             !isFlat &&
+                            !isWeekly &&
                             index === nextDueIndex &&
                             specialHistoryByMonth.get(item.month)?.phase !== 'FIXE' && (
                             <div className="pt-3 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
@@ -2545,6 +2542,11 @@ export default function CreditContractDetail({
 
                           {item.status === 'PAID' && (
                             <div className="pt-3 border-t border-gray-200 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                              {isWeekly && !isFlat && !isDisabled && index === nextDueIndex - 1 && item.principal > (item.paidAmount || 0) && getCreditPeriodIndex(contract, new Date()) === item.month && (
+                                <Button type="button" size="sm" className="w-full" onClick={() => { setSelectedDueIndex(index); setPaymentToEdit(null); setShowPaymentModal(true) }}>
+                                  Compléter cette échéance
+                                </Button>
+                              )}
                               {!isZeroDeclaration && (
                                 <Button
                                   type="button"
@@ -2673,7 +2675,7 @@ export default function CreditContractDetail({
                               <Table>
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead>Mois</TableHead>
+                                    <TableHead>{isWeekly ? 'Échéance' : 'Mois'}</TableHead>
                                     <TableHead>Phase</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Ponctualité</TableHead>
@@ -2695,7 +2697,7 @@ export default function CreditContractDetail({
                                       className={cn('border-l-4', PUNCTUALITY_META[punctuality.kind].border, row.isRest && 'bg-blue-50/50')}
                                     >
                                       <TableCell className="font-medium">
-                                        {row.isRest ? `M${row.cycleMonth} (repos)` : `M${row.cycleMonth}`}
+                                        {row.isRest ? `${creditPeriodLabel(contract, row.cycleMonth)} (repos)` : creditPeriodLabel(contract, row.cycleMonth)}
                                       </TableCell>
                                       <TableCell>
                                         <Badge
@@ -3053,8 +3055,8 @@ export default function CreditContractDetail({
                         </p>
                         <p>
                           {isFlat
-                            ? 'Crédit en semaines ou achat en boutique : la commission est due une seule fois, sur le montant du crédit, au premier versement.'
-                            : 'La commission court sur les 7 mois de la partie spéciale (hors mois de repos) et s’arrête au passage en partie fixe.'}
+                            ? 'Intérêts uniques : la commission est due une seule fois, sur le montant du crédit, au premier versement.'
+                            : isWeekly ? 'Forfait en semaines : commission sur le solde au début de chaque échéance, jusqu’à un mois après le départ. Aucune nouvelle commission en partie fixe.' : 'La commission court sur les 7 mois de la partie spéciale (hors mois de repos) et s’arrête au passage en partie fixe.'}
                           Un rajout ouvre un nouveau cycle qui repart à M1 : le garant regagne alors une commission sur le nouveau capital.
                           Elle n&apos;est pas facturée au client ; c&apos;est l&apos;association qui la verse.
                         </p>
@@ -3164,8 +3166,8 @@ export default function CreditContractDetail({
                               <Table>
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead>Mois</TableHead>
-                                    <TableHead>Capital restant en début de mois</TableHead>
+                                    <TableHead>{isWeekly ? 'Échéance' : 'Mois'}</TableHead>
+                                    <TableHead>Capital restant au début de l’échéance</TableHead>
                                     <TableHead className="text-right">Taux</TableHead>
                                     <TableHead className="text-right">Commission</TableHead>
                                   </TableRow>
@@ -3174,10 +3176,10 @@ export default function CreditContractDetail({
                                   {cycle.rows.map((row) => (
                                     <TableRow key={row.id}>
                                       <TableCell>
-                                        <span className="font-medium">M{row.month}</span>
+                                        <span className="font-medium">{creditPeriodLabel(contract, row.month)}</span>
                                         {row.dueDate && (
                                           <span className="ml-2 text-xs capitalize text-gray-500">
-                                            {formatGuarantorCommissionMonth(row.dueDate)}
+                                            {isWeekly ? formatDate(row.dueDate) : formatGuarantorCommissionMonth(row.dueDate)}
                                           </span>
                                         )}
                                       </TableCell>
@@ -3747,7 +3749,7 @@ export default function CreditContractDetail({
             ? paymentToEdit.amount
             : isWeekly
               // Complément éventuel : on propose le reste à payer, pas ce qui a déjà été versé.
-              ? realRemainingAmount
+              ? (selectedDueIndex !== null ? Math.max(0, (actualSchedule[selectedDueIndex]?.principal || 0) - (actualSchedule[selectedDueIndex]?.paidAmount || 0)) : realRemainingAmount)
               : isFlat
                 // Achat en boutique : reste dû sur l'échéance choisie.
                 ? (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.principal : contract.monthlyPaymentAmount)
@@ -3846,7 +3848,7 @@ export default function CreditContractDetail({
         size="sm"
         icon={Trash2}
         tone="destructive"
-        title={paymentToDelete ? `Supprimer le paiement de l'échéance M${paymentToDelete.month}` : 'Supprimer le paiement'}
+        title={paymentToDelete ? `Supprimer le paiement de l'échéance ${creditPeriodLabel(contract, paymentToDelete.month)}` : 'Supprimer le paiement'}
         footer={
           <>
             <Button
@@ -3885,7 +3887,7 @@ export default function CreditContractDetail({
             <p>
               Paiement de <strong>{paymentToDelete.payment.amount.toLocaleString('fr-FR')} FCFA</strong> du{' '}
               {format(new Date(paymentToDelete.payment.paymentDate), 'dd/MM/yyyy', { locale: fr })}.
-              L&apos;échéance M{paymentToDelete.month} redeviendra à payer.
+              L&apos;échéance {creditPeriodLabel(contract, paymentToDelete.month)} redeviendra à payer.
             </p>
             <ul className="list-disc space-y-1 pl-5 text-gray-600">
               <li>Le reste dû et la prochaine échéance du contrat sont recalculés.</li>

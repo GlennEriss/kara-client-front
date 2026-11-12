@@ -43,7 +43,7 @@ export interface ICreditSpecialeService {
             duration: number;
             firstPaymentDate: Date;
             totalAmount: number;
-            /** 'WEEKS' : crédit spécial court terme (1 à 3 semaines, échéance unique). */
+            /** 'WEEKS' : forfait initial de 1 à 3 semaines, puis échéances tous les 7 jours sur le solde. */
             durationUnit?: CreditDurationUnit;
             installmentsChangeReason?: string;
             /** Échéancier personnalisé (simulation personnalisée uniquement) */

@@ -247,10 +247,10 @@ describe('CreditSpecialeService - deletePayment (crédit en semaines)', () => {
     expect(paymentRepository.deletePayment).toHaveBeenCalledWith('M1_credit-w_P2')
     expect(penaltyRepository.deletePenalty).not.toHaveBeenCalled()
     expect(remunerationRepository.deleteRemuneration).not.toHaveBeenCalled()
-    // Reste dû : 110 000 − 60 000, sans intérêts supplémentaires.
+    // Solde 50 000, puis 5 000 d’intérêts sur la semaine suivante.
     expect(contractRepository.updateContract).toHaveBeenCalledWith(
       'credit-w',
-      expect.objectContaining({ amountPaid: 60_000, amountRemaining: 50_000 })
+      expect.objectContaining({ amountPaid: 60_000, amountRemaining: 55_000 })
     )
   })
 })

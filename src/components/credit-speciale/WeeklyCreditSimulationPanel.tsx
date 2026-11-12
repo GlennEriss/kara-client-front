@@ -73,7 +73,7 @@ export default function WeeklyCreditSimulationPanel({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="weekly-rate">Taux d’intérêt sur la durée (%)</Label>
+              <Label htmlFor="weekly-rate">Taux du forfait et des semaines suivantes (%)</Label>
               <Input
                 id="weekly-rate"
                 type="number"
@@ -82,10 +82,10 @@ export default function WeeklyCreditSimulationPanel({
                 value={interestRate}
                 onChange={(event) => setInterestRate(Number(event.target.value) || 0)}
               />
-              <p className="text-xs text-gray-500">Appliqué une seule fois, quelle que soit la durée.</p>
+              <p className="text-xs text-gray-500">Appliqué au forfait initial, puis au solde restant chaque semaine. Plus d’intérêts à partir d’un mois après le départ.</p>
             </div>
             <div className="space-y-1.5">
-              <Label>Durée</Label>
+              <Label>Durée du forfait initial</Label>
               <div className="flex gap-2">
                 {Array.from({ length: WEEKLY_CREDIT_MAX_WEEKS }, (_, index) => index + 1).map((value) => (
                   <Button
@@ -109,8 +109,10 @@ export default function WeeklyCreditSimulationPanel({
           <Alert>
             <CalendarClock className="h-4 w-4" />
             <AlertDescription>
-              Remboursement en une seule fois à la date de fin. En cas de retard, des pénalités
-              s’appliquent (3 jours de tolérance), sans intérêts supplémentaires.
+              Le remboursement intégral est prévu à la première échéance. En cas de versement
+              partiel, le solde produit de nouveaux intérêts chaque semaine, jusqu’à un mois
+              après le départ du crédit. Les échéances suivantes remboursent le solde sans
+              nouveaux intérêts. Les pénalités gardent leur tolérance de 3 jours.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -131,15 +133,15 @@ export default function WeeklyCreditSimulationPanel({
                 <p className="text-sm font-bold">{totals.capital.toLocaleString('fr-FR')} FCFA</p>
               </div>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Intérêts</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Intérêts du forfait initial</p>
                 <p className="text-sm font-bold">{totals.interest.toLocaleString('fr-FR')} FCFA</p>
               </div>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">À rembourser</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">À la première échéance</p>
                 <p className="text-sm font-bold text-[#234D65]">{totals.totalAmount.toLocaleString('fr-FR')} FCFA</p>
               </div>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Échéance unique</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Première échéance</p>
                 <p className="text-sm font-bold">{format(simulation.firstPaymentDate, 'dd/MM/yyyy')}</p>
               </div>
             </div>

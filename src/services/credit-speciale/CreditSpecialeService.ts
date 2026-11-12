@@ -36,7 +36,8 @@ import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion
 import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from "@/utils/credit-write-off";
 import { computeMissedEarningsBalance } from "@/utils/credit-losses";
 import { getMonthPenaltyReferenceDate } from "@/utils/credit-penalty-due-date";
-import { WEEKLY_CREDIT_MAX_WEEKS, applyShopPartnerTerms, clampShopCreditInstallments, isFlatCredit, splitFlatInstallments } from "@/utils/credit-weekly";
+import { WEEKLY_CREDIT_MAX_WEEKS, applyShopPartnerTerms, clampShopCreditInstallments, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from "@/utils/credit-weekly";
+import { getCreditPeriodDueDate, getCreditPeriodIndex } from '@/utils/credit-periods';
 import { getShopArticle, getShopCreditPartner } from "@/db/shops.db";
 import { CREDIT_SCORING_ENABLED } from "@/constantes/credit-scoring";
 import { assertContractUnlocked, isCreditContractLocked } from "@/utils/contract-lock";
@@ -529,7 +530,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 : simulationData.monthlyPaymentAmount,
             totalAmount: shopPurchase ? initialAmountRemaining : simulationData.totalAmount,
             duration: normalizedDuration,
-            ...(isWeekly ? { durationUnit: 'WEEKS' as const } : {}),
+            ...(isWeekly ? { durationUnit: 'WEEKS' as const, repaymentModel: 'DEGRESSIVE' as const } : {}),
             ...(shopPurchase
                 ? {
                     repaymentModel: 'FLAT' as const,
@@ -668,7 +669,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             throw new Error('Contrat introuvable');
         }
         assertContractUnlocked(isCreditContractLocked(contract.status));
-        if (isFlatCredit(contract)) {
+        if (isFlatCredit(contract) || isWeeklyCredit(contract)) {
             throw new Error('Un crédit en semaines ou un achat en boutique ne peut pas avoir de mois de repos.');
         }
         const existing = contract.restMonths ?? [];
@@ -1238,9 +1239,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
      */
     async generateInstallmentsForContract(contract: CreditContract, adminId: string): Promise<CreditInstallment[]> {
         const monthlyRate = contract.interestRate / 100;
-        const firstDate = new Date(contract.firstPaymentDate);
         const paymentAmount = contract.monthlyPaymentAmount;
-        const duration = contract.duration;
+        const duration = isWeeklyCredit(contract) ? 1 : contract.duration;
         
         let remaining = contract.amount;
         const installments: Array<Omit<CreditInstallment, 'id' | 'createdAt' | 'updatedAt'>> = [];
@@ -1248,7 +1248,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         for (let i = 0; i < duration; i++) {
             if (remaining <= 0 && contract.creditType !== 'SPECIALE') break;
 
-            const dueDate = addContractMonths(firstDate, i);
+            const dueDate = getCreditPeriodDueDate(contract, i + 1);
             dueDate.setHours(0, 0, 0, 0);
             
             const interest = remaining * monthlyRate;
@@ -1381,7 +1381,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             const paymentDate = new Date(data.paymentDate);
             const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
                               (paymentDate.getMonth() - firstPaymentDate.getMonth());
-            monthNumber = Math.max(1, monthsDiff + 1);
+            monthNumber = getCreditPeriodIndex(contract, paymentDate);
             console.log('[CreditSpecialeService] Calcul du mois à partir de la date:', {
                 firstPaymentDate: firstPaymentDate.toISOString(),
                 paymentDate: paymentDate.toISOString(),
@@ -1424,17 +1424,29 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             remaining = monthHistory.capitalStart;
             interestBeforePayment = monthHistory.interest;
             totalWithInterest = monthHistory.amountDue;
+            if (isWeeklyCredit(contract)) {
+                const alreadyPaid = realPayments.filter(p => getCreditPaymentMonthNumber(contract, p) === monthNumber).reduce((sum, p) => sum + p.amount, 0);
+                if (alreadyPaid > 0 && paymentAmount > 0 && getCreditPeriodIndex(contract, new Date(data.paymentDate)) > monthNumber) {
+                    throw new Error('Une nouvelle échéance hebdomadaire est arrivée. Enregistrez ce versement sur cette nouvelle échéance.');
+                }
+                if (paymentAmount > Math.max(0, monthHistory.amountDue - alreadyPaid)) {
+                    throw new Error('Le montant dépasse le solde de cette échéance. Actualisez le contrat et vérifiez l’échéance choisie.');
+                }
+            }
 
             // Intérêts appliqués une fois (crédit en semaines, achat en boutique) :
             // on paie la part d'intérêts des échéances jusqu'à celle-ci, moins ce
             // qui a déjà été payé, même si une échéance est réglée en plusieurs fois.
-            if (isFlatCredit(contract)) {
-                const interestAlreadyPaid = realPayments.reduce(
+            if (isFlatCredit(contract) || isWeeklyCredit(contract)) {
+                const interestPayments = isFlatCredit(contract) ? realPayments : realPayments.filter(p => getCreditPaymentMonthNumber(contract, p) === monthNumber);
+                const interestAlreadyPaid = isWeeklyCredit(contract)
+                    ? Math.min(monthHistory.interest, interestPayments.reduce((sum, p) => sum + p.amount, 0))
+                    : interestPayments.reduce(
                     (sum, existingPayment) => sum + (Number(existingPayment.interestAmount) || 0),
                     0
                 );
                 const interestThroughMonth = historyBeforePayment
-                    .filter((row) => row.month <= monthNumber)
+                    .filter((row) => isFlatCredit(contract) ? row.month <= monthNumber : row.month === monthNumber)
                     .reduce((sum, row) => sum + row.interest, 0);
                 interestBeforePayment = Math.max(0, interestThroughMonth - interestAlreadyPaid);
             }
@@ -1453,7 +1465,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const baseCustomPaymentId = buildCreditPaymentId(contract, monthNumber);
         const existingPaymentIds = new Set(allPayments.map((existingPayment) => existingPayment.id));
         let customPaymentId = baseCustomPaymentId;
-        if (isFlatCredit(contract)) {
+        if (isFlatCredit(contract) || isWeeklyCredit(contract)) {
             let suffix = 2;
             while (existingPaymentIds.has(customPaymentId)) {
                 customPaymentId = `${baseCustomPaymentId}_P${suffix}`;
@@ -1558,6 +1570,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             newStatus === 'DISCHARGED' && contract.status !== 'DISCHARGED';
 
         await this.creditContractRepository.updateContract(contract.id, {
+            ...(isWeeklyCredit(contract) ? { repaymentModel: 'DEGRESSIVE' as const } : {}),
             amountPaid: totalPaid,
             amountRemaining: Math.round(totalRemaining),
             status: newStatus,
@@ -1770,6 +1783,13 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) throw new Error('Contrat introuvable');
         assertContractUnlocked(isCreditContractLocked(contract.status));
 
+        // Le même formulaire sert aux mois et aux semaines. Une correction
+        // hebdomadaire doit également actualiser les soldes persistés lus par
+        // le portail membre, et pas seulement le montant du versement.
+        const weeklyCorrection = contract.creditType === 'SPECIALE' && isWeeklyCredit(contract)
+            ? await this.prepareWeeklyPaymentCorrection(contract, payment, data, modificationReason, userId)
+            : null;
+
         let proofUrl: string | undefined = payment.proofUrl;
         if (proofFile) {
             const { url } = await this.documentRepository.uploadDocumentFile(
@@ -1780,6 +1800,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             proofUrl = url;
         }
 
+        const correctedPayment = weeklyCorrection?.payments.find((entry) => entry.id === paymentId);
         const payload: Partial<CreditPayment> = {
             ...(data.paymentDate != null && { paymentDate: data.paymentDate instanceof Date ? data.paymentDate : new Date(data.paymentDate) }),
             ...(data.paymentTime != null && { paymentTime: data.paymentTime }),
@@ -1790,13 +1811,100 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             ...(data.withFees !== undefined && { withFees: data.withFees }),
             ...(data.agentRecouvrementId !== undefined && { agentRecouvrementId: data.agentRecouvrementId?.trim() || undefined }),
             ...(proofUrl != null && { proofUrl }),
+            ...(correctedPayment ? {
+                interestAmount: correctedPayment.interestAmount,
+                principalAmount: correctedPayment.principalAmount,
+                comment: correctedPayment.comment,
+                receiptUrl: '',
+            } : {}),
             updatedBy: userId,
             modificationReason,
         };
 
         const updated = await this.creditPaymentRepository.updatePayment(paymentId, payload);
         if (!updated) throw new Error('Échec de la mise à jour du paiement');
+        if (!weeklyCorrection) return updated;
+
+        for (const correction of weeklyCorrection.payments) {
+            if (correction.id === paymentId) continue;
+            const saved = await this.creditPaymentRepository.updatePayment(correction.id, {
+                interestAmount: correction.interestAmount,
+                principalAmount: correction.principalAmount,
+                // Les anciens reçus ne doivent pas conserver des montants périmés.
+                receiptUrl: '',
+                updatedBy: userId,
+            });
+            if (!saved) throw new Error('Échec du recalcul du versement');
+        }
+        await this.creditContractRepository.updateContract(contract.id, weeklyCorrection.contract);
         return updated;
+    }
+
+    /** Valide toute la projection avant la première écriture (y compris les
+     * échéances suivantes si un ancien montant est corrigé). */
+    private async prepareWeeklyPaymentCorrection(
+        contract: CreditContract,
+        payment: CreditPayment,
+        data: Partial<CreditPayment>,
+        modificationReason: string,
+        userId: string
+    ): Promise<{ payments: CreditPayment[]; contract: Partial<CreditContract> } | null> {
+        if (!modificationReason.trim()) throw new Error('Le motif de modification est obligatoire');
+        const amount = data.amount ?? payment.amount;
+        const paymentDate = new Date(data.paymentDate ?? payment.paymentDate);
+        if (!Number.isFinite(amount) || amount < 0) throw new Error('Le montant du versement doit être positif ou nul');
+        if (Number.isNaN(paymentDate.getTime())) throw new Error('La date du versement est invalide');
+
+        const financialChange = amount !== payment.amount || paymentDate.getTime() !== new Date(payment.paymentDate).getTime();
+        if (!financialChange) return null;
+
+        if (getCreditPaymentCycleNumber(contract, payment) !== getCurrentCreditContractCycle(contract).cycleNumber) {
+            throw new Error('Ce versement appartient à un cycle antérieur et ne peut plus être corrigé');
+        }
+        let comment = data.comment ?? payment.comment;
+        if (amount === 0 && !comment?.includes('Paiement de 0 FCFA') && !comment?.includes('Paiement de pénalités uniquement')) {
+            comment = `Paiement de 0 FCFA${comment ? ` - ${comment}` : ''}`;
+        }
+        const allPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
+        const merged = allPayments.map((existing) => existing.id === payment.id
+            ? { ...existing, ...data, amount, paymentDate, comment }
+            : existing);
+        const cyclePayments = getCreditPaymentsForCurrentCycle(contract, merged);
+        const history = buildCreditSpecialeHistory(contract, cyclePayments, { projectUntilZero: true });
+        const corrections: CreditPayment[] = [];
+        for (const row of history) {
+            const contributions = cyclePayments
+                .filter((entry) => getCreditPaymentMonthNumber(contract, entry) === row.month)
+                .sort((left, right) => new Date(left.paymentDate).getTime() - new Date(right.paymentDate).getTime()
+                    || left.id.localeCompare(right.id, undefined, { numeric: true }));
+            if (contributions.reduce((sum, entry) => sum + entry.amount, 0) > row.amountDue) {
+                throw new Error(`Cette correction dépasse le solde de l’échéance ${row.month}, ou rend un versement suivant trop élevé. Corrigez d’abord les versements suivants.`);
+            }
+            let interestRemaining = row.interest;
+            for (const contribution of contributions) {
+                const interestAmount = Math.min(contribution.amount, interestRemaining);
+                interestRemaining -= interestAmount;
+                const principalAmount = contribution.amount - interestAmount;
+                if (contribution.id === payment.id || contribution.interestAmount !== interestAmount || contribution.principalAmount !== principalAmount) {
+                    corrections.push({ ...contribution, interestAmount, principalAmount });
+                }
+            }
+        }
+        const totals = this.computeContractTotalsAfterPaymentRemoval(contract, merged, userId);
+        const settled = totals.amountRemaining === 0;
+        return {
+            payments: corrections,
+            contract: {
+                ...totals,
+                status: settled ? 'DISCHARGED'
+                    : contract.status === 'ACTIVE' && (totals.amountPaid ?? 0) > 0 ? 'PARTIAL' : totals.status,
+                ...(settled ? {
+                    dischargeMotif: 'Contrat soldé automatiquement après correction d’un versement',
+                    dischargedBy: userId,
+                    dischargedAt: new Date(),
+                } : {}),
+            },
+        };
     }
 
     /**
@@ -1891,6 +1999,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
 
         return {
+            ...(isWeeklyCredit(contract) ? { repaymentModel: 'DEGRESSIVE' as const } : {}),
             amountPaid: totalPaid,
             amountRemaining: Math.round(totalRemaining),
             // Le blocage et le retard restent gérés par leurs propres règles ;
@@ -2209,8 +2318,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const installmentKey = `C${cycleNumber}_M${monthNumber}`;
 
         // Calculer la date prévue de l'échéance pour ce mois
-        const firstPaymentDate = new Date(cycleContract.firstPaymentDate);
-        const dueDate = addContractMonths(firstPaymentDate, monthNumber - 1);
+        const dueDate = getCreditPeriodDueDate(cycleContract, monthNumber);
         dueDate.setHours(0, 0, 0, 0);
 
         // Date de paiement
@@ -3001,7 +3109,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const totalInterest = (contract.amount * interestRate) / 100;
         const totalAmountToRepay = contract.amount + totalInterest;
         
-        const realRemainingAmount = totalAmountToRepay - totalPaid;
+        const realRemainingAmount = isWeeklyCredit(contract)
+            ? getNextDueFromCreditSpecialeHistory(buildCreditSpecialeHistory(contract, getCreditPaymentsForCurrentCycle(contract, payments), { projectUntilZero: true }))?.amountDue ?? 0
+            : totalAmountToRepay - totalPaid;
         
         // Tolérance de 0.1 pour les erreurs d'arrondi (même que l'UI)
         if (realRemainingAmount > 0.1) {
@@ -3013,6 +3123,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         const updatedContract = await this.creditContractRepository.updateContract(contractId, {
             status: 'DISCHARGED',
+            ...(isWeeklyCredit(contract) ? { repaymentModel: 'DEGRESSIVE' as const } : {}),
             dischargeMotif: motif.trim(),
             dischargedAt: new Date(),
             dischargedBy: adminId,
@@ -3305,16 +3416,20 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const unpaidPenalties = (await this.creditPenaltyRepository.getUnpaidPenaltiesByCreditId(contractId))
             .reduce((sum, penalty) => sum + (Number(penalty.amount) || 0), 0);
         const writtenOffAt = new Date();
+        const effectiveRemaining = isWeeklyCredit(contract)
+            ? this.computeContractTotalsAfterPaymentRemoval(contract, await this.creditPaymentRepository.getPaymentsByCreditId(contractId), data.adminId).amountRemaining ?? contract.amountRemaining
+            : contract.amountRemaining;
 
         const updatedContract = await this.creditContractRepository.updateContract(contractId, {
             status: 'WRITTEN_OFF',
+            ...(isWeeklyCredit(contract) ? { repaymentModel: 'DEGRESSIVE' as const, amountRemaining: effectiveRemaining } : {}),
             writeOff: {
                 writtenOffAt,
                 writtenOffBy: data.adminId,
                 writtenOffByName: data.adminName,
                 motif,
                 ...buildWriteOffAmounts({
-                    amountRemaining: contract.amountRemaining,
+                    amountRemaining: effectiveRemaining,
                     unpaidPenalties,
                     guarantorCommissionDue: contract.guarantorId ? data.guarantorCommissionDue : 0,
                 }),
@@ -3579,7 +3694,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 return { eligible: false, reason: 'Contrat introuvable', paymentsCount: 0, unpaidPenaltiesCount: 0 };
             }
 
-            if (isFlatCredit(contract)) {
+            if (isFlatCredit(contract) || isWeeklyCredit(contract)) {
                 return {
                     eligible: false,
                     reason: 'Un crédit en semaines ou un achat en boutique ne peut pas être augmenté : faites une nouvelle demande.',
