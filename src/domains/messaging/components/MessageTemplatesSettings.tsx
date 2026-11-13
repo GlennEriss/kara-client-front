@@ -19,6 +19,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/domains/auth/hooks'
 import { useMyAccess } from '@/hooks/useMyAccess'
@@ -35,6 +37,7 @@ import {
   useSaveMessageTemplates,
 } from '../hooks/useMessageTemplates'
 import { extractTemplateVariables, renderTemplate } from '../utils/renderTemplate'
+import { LINK_TEMPLATE_KEYS, messageLinkVariables, normalizeMessageBaseUrl, type MessageTemplateUrls } from '../utils/message-template-links'
 
 const CATEGORIES = Object.keys(MESSAGE_TEMPLATE_CATEGORY_LABELS) as MessageTemplateCategory[]
 
@@ -83,12 +86,13 @@ const SAMPLE_VALUES: Record<string, string> = {
   interets: '15 000',
 }
 
-function previewOf(body: string, key?: string): string {
+function previewOf(body: string, key?: string, baseUrl?: string): string {
   const samples: Record<string, string> = key === 'groupAgreementReminder' ? { ...SAMPLE_VALUES, montant: '25 000 FCFA', echeance: ' Échéance : 19/11/2026, 25 000 FCFA.' } : SAMPLE_VALUES
   const variables = Object.fromEntries(
     extractTemplateVariables(body).map((name) => [name, samples[name] ?? `«${name}»`])
   )
-  return renderTemplate(body, variables)
+  try { return renderTemplate(body, messageLinkVariables(variables, baseUrl)) }
+  catch { return renderTemplate(body, variables) }
 }
 
 interface TemplateEditorProps {
@@ -97,11 +101,15 @@ interface TemplateEditorProps {
   onChange: (body: string) => void
   onResetDefault: () => void
   readOnly: boolean
+  url: string
+  onUrlChange: (url: string) => void
 }
 
-function TemplateEditor({ template, value, onChange, onResetDefault, readOnly }: TemplateEditorProps) {
+function TemplateEditor({ template, value, onChange, onResetDefault, readOnly, url, onUrlChange }: TemplateEditorProps) {
   const [showPreview, setShowPreview] = useState(false)
-  const isCustom = value.trim() !== template.defaultBody.trim()
+  const isCustom = value.trim() !== template.defaultBody.trim() || !!url.trim()
+  let urlError = ''
+  try { normalizeMessageBaseUrl(url) } catch { urlError = 'URL HTTPS de site attendue, sans paramètres ni fragment.' }
   // Une variable écrite dans le corps mais absente du catalogue ne sera jamais
   // remplacée : on prévient l'administrateur plutôt que d'envoyer un trou.
   const unknownVariables = useMemo(() => {
@@ -147,6 +155,15 @@ function TemplateEditor({ template, value, onChange, onResetDefault, readOnly }:
       </CardHeader>
 
       <CardContent className="space-y-3">
+        {LINK_TEMPLATE_KEYS.has(template.key) && <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <Label htmlFor={`message-url-${template.key}`}>URL du site pour les liens</Label>
+          <Input id={`message-url-${template.key}`} type="url" value={url} readOnly={readOnly}
+            placeholder={template.key === 'membershipCorrections' ? 'Adresse du site de gestion des adhésions' : 'https://association-le-kara.com'}
+            aria-invalid={!!urlError} aria-describedby={`message-url-help-${template.key}`}
+            onChange={event => onUrlChange(event.target.value)} />
+          <p id={`message-url-help-${template.key}`} className="text-xs text-gray-600">Modifiez l’adresse du site. Le chemin du dossier ou de l’événement et ses paramètres sont conservés. Laissez vide pour utiliser l’adresse habituelle.</p>
+          {urlError && <p role="alert" className="text-xs text-red-700">{urlError}</p>}
+        </div>}
         <Textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -198,7 +215,7 @@ function TemplateEditor({ template, value, onChange, onResetDefault, readOnly }:
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-700">
               Aperçu avec des données d’exemple
             </p>
-            <p className="whitespace-pre-wrap text-sm text-gray-800">{previewOf(value, template.key)}</p>
+            <p className="whitespace-pre-wrap text-sm text-gray-800">{previewOf(value, template.key, url)}</p>
           </div>
         )}
       </CardContent>
@@ -211,12 +228,14 @@ export default function MessageTemplatesSettings() {
   const { can, isSuperAdmin } = useMyAccess()
   const canManage = isSuperAdmin || can('messageTemplates.manage')
 
-  const { data: overrides, isLoading, isError, errorCode, refetch } = useMessageTemplateOverrides()
+  const { data: overrides, urls: storedUrls, isLoading, isError, errorCode, refetch } = useMessageTemplateOverrides()
   const { save, isPending: isSaving } = useSaveMessageTemplates()
 
   // Corps courants de tous les modèles (défaut + personnalisations chargées).
   const [bodies, setBodies] = useState<Record<string, string>>({})
   const [initialBodies, setInitialBodies] = useState<Record<string, string>>({})
+  const [urls, setUrls] = useState<MessageTemplateUrls>({})
+  const [initialUrls, setInitialUrls] = useState<MessageTemplateUrls>({})
 
   useEffect(() => {
     if (isLoading) return
@@ -225,11 +244,13 @@ export default function MessageTemplatesSettings() {
     )
     setBodies(next)
     setInitialBodies(next)
-  }, [overrides, isLoading])
+    setUrls(storedUrls ?? {})
+    setInitialUrls(storedUrls ?? {})
+  }, [overrides, storedUrls, isLoading])
 
   const dirtyKeys = useMemo(
-    () => Object.keys(bodies).filter((key) => bodies[key] !== initialBodies[key]),
-    [bodies, initialBodies]
+    () => Object.keys(bodies).filter((key) => bodies[key] !== initialBodies[key] || (urls[key] ?? '') !== (initialUrls[key] ?? '')),
+    [bodies, initialBodies, urls, initialUrls]
   )
 
   const templatesByCategory = useMemo(() => {
@@ -260,8 +281,10 @@ export default function MessageTemplatesSettings() {
     }
 
     try {
-      await save(nextOverrides, user?.uid)
+      for (const value of Object.values(urls)) normalizeMessageBaseUrl(value)
+      await save(nextOverrides, user?.uid, urls)
       setInitialBodies({ ...bodies })
+      setInitialUrls({ ...urls })
       toast.success('Modèles de messages enregistrés')
     } catch (error) {
       const code =
@@ -348,7 +371,7 @@ export default function MessageTemplatesSettings() {
           </div>
           <Button
             onClick={handleSave}
-            disabled={!canManage || dirtyKeys.length === 0 || isSaving}
+            disabled={!canManage || dirtyKeys.length === 0 || isSaving || isError}
             className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white hover:from-[#2c5a73] hover:to-[#234D65]"
           >
             {isSaving ? (
@@ -383,11 +406,14 @@ export default function MessageTemplatesSettings() {
                 key={template.key}
                 template={template}
                 value={bodies[template.key] ?? template.defaultBody}
+                url={urls[template.key] ?? ''}
+                onUrlChange={url => setUrls(prev => ({ ...prev, [template.key]: url }))}
                 readOnly={!canManage}
                 onChange={(body) => setBodies((prev) => ({ ...prev, [template.key]: body }))}
-                onResetDefault={() =>
+                onResetDefault={() => {
                   setBodies((prev) => ({ ...prev, [template.key]: template.defaultBody }))
-                }
+                  setUrls(prev => ({ ...prev, [template.key]: '' }))
+                }}
               />
             ))}
           </TabsContent>

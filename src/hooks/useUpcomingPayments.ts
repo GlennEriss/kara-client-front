@@ -101,7 +101,7 @@ async function fetchUpcomingCaisseSpeciale(today: Date, until: Date): Promise<Up
       if (contract.contractType === 'GROUP' && contract.groupeId) {
         isGroup = true
         groupId = contract.groupeId
-        const group = await getGroupById(contract.groupeId).catch(() => null)
+        const group = await getGroupById(contract.groupeId, true).catch(() => null)
         if (group) name = group.name
       } else if (contract.memberId) {
         memberId = contract.memberId

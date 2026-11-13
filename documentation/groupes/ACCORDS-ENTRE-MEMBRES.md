@@ -17,7 +17,9 @@ L’administration crée, valide et corrige les opérations. Elle peut conserver
 
 Le membre consulte **Mes groupes → Mes accords** : ses échéanciers à payer, ses sommes à recevoir et les versements enregistrés. Il contacte KARA par WhatsApp pour faire le point. Il ne crée ni accord ni paiement. L’API vérifie la session et l’appartenance au groupe, puis retourne seulement les accords dont il est effectivement l’une des deux parties. Les notes internes, justificatifs, auteurs et historiques administratifs restent privés. Les lectures Firestore directes des accords sont réservées aux admins.
 
-Le retrait d’un membre est bloqué s’il participe encore à un accord en cours de règlement ou de reversement. La suppression du groupe est bloquée dès qu’il possède un historique d’accords.
+Le retrait d’un membre est bloqué s’il participe encore à un accord en cours de règlement ou de reversement. La suppression définitive de tout le groupe passe par l’API SuperAdmin, avec confirmation de son identifiant : elle supprime aussi les accords et leur historique. Elle verrouille les écritures avant le nettoyage et peut être relancée après une interruption. Les comptes des membres et leurs autres groupes, ainsi que les contrats de caisse et de crédit liés, restent conservés. Une suppression ne constitue aucun remboursement ou reversement ; sa demande est journalisée.
+
+Seul un intitulé minimal (`deletedGroupIdentities`, nom et libellé, date et auteur de suppression) reste disponible aux administrateurs pour nommer les contrats financiers, leurs reçus et leurs échéances. Il ne contient ni participants, ni projets, ni cotisations. La fiche du groupe supprimé ne se rouvre pas ; le lecteur des contrats demande explicitement cette référence historique.
 
 ## Bilan financier et mise en service
 

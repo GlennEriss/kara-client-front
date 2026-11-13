@@ -60,7 +60,7 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
         }
       } else if (contract.contractType === "GROUP" && contract.groupeId) {
         try {
-          const group = await getGroupById(contract.groupeId)
+          const group = await getGroupById(contract.groupeId, true)
           if (group && !canceled) {
             setMemberData({
               name: group.name,

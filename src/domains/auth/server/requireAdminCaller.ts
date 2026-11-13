@@ -13,20 +13,30 @@ export type AdminCaller = {
 
 const isSuperAdminRole = (role: string) => role.toLowerCase().replace(/[^a-z]/g, '').includes('superadmin')
 
-/** Fiche `admins` de l'appelant : par uid (= matricule), sinon par email. */
+/** Même repli users/admins que les droits de navigation : certains comptes
+ * historiques portent leur rôle seulement dans users, ou sont liés par email. */
 async function findAdminRoles(claims: SessionClaims): Promise<string[]> {
   if (!adminFirestore) return []
-  try {
-    const byId = await adminFirestore.collection('admins').doc(claims.uid).get()
-    if (byId.exists) return (byId.data()?.roles ?? []) as string[]
-    if (typeof claims.email === 'string' && claims.email) {
-      const q = await adminFirestore.collection('admins').where('email', '==', claims.email).limit(1).get()
-      if (!q.empty) return (q.docs[0].data()?.roles ?? []) as string[]
-    }
-  } catch {
-    // ignore : on s'appuie sur le claim
+  const roles: string[] = []
+  const collect = (data: Record<string, unknown> | undefined) => {
+    roles.push(...(Array.isArray(data?.roles) ? data.roles.filter((role): role is string => typeof role === 'string') : []))
+    if (typeof data?.role === 'string') roles.push(data.role)
   }
-  return []
+  for (const name of ['admins', 'users']) {
+    try {
+      const collection = adminFirestore.collection(name)
+      const byId = await collection.doc(claims.uid).get()
+      if (byId.exists) collect(byId.data())
+      const emails = [...new Set([claims.email?.trim(), claims.email?.trim().toLowerCase()].filter((value): value is string => !!value))]
+      for (const email of emails) {
+        const query = await collection.where('email', '==', email).limit(1).get()
+        for (const snapshot of query.docs) collect(snapshot.data())
+      }
+    } catch {
+      // Une erreur n'accorde aucun rôle supplémentaire ; les claims restent vérifiés.
+    }
+  }
+  return [...new Set(roles)]
 }
 
 /** Identifie l'admin connecté qui appelle une route d'API (cookie de session ou jeton Bearer). */

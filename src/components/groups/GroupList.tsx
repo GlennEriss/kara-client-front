@@ -9,7 +9,6 @@ import {
   ArrowUpRight,
   CheckCircle2,
   FolderOpen,
-  Loader2,
   Plus,
   RefreshCw,
   Search,
@@ -19,12 +18,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatsCard } from "@/components/ui/stats-card";
-import { Dialog } from "@/components/ui/dialog";
-import { ModalContent, ModalHeader, ModalFooter } from "@/components/ui/modal";
 import routes from "@/constantes/routes";
 import { listGroups } from "@/db/group.db";
 import {
-  deleteEmptyGroup,
   getGroupMemberCounts,
 } from "@/domains/groups/group-service";
 import { isOpenProject, PROJECT_KINDS } from "@/domains/groups/group-model";
@@ -33,16 +29,16 @@ import { useListUrlSync } from "@/hooks/useListUrlSync";
 import type { Group, GroupProjectKind } from "@/types/types";
 import { GroupTutorialButton } from "@/domains/groups/tutorial/GroupTutorialButton";
 import { CreateGroupWizard } from "./CreateGroupWizard";
+import { DeleteGroupDialog } from './DeleteGroupDialog';
 
 export default function GroupList() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { canManage, refresh, audit } = useGroupWorkspace();
+  const { canManage, canDelete, refresh } = useGroupWorkspace();
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [kind, setKind] = useState<GroupProjectKind | "all">("all");
   const [creating, setCreating] = useState(false);
   const [toDelete, setToDelete] = useState<Group | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const {
     data: groups = [],
     isLoading,
@@ -78,29 +74,6 @@ export default function GroupList() {
         group.projects?.some((project) => project.kind === kind))
     );
   });
-  const remove = async () => {
-    if (!toDelete || !canManage) return;
-    setDeleting(true);
-    try {
-      await deleteEmptyGroup(toDelete.id);
-      audit(
-        `Suppression du groupe vide « ${toDelete.name} ».`,
-        toDelete.id,
-        "delete",
-      );
-      setToDelete(null);
-      await refresh();
-      toast.success("Groupe supprimé.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Impossible de supprimer le groupe.",
-      );
-    } finally {
-      setDeleting(false);
-    }
-  };
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -259,9 +232,7 @@ export default function GroupList() {
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#234D65]/10">
                     <Users className="h-5 w-5 text-[#234D65]" />
                   </div>
-                  {canManage &&
-                    counts[group.id] === 0 &&
-                    !group.projects?.length && (
+                  {canDelete && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -333,41 +304,7 @@ export default function GroupList() {
           }}
         />
       )}
-      <Dialog
-        open={!!toDelete}
-        onOpenChange={(open) => {
-          if (!open && !deleting) setToDelete(null);
-        }}
-      >
-        <ModalContent size="md" showCloseButton={!deleting}>
-          <ModalHeader
-            icon={Trash2}
-            tone="destructive"
-            className="[&_[data-slot=dialog-title]]:break-words"
-            title={<>Supprimer ce groupe vide ?</>}
-            description={
-              <>
-                Le groupe « {toDelete?.name} » sera supprimé. Un groupe
-                possédant des membres, projets ou contrats ne peut pas être
-                supprimé ici.
-              </>
-            }
-          />
-          <ModalFooter>
-            <Button
-              variant="outline"
-              onClick={() => setToDelete(null)}
-              disabled={deleting}
-            >
-              Annuler
-            </Button>
-            <Button variant="destructive" onClick={remove} disabled={deleting}>
-              {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
-              Supprimer
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Dialog>
+      {toDelete && <DeleteGroupDialog key={toDelete.id} group={toDelete} onClose={() => setToDelete(null)} onDeleted={refresh} />}
     </div>
   );
 }

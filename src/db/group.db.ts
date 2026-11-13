@@ -83,13 +83,23 @@ export async function deleteGroup(id: string): Promise<boolean> {
   return true
 }
 
-export async function getGroupById(id: string): Promise<Group | null> {
+/** includeDeletedIdentity est réservé aux contrats conservés et à leurs
+ * calendriers/reçus : il ne réouvre pas le groupe dans l'espace collectif. */
+export async function getGroupById(id: string, includeDeletedIdentity = false): Promise<Group | null> {
   try {
     const { db, doc, getDoc } = await getFirestore() as any
     const ref = doc(db, firebaseCollectionNames.groups || 'groups', id)
     const snap = await getDoc(ref)
     
     if (!snap.exists()) {
+      if (includeDeletedIdentity) {
+        const identity = await getDoc(doc(db, 'deletedGroupIdentities', id))
+        if (identity.exists()) {
+          const data = identity.data()
+          return { id, name: data.name, label: data.label ?? undefined,
+            createdBy: data.deletedBy, createdAt: toDateSafe(data.deletedAt), updatedAt: toDateSafe(data.deletedAt) } as Group
+        }
+      }
       return null
     }
     

@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
 import {
-  fetchMessageTemplateOverrides,
+  fetchMessageTemplateSettings,
   saveMessageTemplateOverrides,
   type MessageTemplateOverrides,
 } from '../db/messageTemplates.db'
 import { defaultTemplateBody } from '../constants/message-templates'
 import { renderTemplate, type TemplateVariables } from '../utils/renderTemplate'
+import { messageLinkVariables, type MessageTemplateUrls } from '../utils/message-template-links'
 
 /**
  * Petit store global des modèles personnalisés.
@@ -19,12 +20,13 @@ import { renderTemplate, type TemplateVariables } from '../utils/renderTemplate'
  */
 type State = {
   overrides: MessageTemplateOverrides
+  urls: MessageTemplateUrls
   status: 'idle' | 'loading' | 'ready' | 'error'
   /** Code Firestore de l'échec ('permission-denied', 'unavailable', ...). */
   errorCode?: string
 }
 
-let state: State = { overrides: {}, status: 'idle' }
+let state: State = { overrides: {}, urls: {}, status: 'idle' }
 let inflight: Promise<void> | null = null
 const listeners = new Set<() => void>()
 
@@ -45,7 +47,7 @@ function getSnapshot(): State {
 }
 
 /** Snapshot serveur : aucun modèle chargé, les textes par défaut s'appliquent. */
-const SERVER_STATE: State = { overrides: {}, status: 'idle' }
+const SERVER_STATE: State = { overrides: {}, urls: {}, status: 'idle' }
 function getServerSnapshot(): State {
   return SERVER_STATE
 }
@@ -56,9 +58,9 @@ function loadOverrides(force = false): Promise<void> {
     return inflight ?? Promise.resolve()
   }
   setState({ ...state, status: 'loading' })
-  inflight = fetchMessageTemplateOverrides()
-    .then((overrides) => {
-      setState({ overrides, status: 'ready' })
+  inflight = fetchMessageTemplateSettings()
+    .then(({ overrides, urls }) => {
+      setState({ overrides, urls, status: 'ready' })
     })
     .catch((error: unknown) => {
       console.error('[messageTemplates] chargement impossible', error)
@@ -67,7 +69,7 @@ function loadOverrides(force = false): Promise<void> {
           ? String((error as { code: unknown }).code)
           : undefined
       // On reste sur les textes par défaut plutôt que de bloquer un envoi.
-      setState({ overrides: {}, status: 'error', errorCode: code })
+      setState({ overrides: {}, urls: {}, status: 'error', errorCode: code })
     })
     .finally(() => {
       inflight = null
@@ -77,7 +79,7 @@ function loadOverrides(force = false): Promise<void> {
 
 /** Réinitialise le cache — utile dans les tests. */
 export function resetMessageTemplatesCache() {
-  state = { overrides: {}, status: 'idle' }
+  state = { overrides: {}, urls: {}, status: 'idle' }
   inflight = null
   listeners.forEach((listener) => listener())
 }
@@ -92,6 +94,7 @@ export function useMessageTemplateOverrides() {
 
   return {
     data: snapshot.overrides,
+    urls: snapshot.urls,
     isLoading: snapshot.status === 'idle' || snapshot.status === 'loading',
     isError: snapshot.status === 'error',
     errorCode: snapshot.errorCode,
@@ -103,11 +106,11 @@ export function useSaveMessageTemplates() {
   const [isPending, setIsPending] = useState(false)
 
   const save = useCallback(
-    async (overrides: MessageTemplateOverrides, adminId?: string) => {
+    async (overrides: MessageTemplateOverrides, adminId?: string, urls: MessageTemplateUrls = state.urls) => {
       setIsPending(true)
       try {
-        await saveMessageTemplateOverrides(overrides, adminId)
-        setState({ overrides, status: 'ready' })
+        await saveMessageTemplateOverrides(overrides, adminId, urls)
+        setState({ overrides, urls, status: 'ready' })
       } finally {
         setIsPending(false)
       }
@@ -125,13 +128,13 @@ export function useSaveMessageTemplates() {
  * texte par défaut, ce qui évite de désactiver les boutons d'envoi.
  */
 export function useRenderMessageTemplate() {
-  const { data: overrides } = useMessageTemplateOverrides()
+  const { data: overrides, urls } = useMessageTemplateOverrides()
 
   return useCallback(
     (key: string, variables: TemplateVariables = {}) => {
       const body = overrides?.[key]?.trim() || defaultTemplateBody(key)
-      return renderTemplate(body, variables)
+      return renderTemplate(body, messageLinkVariables(variables, urls[key]))
     },
-    [overrides]
+    [overrides, urls]
   )
 }

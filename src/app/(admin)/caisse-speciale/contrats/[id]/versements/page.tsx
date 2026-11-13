@@ -76,8 +76,8 @@ export default function ContractPaymentsPage() {
   const bonusSummary = contract ? contractBonusSummary(contract as any, activeSettings as any, payments) : null
   const { data: member } = useMember(contract?.memberId)
   const { data: group } = useQuery({
-    queryKey: ['group', contract?.groupeId],
-    queryFn: () => getGroupById(contract?.groupeId as string),
+    queryKey: ['group-identity', contract?.groupeId],
+    queryFn: () => getGroupById(contract?.groupeId as string, true),
     enabled: Boolean(contract?.groupeId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,

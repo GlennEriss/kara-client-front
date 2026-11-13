@@ -24,6 +24,7 @@ import {
 import type { OverdueProduct } from '@/hooks/useOverduePayments'
 import { useShownAmount } from './useShownAmount'
 import { CalendarContractLink } from './CalendarContractLink'
+import { CalendarTablePagination, useCalendarPagination } from './CalendarTablePagination'
 
 interface UpcomingPaymentsListProps {
   product: OverdueProduct
@@ -74,6 +75,7 @@ export function UpcomingPaymentsList({ product }: UpcomingPaymentsListProps) {
   const shownAmount = useShownAmount()
   const [horizonDays, setHorizonDays] = useState(DEFAULT_UPCOMING_PAYMENT_HORIZON)
   const { data: items = [], isLoading, isError, isFetching, refetch } = useUpcomingPayments(product, horizonDays)
+  const pagination = useCalendarPagination(items, `${product}:${horizonDays}`)
   const renderMessage = useRenderMessageTemplate()
   const { record } = useRecordCall()
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0)
@@ -207,7 +209,7 @@ export function UpcomingPaymentsList({ product }: UpcomingPaymentsListProps) {
                 {!isLoading && !isError && items.length === 0 && (
                   <TableRow><TableCell colSpan={8} className="py-10 text-center text-gray-500">Aucun versement prévu dans les {horizonDays} prochains jours.</TableCell></TableRow>
                 )}
-                {!isLoading && !isError && items.map((item) => {
+                {!isLoading && !isError && pagination.items.map((item) => {
                   const canMessage = !!resolveWhatsappNumber(item.whatsappNumber, [item.phone])
                   return (
                     <TableRow key={item.key} className="hover:bg-gray-50">
@@ -254,6 +256,7 @@ export function UpcomingPaymentsList({ product }: UpcomingPaymentsListProps) {
               </TableBody>
             </Table>
           </div>
+          {!isLoading && !isError && <CalendarTablePagination pagination={pagination} />}
         </CardContent>
       </Card>
     </div>

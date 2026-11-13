@@ -19,6 +19,7 @@ import { useShownAmount } from './useShownAmount'
 import { CallPlanScheduleStatus } from './CallPlanScheduleStatus'
 import { RescheduleCallPlanModal, type RescheduleTarget } from './RescheduleCallPlanModal'
 import { callPlanToday } from '@/utils/call-plan-dates'
+import { CalendarTablePagination, useCalendarPagination } from './CalendarTablePagination'
 
 const dateKey = (date: Date) => format(date, 'yyyy-MM-dd')
 
@@ -100,6 +101,9 @@ export function WeeklyCallPlan() {
   const selectedBatch = batches.find((batch) => batch.id === selectedBatchId)
 
   const selectedPlans = viewMode === 'overdue' ? visiblePlans : visiblePlans.filter((plan) => plan.scheduledDate === selectedDate)
+  const plansPagination = useCalendarPagination(selectedPlans, `${viewMode}:${selectedDate}:${weekOffset}`)
+  const batchesPagination = useCalendarPagination(batches, String(weekOffset))
+  const batchPagination = useCalendarPagination(selectedBatch?.items ?? [], selectedBatchId ?? '')
   const plannedCount = selectedPlans.filter((plan) => plan.status === 'planned').length
   const completedCount = selectedPlans.length - plannedCount
   const loadingPlans = viewMode === 'overdue' ? isLoadingOverdue : isLoading
@@ -225,7 +229,7 @@ export function WeeklyCallPlan() {
                   </TableCell>
                 </TableRow>
               )}
-              {!loadingPlans && selectedPlans.map((plan) => (
+              {!loadingPlans && plansPagination.items.map((plan) => (
                 <TableRow key={plan.id} className={plan.status === 'completed' ? 'bg-green-50/40' : undefined}>
                   <TableCell>
                     <div className="font-medium text-gray-900">{plan.name}</div>
@@ -281,6 +285,7 @@ export function WeeklyCallPlan() {
               ))}
             </TableBody>
           </Table>
+          {!loadingPlans && <CalendarTablePagination pagination={plansPagination} />}
           </div>
           </>
         )}
@@ -305,7 +310,7 @@ export function WeeklyCallPlan() {
                 {!isLoading && batches.length === 0 && (
                   <TableRow><TableCell colSpan={6} className="py-8 text-center text-sm text-gray-500">Aucun lot planifié pour cette semaine.</TableCell></TableRow>
                 )}
-                {!isLoading && batches.map((batch) => {
+                {!isLoading && batchesPagination.items.map((batch) => {
                   const percent = batch.items.length > 0 ? Math.round((batch.completed / batch.items.length) * 100) : 0
                   return (
                     <TableRow key={batch.id}>
@@ -338,6 +343,7 @@ export function WeeklyCallPlan() {
                 })}
               </TableBody>
             </Table>
+            {!isLoading && <CalendarTablePagination pagination={batchesPagination} />}
           </div>
         )}
 
@@ -376,7 +382,7 @@ export function WeeklyCallPlan() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {selectedBatch?.items.map((item) => (
+                  {batchPagination.items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
                         <div className="font-medium">{item.name}</div>
@@ -400,6 +406,7 @@ export function WeeklyCallPlan() {
                   ))}
                 </TableBody>
               </Table>
+              <CalendarTablePagination pagination={batchPagination} />
             </div>
           </DialogContent>
         </Dialog>

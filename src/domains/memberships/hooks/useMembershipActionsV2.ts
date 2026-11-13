@@ -34,11 +34,13 @@ export function useMembershipActionsV2() {
 
   // Corps personnalisé du modèle « Adhésion — corrections demandées ».
   // Passé par ref pour garder `sendWhatsApp` stable entre deux rendus.
-  const { data: templateOverrides } = useMessageTemplateOverrides()
+  const { data: templateOverrides, urls } = useMessageTemplateOverrides()
   const correctionsTemplateRef = useRef<string | undefined>(undefined)
+  const correctionsUrlRef = useRef<string | undefined>(undefined)
   useEffect(() => {
     correctionsTemplateRef.current = templateOverrides?.membershipCorrections
-  }, [templateOverrides])
+    correctionsUrlRef.current = urls?.membershipCorrections
+  }, [templateOverrides, urls])
 
   const approveMutation = useMutation({
     mutationFn: (params: ApproveMembershipRequestParams) =>
@@ -228,7 +230,7 @@ export function useMembershipActionsV2() {
         corrections: params.corrections,
         securityCode: params.securityCode,
         expiryDate: params.expiryDate,
-        baseUrl: window.location.origin,
+        baseUrl: correctionsUrlRef.current || window.location.origin,
         templateBody: correctionsTemplateRef.current,
       })
 

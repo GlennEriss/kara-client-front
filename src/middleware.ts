@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import routes from "./constantes/routes";
-
-// Rôles admin (même liste que `ADMIN_ROLES` dans types.ts, recopiée pour ne pas
-// charger ce module dans le middleware Edge).
-const ADMIN_ROLE_CLAIMS = ["Admin", "SuperAdmin", "Secretary", "Administrateur", "AgentRecouvrement", "GestionnaireVehicules"];
+import { moduleForPath } from './constantes/permissions';
+import { adminAccessRedirect, type ResolvedAdminAccess } from './domains/auth/access-policy';
 
 /**
  * Liste des routes publiques (accessibles sans authentification)
@@ -40,13 +38,15 @@ const ADMIN_ROUTE_PREFIXES = [
     '/placements',
     '/geographie',
     '/calendrier',
+    '/statuts',
+    '/reinitialisation',
 ];
 
 /**
  * Vérifie si une route est une route admin
  */
 function isAdminRoute(pathname: string): boolean {
-    return ADMIN_ROUTE_PREFIXES.some(prefix => pathname.startsWith(prefix));
+    return !!moduleForPath(pathname) || ADMIN_ROUTE_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 /**
@@ -71,6 +71,7 @@ export async function middleware(request: NextRequest) {
 
     const isAdmin = isAdminRoute(pathname);
     const isAuth = isAuthRoute(pathname);
+    if (!isAdmin && !isAuth) return NextResponse.next();
 
     // Éviter les fetch inutiles
     if (!hasSessionCookie) {
@@ -83,7 +84,7 @@ export async function middleware(request: NextRequest) {
 
     // Vérifier la session via un endpoint server-side (Node) car middleware tourne en Edge
     let sessionValid = false;
-    let role: string | null = null;
+    let access: ResolvedAdminAccess | null = null;
     try {
         // App Hosting termine HTTPS au proxy, mais Next écoute en HTTP dans
         // Cloud Run. nextUrl.origin peut donc pointer vers https://0.0.0.0:8080.
@@ -103,15 +104,18 @@ export async function middleware(request: NextRequest) {
             },
         });
 
-        sessionValid = verifyResp.ok;
+        if (verifyResp.status >= 500 && isAdmin) {
+            return new NextResponse('La vérification de vos accès est temporairement indisponible. Réessayez dans un instant.', { status: 503, headers: { 'Cache-Control': 'private, no-store', 'Retry-After': '5' } });
+        }
         if (verifyResp.ok) {
             const body = await verifyResp.json().catch(() => null);
-            role = body?.claims?.role ? String(body.claims.role) : null;
+            access = body?.access ?? null;
+            sessionValid = body?.authenticated === true && !!access && Array.isArray(access.permissions) && typeof access.permissionsDefined === 'boolean';
         }
     } catch {
         console.error('[Middleware] Échec de l’appel de vérification de session');
         // En cas de souci réseau/serveur, considérer la session invalide pour les routes protégées
-        sessionValid = false;
+        if (isAdmin) return new NextResponse('La vérification de vos accès est temporairement indisponible. Réessayez dans un instant.', { status: 503, headers: { 'Cache-Control': 'private, no-store', 'Retry-After': '5' } });
     }
     
     // Redirection si pas de token sur routes admin
@@ -120,20 +124,15 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL(routes.public.login, request.nextUrl));
     }
 
-    // Protection admin basique par rôle (si claim existe). Le test « contient admin »
-    // excluait Secretary et exclurait AgentRecouvrement : on s'appuie sur la liste officielle.
-    const isAdminRole = !!role && (
-        ADMIN_ROLE_CLAIMS.includes(role) || String(role).toLowerCase().includes('admin')
-    );
-    if (sessionValid && isAdmin && role && !isAdminRole) {
-        console.log(`[Middleware] Accès refusé - role=${role} (${pathname})`);
-        return NextResponse.redirect(new URL(routes.public.login, request.nextUrl));
+    if (sessionValid && isAdmin && access) {
+        const target = adminAccessRedirect(pathname, access);
+        if (target) return NextResponse.redirect(new URL(target, request.nextUrl));
     }
     
     // Redirection si token présent sur pages d'auth (accueil/login, register)
     if (sessionValid && isAuth) {
         console.log(`[Middleware] Redirection vers dashboard - déjà connecté (${pathname})`);
-        return NextResponse.redirect(new URL(routes.admin.dashboard, request.nextUrl));
+        return NextResponse.redirect(new URL(access ? adminAccessRedirect('/dashboard', access) ?? routes.admin.dashboard : routes.admin.dashboard, request.nextUrl));
     }
     
     return NextResponse.next();

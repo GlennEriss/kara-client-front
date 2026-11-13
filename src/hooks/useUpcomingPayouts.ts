@@ -251,7 +251,7 @@ async function fetchUpcomingCS(today: Date, horizonMonths: number): Promise<Upco
         if (c.contractType === 'GROUP' && c.groupeId) {
           isGroup = true
           try {
-            const group = await getGroupById(c.groupeId)
+            const group = await getGroupById(c.groupeId, true)
             if (group) name = group.name
           } catch { /* ignore */ }
         } else if (c.memberId) {

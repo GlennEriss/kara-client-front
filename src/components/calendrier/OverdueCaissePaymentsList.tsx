@@ -31,6 +31,7 @@ import Link from 'next/link'
 import { CalendarContractLink } from './CalendarContractLink'
 import { CallPlanDatePicker } from './CallPlanDatePicker'
 import { callPlanToday, isValidCallPlanDate } from '@/utils/call-plan-dates'
+import { CalendarTablePagination, useCalendarPagination } from './CalendarTablePagination'
 
 interface OverdueCaissePaymentsListProps {
   /** Produit (caisse) dont on affiche les retards */
@@ -245,6 +246,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
     [allGroups, activeMonth, isFiltered]
   )
   // Versements des retardataires affichés : totaux et exports suivent le filtre.
+  const pagination = useCalendarPagination(groups, `${product}:${activeMonth}`)
   const shownItems = useMemo(() => (isFiltered ? groups.flatMap((g) => g.payments) : items), [groups, items, isFiltered])
   const totalAmount = shownItems.reduce((sum, i) => sum + (i.amount || 0), 0)
   const exportTitle = `Versements en retard — ${product}${isFiltered ? ` — échéance la plus ancienne en ${monthLabelOf(activeMonth)}` : ''}`
@@ -297,10 +299,10 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
   }
 
   const toggleAllShown = () => {
-    const allShownSelected = groups.length > 0 && groups.every((group) => selectedPeople.has(group.personKey))
+    const allShownSelected = pagination.items.length > 0 && pagination.items.every((group) => selectedPeople.has(group.personKey))
     setSelectedPeople((previous) => {
       const next = new Set(previous)
-      for (const group of groups) {
+      for (const group of pagination.items) {
         if (allShownSelected) next.delete(group.personKey)
         else next.add(group.personKey)
       }
@@ -598,9 +600,9 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                   {isSuperAdmin && (
                     <TableHead className="w-10">
                       <Checkbox
-                        checked={groups.length > 0 && groups.every((group) => selectedPeople.has(group.personKey))}
+                        checked={pagination.items.length > 0 && pagination.items.every((group) => selectedPeople.has(group.personKey))}
                         onCheckedChange={toggleAllShown}
-                        aria-label="Sélectionner tous les retardataires affichés"
+                        aria-label="Sélectionner les retardataires de cette page"
                       />
                     </TableHead>
                   )}
@@ -644,7 +646,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
                 {!isLoading &&
                   !isError &&
-                  groups.map((g) => {
+                  pagination.items.map((g) => {
                     const isMulti = g.count > 1
                     const isOpen = expanded.has(g.personKey)
                     const canRemind = !!resolveWhatsappNumber(g.whatsappNumber, [g.phone])
@@ -863,6 +865,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
               </TableBody>
             </Table>
           </div>
+          {!isLoading && !isError && <CalendarTablePagination pagination={pagination} />}
         </CardContent>
       </Card>
 
