@@ -19,6 +19,7 @@ import { Building2, Calendar, Download, HandCoins, Phone, RefreshCw, User } from
 import { toast } from 'sonner'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import { CalendarContractLink } from './CalendarContractLink'
+import { CalendarTablePagination, useCalendarPagination } from './CalendarTablePagination'
 
 function fmtAmount(n: number): string {
   return n.toLocaleString('fr-FR').replace(/\s/g, ' ')
@@ -96,6 +97,7 @@ export function UpcomingPayoutsList() {
   const [horizonMonths, setHorizonMonths] = useState<number>(PAYOUT_HORIZON_MONTHS)
   const { data: payouts = [], isLoading, isError, refetch, isFetching } =
     useUpcomingPayouts(horizonMonths)
+  const pagination = useCalendarPagination(payouts, String(horizonMonths))
 
   const overdue = payouts.filter((p) => p.daysUntil < 0)
   const thisWeek = payouts.filter((p) => p.daysUntil >= 0 && p.daysUntil <= 7)
@@ -264,7 +266,7 @@ export function UpcomingPayoutsList() {
 
                 {!isLoading &&
                   !isError &&
-                  payouts.map((p) => (
+                  pagination.items.map((p) => (
                     <TableRow key={p.key} className="hover:bg-gray-50">
                       <TableCell className="font-mono text-xs text-gray-500">{p.matricule || '—'}</TableCell>
                       <TableCell>
@@ -335,6 +337,7 @@ export function UpcomingPayoutsList() {
               </TableBody>
             </Table>
           </div>
+          {!isLoading && !isError && <CalendarTablePagination pagination={pagination} />}
         </CardContent>
       </Card>
     </div>

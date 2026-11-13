@@ -3,15 +3,16 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const verifyMock = vi.fn()
 const adminDocRoles: { roles?: string[] } = {}
+const userDocRoles: { roles?: string[] } = {}
 
 vi.mock('../session', () => ({
   verifyAdminSessionFromRequest: (...args: unknown[]) => verifyMock(...args),
 }))
 vi.mock('@/firebase/adminFirestore', () => ({
   adminFirestore: {
-    collection: () => ({
+    collection: (name: string) => ({
       doc: () => ({
-        get: async () => ({ exists: !!adminDocRoles.roles, data: () => ({ roles: adminDocRoles.roles }) }),
+        get: async () => ({ exists: !!(name === 'admins' ? adminDocRoles.roles : userDocRoles.roles), data: () => ({ roles: name === 'admins' ? adminDocRoles.roles : userDocRoles.roles }) }),
       }),
       where: () => ({ limit: () => ({ get: async () => ({ empty: true, docs: [] }) }) }),
     }),
@@ -26,6 +27,7 @@ describe('requireAdminCaller', () => {
   beforeEach(() => {
     verifyMock.mockReset()
     delete adminDocRoles.roles
+    delete userDocRoles.roles
   })
 
   it('refuse un appel sans session admin (401)', async () => {
@@ -46,6 +48,12 @@ describe('requireAdminCaller', () => {
     adminDocRoles.roles = ['SuperAdmin']
     const res = await requireAdminCaller(req, { superAdmin: true })
     expect(res).not.toBeInstanceOf(NextResponse)
+  })
+  it('reconnaît aussi un SuperAdmin historique dont le rôle est uniquement dans users', async () => {
+    verifyMock.mockResolvedValue({ uid: 'legacy-superadmin', role: 'Admin' })
+    userDocRoles.roles = ['SuperAdmin']
+    const result = await requireAdminCaller(req, { superAdmin: true })
+    expect(result).not.toBeInstanceOf(NextResponse)
   })
 
   it('refuse les rôles restreints sauf autorisation explicite', async () => {

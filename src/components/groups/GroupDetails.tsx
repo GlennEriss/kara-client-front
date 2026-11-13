@@ -43,6 +43,7 @@ import {
   PROJECT_STATUSES,
 } from "@/domains/groups/group-model";
 import { GroupTutorialButton } from "@/domains/groups/tutorial/GroupTutorialButton";
+import { DeleteGroupDialog } from './DeleteGroupDialog';
 import { useGroupWorkspace } from "@/domains/groups/useGroupWorkspace";
 import type { GroupProject, User } from "@/types/types";
 import {
@@ -67,7 +68,8 @@ const statusClass = (status: GroupProject["status"]) =>
 
 export default function GroupDetails({ groupId }: { groupId: string }) {
   const router = useRouter();
-  const { actor, canManage, refresh, audit } = useGroupWorkspace(groupId);
+  const { actor, canManage, canDelete, refresh, audit } = useGroupWorkspace(groupId);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const {
     data: group,
     isLoading,
@@ -374,6 +376,7 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
         Tous les groupes
       </Button>
       <header className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+        {deleteOpen && <DeleteGroupDialog group={group} onClose={() => setDeleteOpen(false)} onDeleted={async () => { router.replace(routes.admin.groups); await refresh() }} />}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#234D65]/10">
@@ -392,6 +395,7 @@ export default function GroupDetails({ groupId }: { groupId: string }) {
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             <GroupTutorialButton size="sm" />
+            {canDelete && <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="h-4 w-4" /> Supprimer le groupe</Button>}
             {canEditMembers && (
               <>
                 <Button

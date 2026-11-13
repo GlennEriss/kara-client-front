@@ -6,38 +6,10 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { db } from '@/firebase/firestore'
 import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-names'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
-import { effectivePermissions, moduleViewKey, restrictedRoleOf } from '@/constantes/permissions'
+import { moduleViewKey } from '@/constantes/permissions'
+import { resolveAdminAccess, type ResolvedAdminAccess } from '@/domains/auth/access-policy'
 
-/** Un rôle (string) correspond-il à superAdmin ? (insensible à la casse) */
-function roleIsSuperAdmin(role: unknown): boolean {
-  return typeof role === 'string' && role.toLowerCase().replace(/[^a-z]/g, '').includes('superadmin')
-}
-
-/** Rôle restreint (agent de recouvrement, gestionnaire des véhicules) porté par un document ou un token. */
-function restrictedRoleFrom(data: Record<string, unknown> | undefined): string | null {
-  if (!data) return null
-  return restrictedRoleOf(Array.isArray(data.roles) ? data.roles : null, data.role)
-}
-
-function hasSuperAdmin(data: Record<string, unknown> | undefined): boolean {
-  if (!data) return false
-  const roles = data.roles
-  if (Array.isArray(roles) && roles.some(roleIsSuperAdmin)) return true
-  return roleIsSuperAdmin(data.role)
-}
-
-interface AccessData {
-  isSuperAdmin: boolean
-  isAgent: boolean
-  restrictedRole: string | null
-  permissions: string[]
-  /** Le champ `permissions` a-t-il été explicitement défini pour cet admin ? */
-  permissionsDefined: boolean
-}
-
-function readVersion(data: Record<string, unknown>): number | undefined {
-  return typeof data.permissionsVersion === 'number' ? data.permissionsVersion : undefined
-}
+type AccessData = ResolvedAdminAccess
 
 async function getAccountDocs(uid: string, email?: string | null) {
   const usersCol = FIREBASE_COLLECTION_NAMES.USERS || 'users'
@@ -85,41 +57,10 @@ async function resolveAccess(
   email: string | null | undefined,
   getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>
 ): Promise<AccessData> {
-  let isSuperAdmin = false
-  let restrictedRole: string | null = null
-  let permissions: string[] = []
-  let permissionsDefined = false
-  let permissionsVersion: number | undefined
-
   const accountDocs = await getAccountDocs(uid, email)
-  for (const data of accountDocs) {
-    if (hasSuperAdmin(data)) isSuperAdmin = true
-    restrictedRole = restrictedRole ?? restrictedRoleFrom(data)
-    if (Array.isArray(data.permissions) && !permissionsDefined) {
-      permissions = (data.permissions as unknown[]).filter((p): p is string => typeof p === 'string')
-      permissionsDefined = true
-      permissionsVersion = readVersion(data)
-    }
-  }
-
-  // Repli superAdmin / agent : custom claim du token
-  if (!isSuperAdmin) {
-    try {
-      const res = await getIdTokenResult()
-      if (hasSuperAdmin(res.claims)) isSuperAdmin = true
-      restrictedRole = restrictedRole ?? restrictedRoleFrom(res.claims)
-    } catch {
-      // ignore
-    }
-  }
-
-  // Un rôle restreint n'a jamais l'accès complet par défaut : sans fiche
-  // explicite, il reçoit son modèle (via effectivePermissions, version absente).
-  if (isSuperAdmin) restrictedRole = null
-  if (restrictedRole) permissionsDefined = true
-  permissions = effectivePermissions(permissions, { version: permissionsVersion, restrictedRole })
-
-  return { isSuperAdmin, isAgent: !!restrictedRole, restrictedRole, permissions, permissionsDefined }
+  let claims: Record<string, unknown> = {}
+  try { claims = (await getIdTokenResult()).claims } catch { /* Les fiches restent la référence. */ }
+  return resolveAdminAccess(accountDocs, claims)
 }
 
 export interface MyAccess {
@@ -154,7 +95,7 @@ export interface MyAccess {
  * par email pour les anciens documents admin indexés par matricule).
  */
 export function useMyAccess(): MyAccess {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
 
   const { data, isLoading } = useQuery<AccessData>({
     queryKey: ['my-access', user?.uid, user?.email],
@@ -177,7 +118,7 @@ export function useMyAccess(): MyAccess {
   return useMemo<MyAccess>(() => {
     const can = (key: string) => accessResolved && (isSuperAdmin || !permissionsDefined || permissions.has(key))
     return {
-      isLoading: !!user?.uid && isLoading,
+      isLoading: !!authLoading || (!!user?.uid && isLoading),
       isSuperAdmin,
       isAgent,
       restrictedRole,
@@ -189,5 +130,5 @@ export function useMyAccess(): MyAccess {
       canAny: (keys: string[]) => keys.some(can),
       canModule: (moduleKey: string) => can(moduleViewKey(moduleKey)),
     }
-  }, [isSuperAdmin, isAgent, restrictedRole, permissionsDefined, accessResolved, permissions, isLoading, user?.uid])
+  }, [isSuperAdmin, isAgent, restrictedRole, permissionsDefined, accessResolved, permissions, isLoading, authLoading, user?.uid])
 }

@@ -344,7 +344,8 @@ export const ALL_PERMISSION_KEYS: string[] = PERMISSION_MODULES.flatMap((m) => m
 
 /** Clé de l'action « view » d'un module. */
 export function moduleViewKey(moduleKey: string): string {
-  return `${moduleKey}.view`
+  const module = PERMISSION_MODULES.find(item => item.key === moduleKey)
+  return module?.actions.find(action => action.key === `${moduleKey}.view`)?.key ?? module?.actions[0]?.key ?? `${moduleKey}.view`
 }
 
 /**

@@ -7,7 +7,7 @@ import { useAuditLogger } from "@/hooks/useAuditLog";
 
 export function useGroupWorkspace(groupId?: string) {
   const { user } = useAuth();
-  const { can } = useMyAccess();
+  const { can, isSuperAdmin } = useMyAccess();
   const queryClient = useQueryClient();
   const { log } = useAuditLogger();
   const actor = {
@@ -32,6 +32,7 @@ export function useGroupWorkspace(groupId?: string) {
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["groups"] }),
+      queryClient.invalidateQueries({ queryKey: ['group-identity'] }),
       queryClient.invalidateQueries({ queryKey: ["group-member-counts"] }),
       queryClient.invalidateQueries({ queryKey: ["group-candidates"] }),
       queryClient.invalidateQueries({ queryKey: ["allMembers"] }),
@@ -39,6 +40,10 @@ export function useGroupWorkspace(groupId?: string) {
       queryClient.invalidateQueries({ queryKey: ["group-contributions"] }),
       queryClient.invalidateQueries({ queryKey: ["group-payouts"] }),
       queryClient.invalidateQueries({ queryKey: ['group-agreements'] }),
+      queryClient.invalidateQueries({ queryKey: ['financialReport'] }),
+      queryClient.invalidateQueries({ queryKey: ['financialReportDetails'] }),
+      queryClient.invalidateQueries({ queryKey: ['memberFinancialReport'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
       queryClient.invalidateQueries({
         queryKey: ["participant-project-credits"],
       }),
@@ -72,6 +77,7 @@ export function useGroupWorkspace(groupId?: string) {
   return {
     actor,
     canManage,
+    canDelete: isSuperAdmin,
     canViewCredits,
     canManageCredits,
     creditAccess,

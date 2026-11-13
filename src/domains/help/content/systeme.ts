@@ -62,6 +62,7 @@ export const administrationHelp: HelpTopic = {
           type: 'definitions',
           items: [
             { term: 'Consulter', text: 'Sans le droit « Consulter » d’une section, elle disparaît du menu et sa page est fermée.' },
+            { term: 'Contrôle avant ouverture', text: 'Les droits de la session sont vérifiés côté serveur avant de servir une page. Un chemin interdit redirige vers le tableau de bord ou la première section autorisée du rôle restreint. Pendant la restauration de la connexion, l’application attend les droits sans afficher de refus prématuré. Les droits d’action et les règles des données restent contrôlés séparément.' },
             { term: 'Documents', text: 'Le droit « Télécharger » couvre les reçus, preuves, médias et contrats PDF de toutes les sections.' },
             { term: 'Contact public', text: 'Le numéro WhatsApp réglé ici est affiché aux membres et aux visiteurs de l’espace membre.' },
             { term: 'Moindre privilège', text: 'N’accordez que les sections et actions nécessaires au travail de la personne. Les droits de consultation et d’action sont distincts.' },
@@ -379,6 +380,10 @@ export const groupesHelp: HelpTopic = {
             'Indiquez le montant mensuel, la durée en mois et la date du premier versement.',
           ],
         },
+        {
+          type: 'steps', title: 'Supprimer un groupe',
+          items: ['Le SuperAdmin peut supprimer un groupe depuis sa carte ou sa fiche, même s’il contient des membres et des projets.', 'Lisez le périmètre de suppression puis recopiez l’identifiant exact du groupe. La suppression est définitive : projets, cotisations, remises, accords, justificatifs et historique interne sont retirés.', 'Les comptes des membres, leurs autres groupes et les contrats de caisse ou de crédit restent conservés. Cette action ne constate aucun remboursement ni reversement. La demande est journalisée.', 'Le groupe est verrouillé pendant le nettoyage. Si une erreur interrompt l’opération, relancez sa suppression pour terminer le nettoyage.'],
+        },
       ],
     },
     {
@@ -588,8 +593,9 @@ export const modelesMessagesHelp: HelpTopic = {
           items: [
             'Modifiez le texte du modèle.',
             'Cliquez sur une variable pour l’ajouter à la fin du message ; survolez-la pour voir ce qu’elle contient.',
+            'Pour un modèle contenant des liens, utilisez « URL du site pour les liens » pour modifier l’adresse du site. Le chemin de l’événement, de la collecte ou du dossier et ses paramètres sont conservés. Une adresse HTTPS sans paramètres ni fragment est attendue ; laissez vide pour l’adresse habituelle.',
             'L’aperçu montre le message avec des données d’exemple.',
-            'Enregistrez. « Texte par défaut » revient au texte livré avec l’application.',
+            'Enregistrez. « Texte par défaut » rétablit le texte livré avec l’application et l’adresse habituelle du site.',
           ],
         },
       ],

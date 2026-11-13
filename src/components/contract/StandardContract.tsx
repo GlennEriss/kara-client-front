@@ -123,8 +123,8 @@ export default function StandardContract({ id }: Props) {
   }
 
   const { data: group } = useQuery({
-    queryKey: ['group', (data as any)?.groupeId],
-    queryFn: () => getGroupById((data as any)?.groupeId as string),
+    queryKey: ['group-identity', (data as any)?.groupeId],
+    queryFn: () => getGroupById((data as any)?.groupeId as string, true),
     enabled: !!(data as any)?.groupeId,
   })
 

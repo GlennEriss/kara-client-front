@@ -535,4 +535,10 @@ describe("compatibilité et suppression", () => {
     );
     expect(memory.data.has("groups/g1")).toBe(true);
   });
+  it('réserve l’intitulé du groupe supprimé aux contrats, sans rouvrir sa fiche collective', async () => {
+    memory.data.set('deletedGroupIdentities/g1', { name: 'Ancien collectif', deletedBy: 'admin', deletedAt: new Date('2026-11-13') });
+    expect(await getGroupById('g1')).toBeNull();
+    expect(await getGroupById('g1', true)).toMatchObject({ id: 'g1', name: 'Ancien collectif' });
+    expect(await getGroupById('g1', true)).not.toHaveProperty('projects');
+  });
 });

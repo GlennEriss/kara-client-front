@@ -552,6 +552,8 @@ service firebase.storage {
     match /group-agreements/{groupId}/{agreementId}/{paymentId}/{filename} {
       allow read: if isAdmin();
       allow create: if resource == null && isAdmin()
+        && firestore.exists(/databases/(default)/documents/groups/$(groupId))
+        && !firestore.get(/databases/(default)/documents/groups/$(groupId)).data.get('deletionInProgress', false)
         && request.resource.size <= 5 * 1024 * 1024
         && request.resource.contentType.matches('application/pdf|image/jpeg|image/png|image/webp');
       allow update, delete: if false;

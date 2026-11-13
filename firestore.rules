@@ -1456,13 +1456,23 @@ service cloud.firestore {
     // membre passe par une API qui vérifie aussi cette appartenance et ne
     // retourne ni historique administratif ni informations privées des membres.
     
+    function groupAcceptsWrites(groupId) {
+      return exists(/databases/$(database)/documents/groups/$(groupId)) &&
+        !get(/databases/$(database)/documents/groups/$(groupId)).data.get('deletionInProgress', false);
+    }
+    // Intitulé minimal, réservé aux contrats financiers d'un groupe supprimé.
+    match /deletedGroupIdentities/{groupId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
     match /groupPayouts/{payoutId} {
       allow read: if isAdmin();
-      allow create: if isAdmin();
+      allow create: if isAdmin() && groupAcceptsWrites(request.resource.data.groupId);
       allow update, delete: if false;
     }
     match /groupAgreementLedgers/{groupId} {
-      allow read, create, update: if isAdmin();
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && groupAcceptsWrites(groupId);
       allow delete: if false;
     }
     match /groups/{groupId} {
@@ -1472,14 +1482,19 @@ service cloud.firestore {
         groupId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('groupIds', [])
       );
       allow list: if isAdmin();
-      allow write: if isAdmin();
+      allow create: if isAdmin() && !request.resource.data.get('deletionInProgress', false);
+      allow update: if isAdmin() && !resource.data.get('deletionInProgress', false) && !request.resource.data.get('deletionInProgress', false);
+      // La suppression et son nettoyage passent par l'API SuperAdmin.
+      allow delete: if false;
       // The member API returns only the caller's agreements and whitelisted fields.
       match /agreements/{agreementId} {
-        allow read, create, update: if isAdmin();
+        allow read: if isAdmin();
+        allow create, update: if isAdmin() && groupAcceptsWrites(groupId);
         allow delete: if false;
       }
       match /agreementOperations/{operationId} {
-        allow read, create: if isAdmin();
+        allow read: if isAdmin();
+        allow create: if isAdmin() && groupAcceptsWrites(groupId);
         allow update, delete: if false;
       }
       match /contributions/{contributionId} {
@@ -1488,7 +1503,7 @@ service cloud.firestore {
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
           groupId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('groupIds', [])
         );
-        allow write: if isAdmin();
+        allow write: if isAdmin() && groupAcceptsWrites(groupId);
       }
     }
     

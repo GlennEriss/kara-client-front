@@ -20,6 +20,7 @@ before(async () => {
       setDoc(doc(db, 'groups/other/contributions/alice-other'), { memberId: 'alice', projectId: 'p1', period: '2026-11', amount: 10000, payments: [] }),
       setDoc(doc(db, 'groups/own'), { name: 'Mon groupe', projects: [] }),
       setDoc(doc(db, 'groups/other'), { name: 'Autre groupe', projects: [] }),
+      setDoc(doc(db, 'deletedGroupIdentities/deleted'), { name: 'Ancien groupe' }),
       setDoc(doc(db, 'admins/manager'), { roles: ['Admin'] }),
       setDoc(doc(db, 'creditContracts/alice-credit'), { clientId: 'alice', creditType: 'SPECIALE', status: 'ACTIVE' }),
       setDoc(doc(db, 'creditContracts/alice-fixed'), { clientId: 'alice', creditType: 'FIXE', status: 'ACTIVE' }),
@@ -29,6 +30,14 @@ before(async () => {
   })
 })
 after(async () => { await env?.cleanup() })
+
+test('le nom d’un groupe supprimé reste une référence privée et non modifiable côté client', async () => {
+  const admin = env.authenticatedContext('claim-admin', { role: 'Admin' }).firestore()
+  const member = env.authenticatedContext('alice', { role: 'Adherant' }).firestore()
+  await assertSucceeds(getDoc(doc(admin, 'deletedGroupIdentities/deleted')))
+  await assertFails(getDoc(doc(member, 'deletedGroupIdentities/deleted')))
+  await assertFails(setDoc(doc(admin, 'deletedGroupIdentities/fake'), { name: 'Faux groupe' }))
+})
 
 test('accords privés : admin gère les accords et index, les membres passent par la projection serveur', async () => {
   const admin = env.authenticatedContext('agreement-admin', { role: 'Admin' }).firestore()
@@ -122,8 +131,21 @@ test('un admin conserve la liste et la gestion des groupes, via claim ou documen
     await assertSucceeds(setDoc(doc(db, 'groups/admin-created'), { name: 'Groupe admin' }))
     await assertSucceeds(updateDoc(doc(db, 'groups/admin-created'), { projects: [{ id: 'p1', status: 'ACTIVE' }] }))
     await assertSucceeds(updateDoc(doc(db, 'users/alice'), { groupIds: ['own'] }))
-    await assertSucceeds(deleteDoc(doc(db, 'groups/admin-created')))
+    await assertFails(deleteDoc(doc(db, 'groups/admin-created')))
   }
+})
+
+test('un groupe en suppression ne reçoit plus de projets, accords, cotisations ni remises', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'groups/deleting-group'), { name: 'Suppression', deletionInProgress: true })
+  })
+  const admin = env.authenticatedContext('claim-admin', { role: 'Admin' }).firestore()
+  await assertFails(updateDoc(doc(admin, 'groups/deleting-group'), { name: 'Réouverture' }))
+  await assertFails(updateDoc(doc(admin, 'groups/deleting-group'), { deletionInProgress: false }))
+  await assertFails(setDoc(doc(admin, 'groups/deleting-group/contributions/new'), { memberId: 'alice' }))
+  await assertFails(setDoc(doc(admin, 'groups/deleting-group/agreements/new'), { title: 'Interdit' }))
+  await assertFails(setDoc(doc(admin, 'groupAgreementLedgers/deleting-group'), { agreementCount: 1 }))
+  await assertFails(setDoc(doc(admin, 'groupPayouts/deleting-group-payout'), { groupId: 'deleting-group' }))
 })
 
 

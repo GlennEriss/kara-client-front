@@ -179,7 +179,7 @@ export function useCalendarCaisseSpeciale(
         return userCache.get(id)!
       }
       const getGroupCached = (id: string) => {
-        if (!groupCache.has(id)) groupCache.set(id, getGroupById(id).catch(() => null))
+        if (!groupCache.has(id)) groupCache.set(id, getGroupById(id, true).catch(() => null))
         return groupCache.get(id)!
       }
 

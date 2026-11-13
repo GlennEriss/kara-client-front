@@ -120,7 +120,7 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
           isGroup = true
           groupId = contract.groupeId
           try {
-            const group = await getGroupById(contract.groupeId)
+            const group = await getGroupById(contract.groupeId, true)
             if (group) name = group.name
           } catch { /* ignore */ }
         } else if (contract.memberId) {
