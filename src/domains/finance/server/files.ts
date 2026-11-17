@@ -11,6 +11,8 @@ import { requireFinanceCaller, financePermissionPrefix } from './authorization'
 import { generateContractDocument } from './contract-pdf'
 import { createFinanceServices } from './services'
 import { financeContractDetail, listFinanceRows } from './read-model'
+import { financeListSchema } from './list-query'
+import { presentedContracts } from './presentation'
 import { financeModules, identifier } from '../actions'
 import { generateSingleVersementPDF } from '@/services/caisse/versementPdfExport'
 import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
@@ -27,6 +29,7 @@ const schema = z
     kind: z.enum(['contracts', 'demands', 'settings']).optional(),
     format: z.enum(['pdf', 'excel']).optional(),
     blank: z.enum(['true', 'false']).optional(),
+    filters: z.string().max(4000).optional(),
   })
   .strict()
 export async function getFinanceFile(
@@ -86,13 +89,21 @@ export async function getFinanceFile(
       )
         return mobileJson({ error: 'Accès aux paramètres refusé.' }, 403)
       const kind = query.data.kind || 'contracts'
-      const result = await listFinanceRows(services, module.data, {
+      const selection = financeListSchema.omit({ limit: true }).parse({
+        ...(query.data.filters ? JSON.parse(query.data.filters) : {}),
         kind,
-        search: '',
         page: 1,
-        limit: 500,
-        cursor: undefined,
       })
+      const result =
+        kind === 'contracts' && query.data.filters
+          ? await presentedContracts(services, module.data, {
+              ...selection,
+              limit: 500,
+            })
+          : await listFinanceRows(services, module.data, {
+              ...selection,
+              limit: 500,
+            })
       if (result.nextCursor)
         return mobileJson(
           {
@@ -219,9 +230,12 @@ export async function getFinanceFile(
         // Évite une dépendance native pour la seule lecture de ce fichier fixe.
         if (
           buffer.length < 24 ||
-          !buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
+          !buffer
+            .subarray(0, 8)
+            .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
           buffer.toString('ascii', 12, 16) !== 'IHDR'
-        ) throw new Error('Logo PNG invalide')
+        )
+          throw new Error('Logo PNG invalide')
         logo = {
           dataUrl: `data:image/png;base64,${buffer.toString('base64')}`,
           width: buffer.readUInt32BE(16),

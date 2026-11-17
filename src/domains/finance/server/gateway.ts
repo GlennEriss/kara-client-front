@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { financeListSchema } from './list-query'
 import { NextResponse, type NextRequest } from 'next/server'
 import { mobileJson, type MobileCaller } from '@/domains/mobile/server/access'
 import { canWithAccess } from '@/domains/auth/access-policy'
@@ -19,6 +20,11 @@ import {
 } from './authorization'
 import { createFinanceServices, type FinanceServices } from './services'
 import {
+  presentedContracts,
+  projectFinanceContract,
+  financeTimeline,
+} from './presentation'
+import {
   enrichFinanceRows,
   financeContractDetail,
   listFinanceRows,
@@ -33,17 +39,6 @@ import {
 } from './operations'
 
 const moduleSchema = z.enum(financeModules)
-const listSchema = z
-  .object({
-    kind: z.enum(['contracts', 'demands', 'settings']).default('contracts'),
-    search: z.string().trim().max(120).default(''),
-    status: z.string().max(50).optional(),
-    type: z.string().max(60).optional(),
-    cursor: identifier.optional(),
-    page: z.coerce.number().int().min(1).max(100000).default(1),
-    limit: z.coerce.number().int().min(1).max(100).default(25),
-  })
-  .strict()
 const detailSchema = z
   .object({
     kind: z.enum(['contract', 'demand', 'settings']).default('contract'),
@@ -134,7 +129,7 @@ export async function getFinanceWorkspace(
   const result = await access(request, moduleValue)
   if (result instanceof NextResponse) return result
   try {
-    const input = listSchema.parse(
+    const input = financeListSchema.parse(
       Object.fromEntries(request.nextUrl.searchParams),
     )
     if (
@@ -146,7 +141,25 @@ export async function getFinanceWorkspace(
     )
       return mobileJson({ error: 'Accès aux paramètres refusé.' }, 403)
     const services = createFinanceServices(result.caller)
-    const data = await listFinanceRows(services, result.module, input)
+    for (const [min, max] of [
+      ['monthlyMin', 'monthlyMax'],
+      ['amountMin', 'amountMax'],
+      ['paidMin', 'paidMax'],
+      ['remainingMin', 'remainingMax'],
+      ['durationMin', 'durationMax'],
+      ['createdFrom', 'createdTo'],
+      ['dueFrom', 'dueTo'],
+    ] as const) {
+      if (input[min] != null && input[max] != null && input[min]! > input[max]!)
+        return mobileJson(
+          { error: 'La borne minimum doit précéder la borne maximum.' },
+          422,
+        )
+    }
+    const data =
+      input.kind === 'contracts' && input.presentation === 'cards'
+        ? await presentedContracts(services, result.module, input)
+        : await listFinanceRows(services, result.module, input)
     return mobileJson({
       ...jsonValue(data),
       module: result.module,
@@ -199,8 +212,27 @@ export async function getFinanceDetail(
               ])
             )[0],
           }
+    if (kind === 'contract')
+      detail.record = await projectFinanceContract(
+        services,
+        result.module,
+        detail.record,
+        new Date(),
+        detail,
+      )
     return mobileJson({
       ...jsonValue(detail),
+      ...(kind === 'contract' &&
+      result.module !== 'credit-speciale' &&
+      'payments' in detail
+        ? {
+            installments: financeTimeline(
+              result.module,
+              detail.record,
+              detail.payments,
+            ),
+          }
+        : {}),
       module: result.module,
       kind,
       actions: permittedActions(

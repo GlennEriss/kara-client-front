@@ -55,9 +55,11 @@ export async function enrichFinanceRows(
     const id = String(row.memberId || row.clientId || '')
     let name =
       `${row.memberFirstName || row.clientFirstName || ''} ${row.memberLastName || row.clientLastName || ''}`.trim()
-    if (!name && id) {
+    let member: any = null
+    if (id) {
       if (!members.has(id)) members.set(id, services.members.getMemberById(id))
-      name = fullName(await members.get(id))
+      member = await members.get(id)
+      if (!name) name = fullName(member)
     }
     if (!name && row.groupeId) {
       const group = await services.db
@@ -69,6 +71,9 @@ export async function enrichFinanceRows(
     return {
       ...row,
       memberName: name || row.label || row.code || 'Dossier KARA',
+      memberContacts:
+        row.memberContacts || row.clientContacts || member?.contacts || [],
+      memberPhotoUrl: row.memberPhotoUrl || member?.photoURL || null,
       module,
     }
   })

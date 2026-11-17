@@ -34,3 +34,13 @@ Les preuves sont limitées à 8 Mo par fichier et 20 Mo par formulaire ; les typ
 Les tests métier, de permissions, de reprise, les documents PDF et les parcours des trois sections sont testés avec des données fictives. Les intégrations CS/CI/crédit tournent uniquement avec `FIRESTORE_EMULATOR_HOST=127.0.0.1:8189` et le projet `demo-kara-native-finance`, jamais avec la base de production.
 
 Aucun build APK n'est autorisé sans demande explicite de l'utilisateur. Les tests navigateur et l'émulateur Firestore ne constituent pas une validation du nouveau binaire Android/iOS ; la sélection native de fichiers et le lecteur du téléphone devront être contrôlés dans le prochain binaire autorisé.
+
+## Présentation native 1.1.1
+
+Les listes de contrats peuvent demander `presentation=cards`. La réponse conserve `items`, `total` et `nextCursor` et ajoute `summary`, `categories` et `financeView` par contrat. Les statistiques et les filtres portent sur toute la sélection avant pagination ; une lecture supérieure à 5 000 contrats échoue explicitement au lieu de présenter un sous-total comme un total global. Les calculs d’échéances et de partie fixe réutilisent les fonctions métier du site. Les pénalités crédit sont lues dans la collection métier réelle. Une consultation ne crée aucun paiement, pénalité ou document financier.
+
+Les paramètres supplémentaires sont validés : `type`, `profile`, `category`, `status`, `tab`, `earlyWithdrawal`, bornes de montants/durée, `createdFrom/To` et `dueFrom/To`. Les exports reçoivent la même sélection sérialisée dans `filters` et restent limités à 500 dossiers. Les réponses anciennes sans `presentation` restent compatibles. Les fiches de caisses comprennent les échéances impayées même si aucun document de paiement n’existe encore.
+
+L’aperçu local Expo `http://localhost:8081` peut utiliser ses ID tokens sur l’API locale grâce à des en-têtes CORS limités à `PHASE_DEVELOPMENT_SERVER`. Ils ne sont pas présents dans la configuration de production et ne dispensent jamais d’authentification.
+
+Validation : rendu clair/sombre à 390 × 844, cartes, filtres appliqués/réinitialisés, sélection d’une échéance et formulaire prérempli sur les trois modules ; les captures utilisent des données fictives. Les lectures authentifiées ont aussi été vérifiées contre `kara-gabon-dev` via l’admin local. Aucun APK contenant cette présentation n’a été compilé.
