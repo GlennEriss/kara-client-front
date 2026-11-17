@@ -15,7 +15,8 @@ export function useDashboardTabs() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const stored = window.localStorage.getItem(STORAGE_KEY)
+    const query = new URLSearchParams(window.location.search).get('tab')
+    const stored = query && isDashboardTabKey(query) ? query : window.localStorage.getItem(STORAGE_KEY)
     if (stored && isDashboardTabKey(stored)) {
       setActiveTab(stored)
     }

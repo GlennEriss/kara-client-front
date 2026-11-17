@@ -201,7 +201,7 @@ function CalendrierPageContent() {
         </div>
       </div>
 
-      <WeeklyCallPlan />
+      <div id="call-plan"><WeeklyCallPlan /></div>
 
       {/* Contenu principal */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -220,7 +220,7 @@ function CalendrierPageContent() {
             }
           >
             {/* Onglets modernisés */}
-            <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white px-6 pt-4">
+            <div data-kara-tool-tabs className="border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white px-6 pt-4">
               <TabsList className="h-14 p-1 bg-gray-100/80 rounded-xl gap-1">
                 <TabsTrigger 
                   value="caisse-speciale" 

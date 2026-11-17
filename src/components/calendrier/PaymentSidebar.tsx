@@ -7,7 +7,10 @@ import { getUserById } from "@/db/user.db"
 import { useAuth } from "@/hooks/useAuth"
 import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CalendarPaymentItem } from "@/hooks/useCalendarCaisseSpeciale"
-import { usePaymentReceipt } from "@/hooks/usePaymentReceipt"
+import PaymentInvoiceModal from '@/components/contract/standard/PaymentInvoiceModal'
+import { listPayments } from '@/db/caisse/payments.db'
+import type { CaissePayment } from '@/services/caisse/types'
+import { generateSingleVersementPDF } from '@/services/caisse/versementPdfExport'
 import { pay } from "@/services/caisse/mutations"
 import { useQueryClient } from "@tanstack/react-query"
 import { X } from "lucide-react"
@@ -32,11 +35,13 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
     photoURL?: string
     contacts?: string[]
   }>({})
-  const { receiptUrl, isGenerating, generateReceipt, downloadReceipt } =
-    usePaymentReceipt(payment)
+  const [isGenerating, setGenerating] = useState(false)
+  const [invoicePayments, setInvoicePayments] = useState<CaissePayment[]>([])
+  const [invoiceMember, setInvoiceMember] = useState<Awaited<ReturnType<typeof getUserById>>>(null)
+  const [invoiceGroup, setInvoiceGroup] = useState<Awaited<ReturnType<typeof getGroupById>>>(null)
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const { canRecordPayments } = useMyAccess()
+  const { canRecordPayments, canDownloadDocuments, canSeeAmounts } = useMyAccess()
 
   // Charger les données du membre/groupe
   useEffect(() => {
@@ -124,34 +129,49 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
     }
   }
 
-  const handleViewReceipt = async () => {
-    try {
-      await generateReceipt()
-      setShowReceipt(true)
-    } catch {
-      toast.error("Impossible de générer le reçu")
-    }
+  const receiptData = async () => {
+    const contract = payment.contract
+    const [payments, member, group] = await Promise.all([
+      listPayments(contract.id),
+      contract.memberId ? getUserById(contract.memberId) : Promise.resolve(null),
+      contract.groupeId ? getGroupById(contract.groupeId, true) : Promise.resolve(null),
+    ])
+    return { payments, member, group }
   }
-
-  const handleDownloadReceiptClick = async () => {
+  const handleViewReceipt = async () => {
+    if (!canSeeAmounts || isGenerating) return
+    setGenerating(true)
     try {
-      await downloadReceipt()
-    } catch {
-      toast.error("Impossible de télécharger le reçu")
-    }
+      const data = await receiptData()
+      setInvoicePayments(data.payments)
+      setInvoiceMember(data.member)
+      setInvoiceGroup(data.group)
+      setShowReceipt(true)
+    } catch { toast.error('Impossible de charger le reçu. Réessayez.') }
+    finally { setGenerating(false) }
+  }
+  const handleDownloadReceiptClick = async () => {
+    if (!canSeeAmounts || !canDownloadDocuments || isGenerating) return
+    setGenerating(true)
+    try {
+      const data = await receiptData()
+      await generateSingleVersementPDF({ contract: payment.contract, contractId: payment.contract.id,
+        payment, ...data, getAdminDisplayName: id => id === user?.uid ? user.displayName || id : id })
+    } catch { toast.error('Impossible de générer le reçu PDF. Réessayez.') }
+    finally { setGenerating(false) }
   }
 
   return (
     <>
       {/* Sidebar avec animation */}
-      <div 
+      <div
         className="fixed right-0 top-0 h-full w-full sm:w-[500px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300"
         style={{
           boxShadow: '-10px 0 50px -12px rgba(0, 0, 0, 0.25)'
         }}
       >
         {/* Bouton fermer mobile */}
-        <button 
+        <button
           onClick={onClose}
           className="absolute top-4 left-4 sm:hidden z-10 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
         >
@@ -174,8 +194,8 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
         <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50/50 to-white">
           <PaymentSidebarContent
             payment={payment}
-            showReceipt={showReceipt}
-            receiptUrl={receiptUrl}
+            showReceipt={false}
+            receiptUrl={null}
           />
         </div>
 
@@ -199,6 +219,10 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
         className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 animate-in fade-in duration-300"
         onClick={onClose}
       />
+
+      {showReceipt && canSeeAmounts && <PaymentInvoiceModal isOpen onClose={() => setShowReceipt(false)}
+        payment={payment} contractData={payment.contract} payments={invoicePayments}
+        member={invoiceMember} group={invoiceGroup} allowDownload={canDownloadDocuments} />}
 
       {/* Modal de paiement */}
       <PaymentCSModal

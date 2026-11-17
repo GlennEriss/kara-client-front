@@ -31,6 +31,7 @@ function classNames(...cls: (string | false | undefined)[]) {
 // Types
 // ————————————————————————————————————————————————————————————
 interface PaymentInvoiceModalProps {
+  allowDownload?: boolean
   isOpen: boolean
   onClose: () => void
   payment: CaissePayment | null
@@ -47,6 +48,7 @@ interface PaymentInvoiceModalProps {
 // ————————————————————————————————————————————————————————————
 export default function PaymentInvoiceModal({
   isOpen,
+  allowDownload = true,
   onClose,
   payment,
   contractData,
@@ -122,7 +124,7 @@ export default function PaymentInvoiceModal({
         {/* Footer fixe */}
         <div className="flex-shrink-0 pt-4 border-t bg-white">
           <div className="flex justify-between items-center">
-            <button
+            {allowDownload && <button
               onClick={handleExportPDF}
               className={classNames(
                 "px-6 py-3 rounded-lg text-sm font-medium flex items-center gap-2",
@@ -131,7 +133,7 @@ export default function PaymentInvoiceModal({
             >
               <Download className="h-4 w-4" />
               Télécharger PDF
-            </button>
+            </button>}
             <button
               onClick={onClose}
               className={classNames(
