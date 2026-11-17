@@ -8,6 +8,8 @@ import { getEarlyWithdrawalContractIds } from '@/domains/financial/refunds/early
 const getFirestore = () => import("@/firebase/firestore");
 
 export class ContractCIRepository implements IContractCIRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "ContractCIRepository";
 
     /**
@@ -148,7 +150,7 @@ export class ContractCIRepository implements IContractCIRepository {
         totalSupportRemaining: number;
         totalSupportRepaid: number;
     }> {
-        const { collection, getDocs, db } = await getFirestore();
+        const { collection, getDocs, db } = await this.firestore();
         const paymentsRef = collection(db, firebaseCollectionNames.contractsCI || "contractsCI", contractId, "payments");
         const supportsRef = collection(db, firebaseCollectionNames.contractsCI || "contractsCI", contractId, "supports");
 
@@ -220,7 +222,7 @@ export class ContractCIRepository implements IContractCIRepository {
      */
     async createContract(data: Omit<ContractCI, 'createdAt' | 'updatedAt'>): Promise<ContractCI> {
         try {
-            const { doc, setDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, setDoc, db, serverTimestamp } = await this.firestore();
 
             // Utiliser l'ID fourni dans data
             const contractRef = doc(db, firebaseCollectionNames.contractsCI || "contractsCI", data.id);
@@ -241,7 +243,7 @@ export class ContractCIRepository implements IContractCIRepository {
 
             // Récupérer le contrat créé
             const createdContract = await this.getContractById(data.id);
-            
+
             if (!createdContract) {
                 throw new Error("Erreur lors de la récupération du contrat créé");
             }
@@ -249,6 +251,8 @@ export class ContractCIRepository implements IContractCIRepository {
             return createdContract;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création du contrat CI:", error);
             throw error;
         }
@@ -261,16 +265,16 @@ export class ContractCIRepository implements IContractCIRepository {
      */
     async getContractById(id: string): Promise<ContractCI | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const contractRef = doc(db, firebaseCollectionNames.contractsCI || "contractsCI", id);
             const docSnap = await getDoc(contractRef);
-            
+
             if (!docSnap.exists()) {
                 console.log(`Contrat CI non trouvé avec l'ID: ${id}`);
                 return null;
             }
-            
+
             const data = docSnap.data();
             const contract: ContractCI = {
                 id: docSnap.id,
@@ -279,10 +283,12 @@ export class ContractCIRepository implements IContractCIRepository {
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
                 firstPaymentDate: this.toDateString(data.firstPaymentDate),
             };
-            
+
             return contract;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération du contrat CI par ID:", error);
             return null;
         }
@@ -294,7 +300,7 @@ export class ContractCIRepository implements IContractCIRepository {
      */
     async getAllContracts(): Promise<ContractCI[]> {
         try {
-            const { collection, db, getDocs, query, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, orderBy } = await this.firestore();
 
             // Requête pour récupérer tous les contrats, triés par date de création décroissante
             const q = query(
@@ -321,6 +327,8 @@ export class ContractCIRepository implements IContractCIRepository {
             return contracts;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des contrats CI:", error);
             return [];
         }
@@ -333,7 +341,7 @@ export class ContractCIRepository implements IContractCIRepository {
      */
     async getContractsByMemberId(memberId: string): Promise<ContractCI[]> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
 
             const q = query(
                 collection(db, firebaseCollectionNames.contractsCI || "contractsCI"),
@@ -360,6 +368,8 @@ export class ContractCIRepository implements IContractCIRepository {
             return contracts;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des contrats CI du membre:", error);
             return [];
         }
@@ -373,7 +383,7 @@ export class ContractCIRepository implements IContractCIRepository {
      */
     async updateContract(id: string, data: Partial<Omit<ContractCI, 'id' | 'createdAt'>>): Promise<ContractCI | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const contractRef = doc(db, firebaseCollectionNames.contractsCI || "contractsCI", id);
 
@@ -394,6 +404,8 @@ export class ContractCIRepository implements IContractCIRepository {
             return await this.getContractById(id);
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour du contrat CI:", error);
             throw error;
         }
@@ -406,7 +418,7 @@ export class ContractCIRepository implements IContractCIRepository {
      */
     async deleteContract(id: string): Promise<void> {
         try {
-            const { doc, deleteDoc, db } = await getFirestore();
+            const { doc, deleteDoc, db } = await this.firestore();
 
             const contractRef = doc(db, firebaseCollectionNames.contractsCI || "contractsCI", id);
             await deleteDoc(contractRef);
@@ -414,6 +426,8 @@ export class ContractCIRepository implements IContractCIRepository {
             console.log(`Contrat CI ${id} supprimé avec succès`);
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression du contrat CI:", error);
             throw error;
         }
@@ -426,11 +440,11 @@ export class ContractCIRepository implements IContractCIRepository {
      */
     async getContractsWithFilters(filters?: ContractsCIFilters, options?: { throwOnError?: boolean }): Promise<ContractCI[]> {
         try {
-            const { collection, db, getDocs, query, orderBy, where } = await getFirestore();
+            const { collection, db, getDocs, query, orderBy, where } = await this.firestore();
             const normalizedFilters = this.normalizeDateRanges(filters);
 
             const constraints: any[] = [];
-            
+
             // Filtrer par statut si spécifié
             if (normalizedFilters?.status && normalizedFilters.status !== 'all') {
                 if ((normalizedFilters.status as string) === 'CLOTURE') {
@@ -521,6 +535,8 @@ export class ContractCIRepository implements IContractCIRepository {
             return contracts;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des contrats CI avec filtres:", error);
             if (options?.throwOnError) throw error;
             return [];
@@ -534,7 +550,7 @@ export class ContractCIRepository implements IContractCIRepository {
      */
     async getContractsStats(filters?: ContractsCIFilters): Promise<ContractsCIStats> {
         try {
-            const { collection, db, getDocs, query, where } = await getFirestore();
+            const { collection, db, getDocs, query, where } = await this.firestore();
             const normalizedFilters = this.normalizeDateRanges(filters);
 
             const constraints: any[] = [];
@@ -631,6 +647,8 @@ export class ContractCIRepository implements IContractCIRepository {
             };
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des statistiques CI:", error);
             return {
                 total: 0,
@@ -651,7 +669,7 @@ export class ContractCIRepository implements IContractCIRepository {
      * @returns {Promise<ContractCI[]>} - Liste des contrats en retard
      */
     private async filterOverdueContracts(contracts: ContractCI[]): Promise<ContractCI[]> {
-        const { collection, db, getDocs } = await getFirestore();
+        const { collection, db, getDocs } = await this.firestore();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -683,6 +701,8 @@ export class ContractCIRepository implements IContractCIRepository {
                 const summary = summarizeOverdue(findOverdueMonths(contract, payments, { today }));
                 return summary ? { ...contract, overdueSummary: summary } : null;
             } catch (error) {
+      if (this.strict) throw error
+
                 console.error(`Erreur lors de la vérification des retards pour le contrat ${contract.id}:`, error);
                 // En cas d'erreur, ne pas inclure le contrat
                 return null;

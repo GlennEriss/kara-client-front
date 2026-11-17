@@ -1,3 +1,4 @@
+import type { FinancePdfDelivery } from '@/services/finance-pdf-delivery'
 /**
  * Génération du PDF "VERSEMENT" (facture) Crédit Spéciale.
  * - Page 1 : identique au PDF caisse imprévue (logo, titre, infos membre, contact urgence).
@@ -372,7 +373,8 @@ export type GenerateGlobalFactureCreditSpecialPDFOptions = {
  * - Sinon : une seule page avec le tableau VERSEMENT (blanc + bleu léger).
  */
 export async function generateFactureCreditSpecialPDF(
-  options: GenerateFactureCreditSpecialPDFOptions | FactureCreditSpecialPDFData
+  options: GenerateFactureCreditSpecialPDFOptions | FactureCreditSpecialPDFData,
+  delivery?: FinancePdfDelivery
 ): Promise<void> {
   const isLegacyCall = 'paymentDate' in options && 'capital' in options
   const factureData: FactureCreditSpecialPDFData = isLegacyCall
@@ -386,7 +388,7 @@ export async function generateFactureCreditSpecialPDF(
   const doc = new jsPDF('p', 'mm', 'a4')
 
   if (page1Data) {
-    const logoDataUrl = await loadFactureCreditSpecialLogoDataUrl()
+    const logoDataUrl = delivery ? delivery.logo : await loadFactureCreditSpecialLogoDataUrl()
     drawFactureCreditSpecialPage1(doc, page1Data, logoDataUrl, 1, 2, page1MainTitle)
     doc.addPage()
   }
@@ -394,7 +396,9 @@ export async function generateFactureCreditSpecialPDF(
   drawPage2(doc, factureData, titleText)
 
   const dateStr = new Date().toISOString().split('T')[0]
-  doc.save(`versement_facture_${factureData.paymentDate.replace(/-/g, '')}_${dateStr}.pdf`)
+  const filename = `versement_facture_${factureData.paymentDate.replace(/-/g, '')}_${dateStr}.pdf`
+  if (delivery) await delivery.deliver(doc, filename)
+  else doc.save(filename)
 }
 
 export async function generateGlobalFactureCreditSpecialPDF(

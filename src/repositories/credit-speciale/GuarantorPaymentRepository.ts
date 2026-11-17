@@ -26,10 +26,12 @@ function toGuarantorPayment(doc: any): GuarantorPayment {
 }
 
 export class GuarantorPaymentRepository implements IGuarantorPaymentRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "GuarantorPaymentRepository";
 
     async createPayment(data: Omit<GuarantorPayment, 'id' | 'createdAt' | 'updatedAt'>): Promise<GuarantorPayment> {
-        const { collection, addDoc, db, serverTimestamp } = await getFirestore();
+        const { collection, addDoc, db, serverTimestamp } = await this.firestore();
 
         const cleanData: any = {
             ...data,
@@ -55,12 +57,12 @@ export class GuarantorPaymentRepository implements IGuarantorPaymentRepository {
     }
 
     async deletePayment(id: string): Promise<void> {
-        const { doc, deleteDoc, db } = await getFirestore();
+        const { doc, deleteDoc, db } = await this.firestore();
         await deleteDoc(doc(db, COLLECTION, id));
     }
 
     async getPaymentById(id: string): Promise<GuarantorPayment | null> {
-        const { doc, getDoc, db } = await getFirestore();
+        const { doc, getDoc, db } = await this.firestore();
         const ref = doc(db, COLLECTION, id);
         const snap = await getDoc(ref);
         if (!snap.exists()) return null;
@@ -68,7 +70,7 @@ export class GuarantorPaymentRepository implements IGuarantorPaymentRepository {
     }
 
     async getPaymentsByCreditId(creditId: string): Promise<GuarantorPayment[]> {
-        const { collection, query, where, orderBy, getDocs, db } = await getFirestore();
+        const { collection, query, where, orderBy, getDocs, db } = await this.firestore();
         const q = query(
             collection(db, COLLECTION),
             where("creditId", "==", creditId),
@@ -79,7 +81,7 @@ export class GuarantorPaymentRepository implements IGuarantorPaymentRepository {
     }
 
     async getPaymentsByGuarantorId(guarantorId: string): Promise<GuarantorPayment[]> {
-        const { collection, query, where, orderBy, getDocs, db } = await getFirestore();
+        const { collection, query, where, orderBy, getDocs, db } = await this.firestore();
         const q = query(
             collection(db, COLLECTION),
             where("guarantorId", "==", guarantorId),

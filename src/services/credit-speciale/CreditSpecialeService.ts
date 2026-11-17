@@ -50,6 +50,21 @@ import {
 import { addContractMonths } from '@/utils/contract-months'
 import { getCreditExtensionStartDate, getCreditInitialStartDate } from '@/utils/credit-cycle-dates'
 
+export interface CreditServicePorts {
+    notifications: NotificationService;
+    contractsCI: IContractCIRepository;
+    paymentsCI: IPaymentCIRepository;
+    members: IMemberRepository;
+    documents: IDocumentRepository;
+    installments: ICreditInstallmentRepository;
+    firestore: () => Promise<typeof import('@/firebase/firestore')>;
+    createFile: typeof createFile;
+    deleteFile: typeof deleteFile;
+    getShopArticle: typeof getShopArticle;
+    getShopCreditPartner: typeof getShopCreditPartner;
+    removeStorageFile: (path: string) => Promise<void>;
+}
+
 export class CreditSpecialeService implements ICreditSpecialeService {
     readonly name = "CreditSpecialeService";
     private notificationService: NotificationService;
@@ -58,6 +73,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     private memberRepository: IMemberRepository;
     private documentRepository: IDocumentRepository;
     private fixedSimulationService: CreditFixeSimulationService;
+    private readonly ports: CreditServicePorts;
 
     private creditInstallmentRepository: ICreditInstallmentRepository;
 
@@ -145,15 +161,25 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         private creditPaymentRepository: ICreditPaymentRepository,
         private creditPenaltyRepository: ICreditPenaltyRepository,
         private guarantorRemunerationRepository: IGuarantorRemunerationRepository,
-        private guarantorPaymentRepository: IGuarantorPaymentRepository
+        private guarantorPaymentRepository: IGuarantorPaymentRepository,
+        ports: Partial<CreditServicePorts> = {}
     ) {
-        this.notificationService = ServiceFactory.getNotificationService();
-        this.contractCIRepository = RepositoryFactory.getContractCIRepository();
-        this.paymentCIRepository = RepositoryFactory.getPaymentCIRepository();
-        this.memberRepository = RepositoryFactory.getMemberRepository();
-        this.documentRepository = RepositoryFactory.getDocumentRepository();
-        this.creditInstallmentRepository = RepositoryFactory.getCreditInstallmentRepository();
+        this.notificationService = ports.notifications ?? ServiceFactory.getNotificationService();
+        this.contractCIRepository = ports.contractsCI ?? RepositoryFactory.getContractCIRepository();
+        this.paymentCIRepository = ports.paymentsCI ?? RepositoryFactory.getPaymentCIRepository();
+        this.memberRepository = ports.members ?? RepositoryFactory.getMemberRepository();
+        this.documentRepository = ports.documents ?? RepositoryFactory.getDocumentRepository();
+        this.creditInstallmentRepository = ports.installments ?? RepositoryFactory.getCreditInstallmentRepository();
         this.fixedSimulationService = CreditFixeSimulationService.getInstance();
+        this.ports = {
+            notifications: this.notificationService, contractsCI: this.contractCIRepository,
+            paymentsCI: this.paymentCIRepository, members: this.memberRepository,
+            documents: this.documentRepository, installments: this.creditInstallmentRepository,
+            firestore: () => import('@/firebase/firestore'), createFile, deleteFile,
+            getShopArticle, getShopCreditPartner,
+            removeStorageFile: path => deleteObject(ref(getStorageInstance(), path)),
+            ...ports,
+        };
     }
 
     private getDemandIdPrefixByCreditType(creditType: CreditType): string {
@@ -195,7 +221,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const year = String(now.getFullYear()).slice(-2);
         const dateFormatted = `${day}${month}${year}`;
-        
+
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const timeFormatted = `${hours}${minutes}`;
@@ -223,7 +249,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         };
 
         const demand = await this.creditDemandRepository.createDemand(demandData, customId);
-        
+
         // Notification pour les admins
         try {
             await this.notificationService.createNotification({
@@ -242,7 +268,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         } catch {
             // Erreur lors de la création de la notification - continue sans
         }
-        
+
         return demand;
     }
 
@@ -272,7 +298,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     /** Supprime tous les documents d'une collection où `field == value`, par lots de 400. */
     private async deleteAllWhere(colName: string, field: string, value: string): Promise<void> {
-        const { db, collection, query, where, getDocs, writeBatch, doc } = await import("@/firebase/firestore");
+        const { db, collection, query, where, getDocs, writeBatch, doc } = await this.ports.firestore();
         const snap = await getDocs(query(collection(db, colName), where(field, "==", value)));
         const ids = snap.docs.map((d) => d.id);
         for (let i = 0; i < ids.length; i += 400) {
@@ -300,7 +326,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             const documents = await this.documentRepository.getDocumentsByContractId(contractId);
             for (const d of documents) {
                 if (d.path) {
-                    try { await deleteObject(ref(getStorageInstance(), d.path)); } catch { /* non bloquant */ }
+                    try { await this.ports.removeStorageFile(d.path); } catch { /* non bloquant */ }
                 }
                 if (d.id) {
                     try { await this.documentRepository.deleteDocument(d.id); } catch { /* non bloquant */ }
@@ -344,7 +370,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             try {
                 let title = 'Statut de demande mis à jour'
                 let message = `Votre demande de crédit ${demand.creditType} a été mise à jour`
-                
+
                 if (status === 'APPROVED') {
                     title = 'Demande approuvée'
                     message = `Votre demande de crédit ${demand.creditType} a été approuvée`
@@ -356,7 +382,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     title = 'Demande réouverte'
                     message = `Votre demande de crédit ${demand.creditType} a été réouverte et sera réexaminée`
                 }
-                
+
                 await this.notificationService.createNotification({
                     module: 'credit_speciale',
                     entityId: demand.id,
@@ -393,7 +419,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     // ==================== CONTRATS ====================
 
     async createContractFromDemand(
-        demandId: string, 
+        demandId: string,
         adminId: string,
         simulationData: {
             amount: number;
@@ -445,14 +471,14 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // La remise et le montant versé au vendeur suivent la convention en vigueur.
         let shopPurchase = demand.creditType === 'SPECIALE' ? demand.shopPurchase : undefined;
         if (shopPurchase) {
-            const partner = await getShopCreditPartner(shopPurchase.shopId);
+            const partner = await this.ports.getShopCreditPartner(shopPurchase.shopId);
             if (!partner?.enabled) {
                 throw new Error(`La boutique « ${shopPurchase.shopName} » n'est plus partenaire de l'achat à crédit`);
             }
             // Article du catalogue : il doit être encore publié. Le prix reste celui
             // de la demande, convenu au moment où le membre l'a faite.
             if (shopPurchase.articleId) {
-                const article = await getShopArticle(shopPurchase.articleId);
+                const article = await this.ports.getShopArticle(shopPurchase.articleId);
                 if (!article || article.status !== 'approved') {
                     throw new Error(`L'article « ${shopPurchase.article} » n'est plus publié dans la boutique`);
                 }
@@ -507,7 +533,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const year = String(now.getFullYear()).slice(-2);
         const dateFormatted = `${day}${month}${year}`;
-        
+
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const timeFormatted = `${hours}${minutes}`;
@@ -839,7 +865,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         let totalPaid = 0;
 
         const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity;
-        
+
         if (monthlyRate === 0) {
             // Sans intérêts
             duration = Math.ceil(amount / monthlyPayment);
@@ -849,7 +875,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             // Formule : Nouveau solde = (Solde actuel × (1 + taux)) - versement
             // Pour crédit spéciale, toujours calculer jusqu'à 7 mois même si solde = 0
             const maxIterations = maxDuration !== Infinity ? maxDuration : 120;
-            
+
             // Pour crédit spéciale, toujours calculer jusqu'à 7 mois
             for (let month = 0; month < maxIterations && (remainingAmount > 0.01 || creditType === 'SPECIALE'); month++) {
                 // 1. Calcul des intérêts sur le solde actuel
@@ -865,21 +891,21 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     payment = monthlyPayment;
                     remainingAmount = Math.max(0, balanceWithInterest - payment);
                 }
-                
+
                 totalInterest += interest;
                 totalPaid += payment; // Somme des mensualités affichées (qui incluent déjà les intérêts)
                 duration++;
-                
+
                 // Arrondir pour éviter les erreurs de virgule flottante
                 if (remainingAmount < 0.01) {
                     remainingAmount = 0;
                 }
-                
+
                 // Si le solde est à 0, on peut arrêter même pour crédit spéciale
                 if (remainingAmount <= 0.01) {
                     break;
                 }
-                
+
                 // Pour crédit spéciale, arrêter à 7 mois même si solde > 0
                 if (creditType === 'SPECIALE' && duration >= 7) {
                     break;
@@ -891,7 +917,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         let remainingAtMaxDuration = remainingAmount; // Par défaut
         let isValid = duration <= maxDuration;
         let suggestedMonthlyPayment = monthlyPayment;
-        
+
         if (creditType === 'SPECIALE' && maxDuration === 7) {
             // Si la durée calculée dépasse 7 mois, la simulation est invalide
             if (duration > 7) {
@@ -900,15 +926,15 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 let minPayment = monthlyPayment;
                 let maxPayment = amount * 2; // Limite supérieure raisonnable
                 let optimalPayment = maxPayment;
-                
+
                 // Recherche binaire pour trouver la mensualité minimale
                 for (let iteration = 0; iteration < 50; iteration++) {
                     const testPayment = Math.ceil((minPayment + maxPayment) / 2);
                     let testRemaining = amount;
-                    
+
                     for (let month = 0; month < maxDuration; month++) {
                         if (testRemaining <= 0.01) break;
-                        
+
                         const interest = testRemaining * monthlyRate;
                         const balanceWithInterest = testRemaining + interest;
                         let payment: number;
@@ -919,36 +945,36 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                             payment = testPayment;
                             testRemaining = Math.max(0, balanceWithInterest - payment);
                         }
-                        
+
                         if (testRemaining < 0.01) {
                             testRemaining = 0;
                         }
                     }
-                    
+
                     if (testRemaining <= 0.01) {
                         optimalPayment = testPayment;
                         maxPayment = testPayment - 1;
                     } else {
                         minPayment = testPayment + 1;
                     }
-                    
+
                     if (minPayment > maxPayment) break;
                 }
-                
+
                 suggestedMonthlyPayment = optimalPayment;
             } else {
                 // Si la durée est <= 7 mois, calculer le solde restant au 7ème mois (ou à la fin si remboursé avant)
                 let testRemaining = amount;
                 let calculatedDuration = 0;
-                
+
                 for (let month = 0; month < 7; month++) {
                     if (testRemaining <= 0.01) {
                         break;
                     }
-                    
+
                     const interest = testRemaining * monthlyRate;
                     const balanceWithInterest = testRemaining + interest;
-                    
+
                     let mensualite: number;
                     if (balanceWithInterest <= monthlyPayment) {
                         mensualite = balanceWithInterest;
@@ -957,23 +983,23 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         mensualite = monthlyPayment;
                         testRemaining = Math.max(0, balanceWithInterest - mensualite);
                     }
-                    
+
                     calculatedDuration++;
-                    
+
                     if (testRemaining < 0.01) {
                         testRemaining = 0;
                     }
-                    
+
                     if (testRemaining <= 0.01) {
                         break;
                     }
                 }
-                
+
                 remainingAtMaxDuration = testRemaining;
                 isValid = remainingAtMaxDuration <= 0.01;
             }
         }
-        
+
         // Total à rembourser = somme des mensualités affichées (qui incluent déjà les intérêts)
         const totalAmount = Math.round(totalPaid);
 
@@ -1058,7 +1084,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const duration = monthlyPayments.length;
         // Taux d'intérêt mensuel (le taux saisi est mensuel, pas annuel)
         const monthlyRate = interestRate / 100;
-        
+
         let totalInterest = 0;
         let totalPaid = 0;
         let remainingAmount = amount;
@@ -1072,10 +1098,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             // 3. Soustraction du versement
             const actualPayment = Math.min(payment.amount, balanceWithInterest);
             remainingAmount = balanceWithInterest - actualPayment;
-            
+
             totalInterest += interest;
             totalPaid += actualPayment;
-            
+
             // Arrondir pour éviter les erreurs de virgule flottante
             if (remainingAmount < 1) {
                 remainingAmount = 0;
@@ -1150,7 +1176,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Taux d'intérêt mensuel (le taux saisi est mensuel, pas annuel)
         const monthlyRate = interestRate / 100;
         const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity;
-        
+
         // Vérifier que la durée est valide
         if (duration > maxDuration) {
             throw new Error(`La durée maximum est de ${maxDuration} mois pour un crédit ${creditType === 'SPECIALE' ? 'spéciale' : 'aide'}`);
@@ -1199,7 +1225,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             const interest = finalRemaining * monthlyRate;
             totalInterest += interest;
             const balanceWithInterest = finalRemaining + interest;
-            
+
             // Si c'est le dernier mois ou si le reste dû est inférieur à la mensualité
             let payment: number;
             if (month === duration - 1 || finalRemaining < optimalMonthlyPayment) {
@@ -1208,7 +1234,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             } else {
                 payment = optimalMonthlyPayment;
             }
-            
+
             totalPaid += payment;
             finalRemaining = Math.max(0, balanceWithInterest - payment);
 
@@ -1241,7 +1267,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const monthlyRate = contract.interestRate / 100;
         const paymentAmount = contract.monthlyPaymentAmount;
         const duration = isWeeklyCredit(contract) ? 1 : contract.duration;
-        
+
         let remaining = contract.amount;
         const installments: Array<Omit<CreditInstallment, 'id' | 'createdAt' | 'updatedAt'>> = [];
 
@@ -1250,14 +1276,14 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
             const dueDate = getCreditPeriodDueDate(contract, i + 1);
             dueDate.setHours(0, 0, 0, 0);
-            
+
             const interest = remaining * monthlyRate;
             const balanceWithInterest = remaining + interest;
-            
+
             // paymentAmount représente le capital (mensualité de base), le montant total à payer = capital + intérêts
             let principalAmount: number;
             let totalAmount: number;
-            
+
             if (remaining < paymentAmount) {
                 // Dernière échéance ou solde restant inférieur à la mensualité
                 totalAmount = balanceWithInterest;
@@ -1314,11 +1340,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const year = String(now.getFullYear()).slice(-2);
         const dateFormatted = `${day}${month}${year}`;
-        
+
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const timeFormatted = `${hours}${minutes}`;
-        
+
         // Extraire le matricule du client (4 premiers chiffres)
         // Fast path: lire le matricule depuis l'ID de contrat (ex: MK_CSP_7425_...)
         // Fallback: lire le membre si le format ne permet pas l'extraction.
@@ -1334,7 +1360,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
         }
         const matriculeFormatted = matriculePart.padStart(4, '0');
-        
+
         // Format: MK_PAIEMENT_{TYPE}_matricule_date_heure
         const paymentPrefix = contract.creditType === 'FIXE'
             ? 'MK_PAIEMENT_CF'
@@ -1363,12 +1389,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Récupérer tous les paiements existants pour calculer le reste dû
         // Inclure les paiements de 0 FCFA s'ils ont un commentaire explicite (pénalités uniquement ou paiement de 0)
         const allPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
-        const realPayments = getCreditPaymentsForCurrentCycle(contract, allPayments).filter(p => 
-            p.amount > 0 || 
+        const realPayments = getCreditPaymentsForCurrentCycle(contract, allPayments).filter(p =>
+            p.amount > 0 ||
             p.comment?.includes('Paiement de pénalités uniquement') ||
             p.comment?.includes('Paiement de 0 FCFA')
         );
-        
+
         // Calculer le mois : utiliser installmentNumber si fourni, sinon calculer à partir de la date
         let monthNumber: number;
         if (installmentNumber !== undefined && installmentNumber > 0) {
@@ -1379,7 +1405,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             // Calculer le mois à partir de la date de paiement et de la première date de paiement
             const firstPaymentDate = new Date(contract.firstPaymentDate);
             const paymentDate = new Date(data.paymentDate);
-            const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
+            const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 +
                               (paymentDate.getMonth() - firstPaymentDate.getMonth());
             monthNumber = getCreditPeriodIndex(contract, paymentDate);
             console.log('[CreditSpecialeService] Calcul du mois à partir de la date:', {
@@ -1392,7 +1418,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE';
         const monthlyRate = contract.interestRate / 100;
-        const sortedPayments = [...realPayments].sort((a, b) => 
+        const sortedPayments = [...realPayments].sort((a, b) =>
             new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
         );
 
@@ -1451,13 +1477,13 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 interestBeforePayment = Math.max(0, interestThroughMonth - interestAlreadyPaid);
             }
         }
-        
+
         // Payer d'abord les intérêts, puis le principal (simple crédit: tout en principal)
         const interestPart = isSimpleCredit ? 0 : Math.min(paymentAmount, interestBeforePayment);
         const principalPart = isSimpleCredit
             ? Math.min(paymentAmount, totalWithInterest)
             : Math.max(0, paymentAmount - interestPart);
-        
+
         // Générer l'ID personnalisé au format M{mois}_{idContrat}
         // Utiliser l'ID complet du contrat
         // Crédit à intérêts uniques : un complément sur une échéance ne doit pas
@@ -1473,7 +1499,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             }
         }
         console.log('[CreditSpecialeService] ID du paiement généré:', customPaymentId);
-        
+
         // Créer le paiement
         const paymentData = {
             ...data,
@@ -1514,15 +1540,15 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Recalculer le montant total payé et restant à partir du snapshot local + paiement courant
         // (évite une requête Firestore complète supplémentaire)
         const mergedPayments = [...allPayments.filter((existingPayment) => existingPayment.id !== payment.id), payment];
-        const updatedRealPayments = getCreditPaymentsForCurrentCycle(contract, mergedPayments).filter(p => 
-            p.amount > 0 || 
+        const updatedRealPayments = getCreditPaymentsForCurrentCycle(contract, mergedPayments).filter(p =>
+            p.amount > 0 ||
             p.comment?.includes('Paiement de pénalités uniquement') ||
             p.comment?.includes('Paiement de 0 FCFA')
         );
-        
+
         // Recalculer le reste dû avec tous les paiements
         let calculatedRemaining = contract.amount;
-        const recalculatedPayments = [...updatedRealPayments].sort((a, b) => 
+        const recalculatedPayments = [...updatedRealPayments].sort((a, b) =>
             new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
         );
         const totalPaid = updatedRealPayments.reduce((sum, p) => sum + p.amount, 0);
@@ -1534,7 +1560,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             totalRemaining = calculatedRemaining;
             nextDueAt = calculatedRemaining > 0
                 ? (() => {
-                    const lastPaymentDate = recalculatedPayments.length > 0 
+                    const lastPaymentDate = recalculatedPayments.length > 0
                         ? new Date(recalculatedPayments[recalculatedPayments.length - 1].paymentDate)
                         : new Date(contract.firstPaymentDate);
                     return addContractMonths(lastPaymentDate, 1);
@@ -1550,7 +1576,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             totalRemaining = nextDue ? nextDue.amountDue : 0;
             nextDueAt = nextDue?.date;
         }
-        
+
         let newStatus = contract.status;
         if (totalRemaining <= 0 || calculatedRemaining <= 0) {
             newStatus = 'DISCHARGED';
@@ -2017,7 +2043,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             // Importer jsPDF dynamiquement
             const { default: jsPDF } = await import('jspdf');
             const autoTable = (await import('jspdf-autotable')).default;
-            
+
             const doc = new jsPDF('p', 'mm', 'a4');
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
@@ -2026,12 +2052,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             // En-tête
             doc.setFillColor(35, 77, 101); // #234D65
             doc.rect(0, 0, pageWidth, 40, 'F');
-            
+
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(24);
             doc.setFont('helvetica', 'bold');
             doc.text('REÇU DE PAIEMENT', pageWidth / 2, 20, { align: 'center' });
-            
+
             doc.setFontSize(12);
             doc.setFont('helvetica', 'normal');
             doc.text('Crédit Spéciale - LE KARA', pageWidth / 2, 30, { align: 'center' });
@@ -2042,21 +2068,21 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             doc.setTextColor(0, 0, 0);
             doc.setFillColor(240, 240, 240);
             doc.rect(10, yPos, pageWidth - 20, 50, 'F');
-            
+
             yPos += 10;
             doc.setFontSize(10);
             doc.setFont('helvetica', 'bold');
             doc.text('INFORMATIONS DU CRÉDIT', 15, yPos);
-            
+
             yPos += 7;
             doc.setFont('helvetica', 'normal');
             doc.text(`Client: ${contract.clientFirstName} ${contract.clientLastName}`, 15, yPos);
             doc.text(`N° Contrat: ${contract.id.slice(-8).toUpperCase()}`, pageWidth / 2 + 5, yPos);
-            
+
             yPos += 7;
             doc.text(`Type: ${contract.creditType}`, 15, yPos);
             doc.text(`Montant emprunté: ${contract.amount.toLocaleString('fr-FR')} FCFA`, pageWidth / 2 + 5, yPos);
-            
+
             yPos += 7;
             const paymentDate = new Date(payment.paymentDate);
             doc.text(`Date d'émission: ${paymentDate.toLocaleDateString('fr-FR')}`, 15, yPos);
@@ -2239,7 +2265,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         const baseScore = contract.score || 5;
         const paymentDate = new Date(payment.paymentDate);
-        
+
         // Utiliser l'échéance liée au paiement si disponible
         let dueDate: Date | null = null;
         if (payment.installmentId) {
@@ -2248,7 +2274,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 dueDate = new Date(installment.dueDate);
             }
         }
-        
+
         // Sinon, utiliser nextDueAt du contrat
         if (!dueDate) {
             dueDate = contract.nextDueAt ? new Date(contract.nextDueAt) : null;
@@ -2735,7 +2761,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         let proofPath: string | undefined;
         if (proofFile) {
             const location = `credit/${creditId}/guarantor-payments`;
-            const { url, path } = await createFile(proofFile, creditId, location);
+            const { url, path } = await this.ports.createFile(proofFile, creditId, location);
             proofUrl = url;
             proofPath = path;
         }
@@ -2773,7 +2799,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         if (payment.proofPath) {
             try {
-                await deleteFile(payment.proofPath);
+                await this.ports.deleteFile(payment.proofPath);
             } catch {
                 // Justificatif orphelin sans incidence : le versement est déjà supprimé.
             }
@@ -2787,12 +2813,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const allClientContracts = await this.creditContractRepository.getContractsWithFilters({
             clientId,
         });
-        
+
         // Filtrer les contrats terminés (DISCHARGED, CLOSED, TRANSFORMED)
-        const finishedContracts = allClientContracts.filter(c => 
+        const finishedContracts = allClientContracts.filter(c =>
             c.status === 'DISCHARGED' || c.status === 'CLOSED' || c.status === 'TRANSFORMED'
         );
-        
+
         for (const contract of finishedContracts) {
             const unpaidPenalties = await this.creditPenaltyRepository.getUnpaidPenaltiesByCreditId(contract.id);
             if (unpaidPenalties.length > 0) {
@@ -2807,14 +2833,14 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Vérifier si le client est à jour à la caisse imprévue
         const clientContracts = await this.contractCIRepository.getContractsByMemberId(clientId);
         const activeClientContracts = clientContracts.filter(c => c.status === 'ACTIVE');
-        
+
         // Vérifier si au moins un contrat actif a des paiements récents (dernière cotisation dans les 30 derniers jours)
         let clientIsUpToDate = false;
         for (const contract of activeClientContracts) {
             try {
                 const payments = await this.paymentCIRepository.getPaymentsByContractId(contract.id);
                 const paidPayments = payments.filter(p => p.status === 'PAID' && p.versements.length > 0);
-                
+
                 if (paidPayments.length > 0) {
                     // Vérifier le dernier versement
                     const lastPayment = paidPayments[paidPayments.length - 1];
@@ -2823,7 +2849,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         const versementDate = new Date(lastVersement.date);
                         const thirtyDaysAgo = new Date();
                         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                        
+
                         if (versementDate >= thirtyDaysAgo) {
                             clientIsUpToDate = true;
                             break;
@@ -2843,13 +2869,13 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (guarantorId) {
             const guarantorContracts = await this.contractCIRepository.getContractsByMemberId(guarantorId);
             const activeGuarantorContracts = guarantorContracts.filter(c => c.status === 'ACTIVE');
-            
+
             let guarantorIsUpToDate = false;
             for (const contract of activeGuarantorContracts) {
                 try {
                     const payments = await this.paymentCIRepository.getPaymentsByContractId(contract.id);
                     const paidPayments = payments.filter(p => p.status === 'PAID' && p.versements.length > 0);
-                    
+
                     if (paidPayments.length > 0) {
                         const lastPayment = paidPayments[paidPayments.length - 1];
                         if (lastPayment.versements.length > 0) {
@@ -2857,7 +2883,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                             const versementDate = new Date(lastVersement.date);
                             const thirtyDaysAgo = new Date();
                             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                            
+
                             if (versementDate >= thirtyDaysAgo) {
                                 guarantorIsUpToDate = true;
                                 break;
@@ -2873,15 +2899,15 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 return { eligible: true };
             }
 
-            return { 
-                eligible: false, 
-                reason: 'Ni le client ni le garant ne sont à jour à la caisse imprévue (dernière cotisation > 30 jours)' 
+            return {
+                eligible: false,
+                reason: 'Ni le client ni le garant ne sont à jour à la caisse imprévue (dernière cotisation > 30 jours)'
             };
         }
 
-        return { 
-            eligible: false, 
-            reason: 'Le client n\'est pas à jour à la caisse imprévue (dernière cotisation > 30 jours) et aucun garant n\'a été fourni' 
+        return {
+            eligible: false,
+            reason: 'Le client n\'est pas à jour à la caisse imprévue (dernière cotisation > 30 jours) et aucun garant n\'a été fourni'
         };
     }
 
@@ -3030,9 +3056,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // 1) Cleanup ancien fichier et document (best effort)
         if (contract.signedContractPath) {
             try {
-                const storage = getStorageInstance();
-                const fileRef = ref(storage, contract.signedContractPath);
-                await deleteObject(fileRef);
+                await this.ports.removeStorageFile(contract.signedContractPath);
             } catch (err) {
                 console.error('Erreur suppression ancien fichier Storage (signedContractPath):', err);
             }
@@ -3099,20 +3123,20 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
-        
+
         // Calculer le montant restant réel à partir des paiements (même logique que l'UI)
         const payments = await this.creditPaymentRepository.getPaymentsByCreditId(contractId);
         const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-        
+
         // Calculer le montant total à rembourser (capital + intérêts)
         const interestRate = contract.interestRate || 10;
         const totalInterest = (contract.amount * interestRate) / 100;
         const totalAmountToRepay = contract.amount + totalInterest;
-        
+
         const realRemainingAmount = isWeeklyCredit(contract)
             ? getNextDueFromCreditSpecialeHistory(buildCreditSpecialeHistory(contract, getCreditPaymentsForCurrentCycle(contract, payments), { projectUntilZero: true }))?.amountDue ?? 0
             : totalAmountToRepay - totalPaid;
-        
+
         // Tolérance de 0.1 pour les erreurs d'arrondi (même que l'UI)
         if (realRemainingAmount > 0.1) {
             throw new Error(`Le montant restant doit être 0 pour valider le remboursement final (reste: ${Math.round(realRemainingAmount).toLocaleString('fr-FR')} FCFA)`);
@@ -3717,8 +3741,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
             // Vérifier que le contrat est actif ou partiellement remboursé
             if (contract.status !== 'ACTIVE' && contract.status !== 'PARTIAL') {
-                return { 
-                    eligible: false, 
+                return {
+                    eligible: false,
                     reason: `Le contrat doit être actif ou partiellement remboursé (statut actuel: ${contract.status})`,
                     currentContract: contract,
                     paymentsCount: 0,

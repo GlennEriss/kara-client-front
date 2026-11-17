@@ -1,12 +1,13 @@
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 const getFirestore = () => import('@/firebase/firestore')
+export function createCaisseRefundsRepository(firestore: typeof getFirestore = getFirestore) {
 
 /**
  * Liste les remboursements d'un contrat Caisse Imprévue.
  * Lit depuis contractsCI/{contractId}/earlyRefunds (EARLY et FINAL).
  */
-export async function listRefundsCI(contractId: string) {
-  const { db, collection, getDocs, orderBy, query } = await getFirestore() as any
+async function listRefundsCI(contractId: string) {
+  const { db, collection, getDocs, orderBy, query } = await firestore() as any
   const colRef = collection(db, `${firebaseCollectionNames.contractsCI}/${contractId}/earlyRefunds`)
   const q = query(colRef, orderBy('createdAt', 'desc'))
   const snap = await getDocs(q)
@@ -42,15 +43,17 @@ export async function listRefundsCI(contractId: string) {
   })
 }
 
-export async function addRefund(contractId: string, input: any) {
-  const { db, collection, addDoc, serverTimestamp } = await getFirestore() as any
+
+async function addRefund(contractId: string, input: any) {
+  const { db, collection, addDoc, serverTimestamp } = await firestore() as any
   const colRef = collection(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`)
   const ref = await addDoc(colRef, { ...input, createdAt: serverTimestamp() })
   return ref.id
 }
 
-export async function listRefunds(contractId: string) {
-  const { db, collection, getDocs, orderBy, query } = await getFirestore() as any
+
+async function listRefunds(contractId: string) {
+  const { db, collection, getDocs, orderBy, query } = await firestore() as any
   const colRef = collection(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`)
   const q = query(colRef, orderBy('createdAt', 'desc'))
   const snap = await getDocs(q)
@@ -69,8 +72,9 @@ export async function listRefunds(contractId: string) {
   })
 }
 
-export async function updateRefund(contractId: string, refundId: string, updates: any) {
-  const { db, doc, updateDoc, serverTimestamp } = await getFirestore() as any
+
+async function updateRefund(contractId: string, refundId: string, updates: any) {
+  const { db, doc, updateDoc, serverTimestamp } = await firestore() as any
   const ref = doc(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`, refundId)
   const payload = { ...updates, updatedAt: serverTimestamp() }
   Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
@@ -78,11 +82,12 @@ export async function updateRefund(contractId: string, refundId: string, updates
   return true
 }
 
+
 /**
  * Met à jour un remboursement CI (contractsCI/{contractId}/earlyRefunds).
  */
-export async function updateRefundCI(contractId: string, refundId: string, updates: any) {
-  const { db, doc, updateDoc, serverTimestamp } = await getFirestore() as any
+async function updateRefundCI(contractId: string, refundId: string, updates: any) {
+  const { db, doc, updateDoc, serverTimestamp } = await firestore() as any
   const ref = doc(db, `${firebaseCollectionNames.contractsCI}/${contractId}/earlyRefunds`, refundId)
   const payload: any = { ...updates, updatedAt: serverTimestamp() }
   if (updates.status === 'APPROVED') {
@@ -99,25 +104,28 @@ export async function updateRefundCI(contractId: string, refundId: string, updat
   return true
 }
 
-export async function deleteRefund(contractId: string, refundId: string) {
-  const { db, doc, deleteDoc } = await getFirestore() as any
+
+async function deleteRefund(contractId: string, refundId: string) {
+  const { db, doc, deleteDoc } = await firestore() as any
   const ref = doc(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`, refundId)
   await deleteDoc(ref)
   return true
 }
 
+
 /**
  * Supprime tous les remboursements d'un contrat (sous-collection refunds).
  */
-export async function deleteAllRefunds(contractId: string): Promise<void> {
-  const { db, collection, getDocs, doc, deleteDoc } = await getFirestore() as any
+async function deleteAllRefunds(contractId: string): Promise<void> {
+  const { db, collection, getDocs, doc, deleteDoc } = await firestore() as any
   const colRef = collection(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`)
   const snap = await getDocs(colRef)
   await Promise.all(snap.docs.map((d: any) => deleteDoc(doc(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`, d.id))))
 }
 
-export async function listDeclaredVersementsCS(contractId: string) {
-  const { db, collection, getDocs, orderBy, query } = await getFirestore() as any
+
+async function listDeclaredVersementsCS(contractId: string) {
+  const { db, collection, getDocs, orderBy, query } = await firestore() as any
   const colRef = collection(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/declaredVersements`)
   const q = query(colRef, orderBy('declaredAt', 'desc'))
   const snap = await getDocs(q)
@@ -139,8 +147,9 @@ export async function listDeclaredVersementsCS(contractId: string) {
   })
 }
 
-export async function updateDeclaredVersementCS(contractId: string, versementId: string, updates: any) {
-  const { db, doc, updateDoc, serverTimestamp } = await getFirestore() as any
+
+async function updateDeclaredVersementCS(contractId: string, versementId: string, updates: any) {
+  const { db, doc, updateDoc, serverTimestamp } = await firestore() as any
   const ref = doc(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/declaredVersements`, versementId)
   const payload: any = { ...updates, updatedAt: serverTimestamp() }
   Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
@@ -148,9 +157,10 @@ export async function updateDeclaredVersementCS(contractId: string, versementId:
   return true
 }
 
+
 /** Versements déclarés par le membre sur un contrat Caisse Imprévue (app membre). */
-export async function listDeclaredVersementsCI(contractId: string) {
-  const { db, collection, getDocs, orderBy, query } = await getFirestore() as any
+async function listDeclaredVersementsCI(contractId: string) {
+  const { db, collection, getDocs, orderBy, query } = await firestore() as any
   const colRef = collection(db, `${firebaseCollectionNames.contractsCI}/${contractId}/declaredVersements`)
   const q = query(colRef, orderBy('declaredAt', 'desc'))
   const snap = await getDocs(q)
@@ -172,11 +182,15 @@ export async function listDeclaredVersementsCI(contractId: string) {
   })
 }
 
-export async function updateDeclaredVersementCI(contractId: string, versementId: string, updates: any) {
-  const { db, doc, updateDoc, serverTimestamp } = await getFirestore() as any
+
+async function updateDeclaredVersementCI(contractId: string, versementId: string, updates: any) {
+  const { db, doc, updateDoc, serverTimestamp } = await firestore() as any
   const ref = doc(db, `${firebaseCollectionNames.contractsCI}/${contractId}/declaredVersements`, versementId)
   const payload: any = { ...updates, updatedAt: serverTimestamp() }
   Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
   await updateDoc(ref, payload)
   return true
 }
+return { listRefundsCI, addRefund, listRefunds, updateRefund, updateRefundCI, deleteRefund, deleteAllRefunds, listDeclaredVersementsCS, updateDeclaredVersementCS, listDeclaredVersementsCI, updateDeclaredVersementCI }
+}
+export const { listRefundsCI, addRefund, listRefunds, updateRefund, updateRefundCI, deleteRefund, deleteAllRefunds, listDeclaredVersementsCS, updateDeclaredVersementCS, listDeclaredVersementsCI, updateDeclaredVersementCI } = createCaisseRefundsRepository()

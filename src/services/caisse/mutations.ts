@@ -1,19 +1,62 @@
 import { createContract, getContract, updateContract } from '@/db/caisse/contracts.db'
+
 import { assertContractUnlocked, isCaisseSpecialeContractLocked } from '@/utils/contract-lock'
+
 import { addPayment, listPayments, updatePayment } from '@/db/caisse/payments.db'
+
 import { addRefund, listRefunds, updateRefund, deleteRefund } from '@/db/caisse/refunds.db'
+
 import { getActiveSettings } from '@/db/caisse/settings.db'
+
 import { computeDueWindow, computePenalty, computeNextDueAt } from './engine'
+
 import { computeContractBonusFromPayments, sumContractNominalPaid, sumContractPenalties } from './bonus'
+
 import { computeContractEndAt, computeDueAt } from './contractDates'
+
 import { createFile } from '@/db/upload-image.db'
+
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
+
 import { auth } from '@/firebase/auth'
+
 import { resolveIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
+
 import { logAdminAction } from '@/services/audit/auditLog'
+
 import { finalizeRefundHandover } from '@/services/refunds/finalizeRefundHandover'
+
 import { addDays } from 'date-fns'
+
 import { EARLY_REFUND_PAYOUT_DAYS } from '@/utils/refund-payout'
+
+import { addCaisseContractToUser } from '@/db/member.db'
+
+import { deleteObject, ref } from '@/firebase/storage'
+
+import { getStorageInstance } from '@/firebase/storage'
+
+import type { GroupPaymentContribution } from './types'
+
+import { EmergencyContact } from '@/schemas/emergency-contact.schema'
+
+import type { PaymentMode } from '@/types/types'
+
+import { generateAllDemandSearchableTexts } from '@/utils/demandSearchableText'
+
+import { getGroupById } from '@/db/group.db'
+
+import { getAdminById } from '@/db/admin.db'
+const browserCaissePorts = { createContract, getContract, updateContract, addPayment, listPayments, updatePayment, addRefund, listRefunds, updateRefund, deleteRefund, getActiveSettings, createFile, compressImage, auth, resolveIsSuperAdmin, logAdminAction, finalizeRefundHandover, addCaisseContractToUser, deleteObject, ref, getStorageInstance, getGroupById, getAdminById,
+getMemberWithSubscription: async (...args: Parameters<typeof import('@/db/member.db').getMemberWithSubscription>) => (await import('@/db/member.db')).getMemberWithSubscription(...args),
+uploadSignedContract: async (...args: Parameters<typeof import('@/db/upload-file.db').uploadSignedContract>) => (await import('@/db/upload-file.db')).uploadSignedContract(...args),
+addCaisseContractToEntity: async (...args: Parameters<typeof import('@/db/member.db').addCaisseContractToEntity>) => (await import('@/db/member.db')).addCaisseContractToEntity(...args),
+recomputeNow: async (...args: Parameters<typeof import('@/services/caisse/readers').recomputeNow>) => (await import('@/services/caisse/readers')).recomputeNow(...args)
+}
+export type CaisseMutationPorts = typeof browserCaissePorts
+export function createCaisseMutations(overrides: Partial<CaisseMutationPorts> = {}) {
+const { createContract, getContract, updateContract, addPayment, listPayments, updatePayment, addRefund, listRefunds, updateRefund, deleteRefund, getActiveSettings, createFile, compressImage, auth, resolveIsSuperAdmin, logAdminAction, finalizeRefundHandover, addCaisseContractToUser, deleteObject, ref, getStorageInstance, getGroupById, getAdminById, getMemberWithSubscription, uploadSignedContract, addCaisseContractToEntity, recomputeNow } = { ...browserCaissePorts, ...overrides }
+
 
 /** Retire les clés à valeur `undefined` (Firestore rejette `undefined`). */
 function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
@@ -21,6 +64,7 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
   for (const [k, v] of Object.entries(obj)) if (v !== undefined) out[k] = v
   return out as T
 }
+
 
 /** Journalise une action versement CS (best-effort, n'attend pas la promesse). */
 function logCsVersementAction(action: 'payment' | 'update', contractId: string, description: string) {
@@ -36,39 +80,32 @@ function logCsVersementAction(action: 'payment' | 'update', contractId: string, 
     description,
   })
 }
-import { addCaisseContractToUser } from '@/db/member.db'
-import { deleteObject, ref } from '@/firebase/storage'
-import { getStorageInstance } from '@/firebase/storage'
-import type { GroupPaymentContribution } from './types'
-import { EmergencyContact } from '@/schemas/emergency-contact.schema'
-import type { PaymentMode } from '@/types/types'
-import { generateAllDemandSearchableTexts } from '@/utils/demandSearchableText'
-import { getGroupById } from '@/db/group.db'
-import { getAdminById } from '@/db/admin.db'
+
 
 // Fonction utilitaire pour générer un ID de contribution personnalisé
 function generateContributionId(memberId: string, paidAt: Date): string {
   const date = paidAt.toLocaleDateString('fr-FR', {
     day: '2-digit',
-    month: '2-digit', 
+    month: '2-digit',
     year: '2-digit'
   }).replace(/\//g, '')
-  
+
   const time = paidAt.toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false
   }).replace(/:/g, '')
-  
+
   return `MK_CS_P_${memberId}_${date}_${time}`
 }
 
-export async function subscribe(input: { 
-  memberId?: string; 
-  groupeId?: string; 
-  monthlyAmount: number; 
-  monthsPlanned: number; 
-  caisseType: any; 
+
+async function subscribe(input: {
+  memberId?: string;
+  groupeId?: string;
+  monthlyAmount: number;
+  monthsPlanned: number;
+  caisseType: any;
   firstPaymentDate: string;
   contractPdf?: File;
   emergencyContact?: EmergencyContact;
@@ -89,10 +126,10 @@ export async function subscribe(input: {
 
   // Déterminer le type de contrat
   const contractType = input.memberId ? 'INDIVIDUAL' : 'GROUP'
-  
+
   const settings = await getActiveSettings(input.caisseType)
   const settingsVersion = input.settingsVersion ?? settings?.id
-  
+
   // Récupérer le matricule du membre si c'est un contrat individuel
   let memberMatricule = '0000' // Fallback par défaut
   let memberLastName = ''
@@ -100,7 +137,7 @@ export async function subscribe(input: {
   let groupName = ''
   if (input.memberId) {
     try {
-      const { getMemberWithSubscription } = await import('@/db/member.db')
+
       const member = await getMemberWithSubscription(input.memberId)
       memberMatricule = member?.matricule || '0000'
       memberLastName = member?.lastName || ''
@@ -118,7 +155,7 @@ export async function subscribe(input: {
       // Impossible de récupérer le nom du groupe - continue sans
     }
   }
-  
+
   // Calculer la date de début et la prochaine échéance AVANT la création du contrat
   const startDate = input.firstPaymentDate ? new Date(input.firstPaymentDate) : new Date()
   // Pour un nouveau contrat (currentMonthIndex=0), nextDueAt = première échéance = startDate
@@ -164,7 +201,7 @@ export async function subscribe(input: {
     ...(input.emergencyContact ? { emergencyContact: input.emergencyContact } : {}),
     ...(input.createdBy ? { createdBy: input.createdBy } : {}),
   }
-  
+
   // Ajouter seulement les champs non-undefined
   if (input.memberId) {
     cleanData.memberId = input.memberId
@@ -172,20 +209,20 @@ export async function subscribe(input: {
   if (input.groupeId) {
     cleanData.groupeId = input.groupeId
   }
-  
+
   console.log('🧹 Données nettoyées pour Firestore:', cleanData)
-  
+
   const id = await createContract(cleanData)
-  
+
   // Téléverser le PDF du contrat signé si fourni
   if (input.contractPdf) {
     try {
       console.log('📄 Téléversement du contrat PDF signé...')
-      const { uploadSignedContract } = await import('@/db/upload-file.db')
+
       const pdfData = await uploadSignedContract(input.contractPdf, id)
-      
+
       // Mettre à jour le contrat avec les informations du PDF
-      const { updateContract } = await import('@/db/caisse/contracts.db')
+
       await updateContract(id, {
         contractPdf: {
           url: pdfData.url,
@@ -195,38 +232,39 @@ export async function subscribe(input: {
           fileSize: input.contractPdf.size
         }
       })
-      
+
       console.log('✅ Contrat PDF téléversé et enregistré avec succès')
     } catch {
       // Ne pas faire échouer la création du contrat si le PDF échoue
       console.warn('⚠️ Le contrat a été créé mais le PDF n\'a pas pu être téléversé')
     }
   }
-  
+
   // Pré-générer les paiements DUE avec dueAt calculé (startDate déjà calculé ci-dessus)
   for (let i = 0; i < input.monthsPlanned; i++) {
     // Journalier : dueAt = dernier jour de la période de 30 jours (période 0 =
     // startDate..startDate+29). Sinon : i mois après le début.
     const dueDate = computeDueAt(startDate, i, input.caisseType) as Date
-    await addPayment(id, { 
-      dueMonthIndex: i, 
-      amount: input.monthlyAmount, 
-      status: 'DUE', 
+    await addPayment(id, {
+      dueMonthIndex: i,
+      amount: input.monthlyAmount,
+      status: 'DUE',
       dueAt: dueDate,
       memberId: input.memberId || input.groupeId || 'UNKNOWN' // Passer l'ID pour générer l'ID personnalisé
     })
   }
-  
+
   // Associer au membre ou au groupe selon le type
   if (contractType === 'INDIVIDUAL' && input.memberId) {
     await addCaisseContractToUser(input.memberId, id)
   } else if (contractType === 'GROUP' && input.groupeId) {
-    const { addCaisseContractToEntity } = await import('@/db/member.db')
+
     await addCaisseContractToEntity(input.groupeId, id, 'GROUP')
   }
-  
+
   return id
 }
+
 
 function getContractStartDate(contract: any): Date | null {
   const raw = contract?.contractStartAt ?? contract?.firstPaymentDate
@@ -235,7 +273,8 @@ function getContractStartDate(contract: any): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: PaymentMode; withFees?: boolean; paymentMethodOther?: string; agentRecouvrementId?: string }) {
+
+async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: PaymentMode; withFees?: boolean; paymentMethodOther?: string; agentRecouvrementId?: string }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
   assertContractUnlocked(isCaisseSpecialeContractLocked(contract.status))
@@ -278,14 +317,14 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   const actualToday = new Date() // Date actuelle réelle
   actualToday.setHours(0, 0, 0, 0)
   now.setHours(0, 0, 0, 0)
-  
+
   // Si pas de dueAt (premier paiement avant start), considérer dueAt = now pour éviter pénalité
   const dueAt = payment.dueAt ? (typeof (payment.dueAt as any)?.toDate === 'function' ? (payment.dueAt as any).toDate() : new Date(payment.dueAt)) : now
-  
+
   // Ne calculer les pénalités que si le versement n'est pas pour une date future
   let window: 'LATE_NO_PENALTY' | 'LATE_WITH_PENALTY' | 'DEFAULTED_AFTER_J12' = 'LATE_NO_PENALTY'
   let delayDays = 0
-  
+
   if (now <= actualToday) {
     // Le versement est pour aujourd'hui ou dans le passé : calculer les pénalités normalement
     const result = computeDueWindow(dueAt, now)
@@ -310,10 +349,10 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
       fileSize: input.file.size,
       fileType: input.file.type
     })
-    
+
     const location = `caisse/${input.contractId}/payments/${payment.id}`
     console.log('📁 [pay] Location:', location)
-    
+
     // compresser en WebP
     const dataUrl = await compressImage(input.file, IMAGE_COMPRESSION_PRESETS.document)
     // convertir dataUrl -> File
@@ -322,7 +361,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     // Générer un nom de fichier unique avec timestamp
     const uniqueFileName = `${Date.now()}_proof.webp`
     console.log('📝 [pay] Nom de fichier généré:', uniqueFileName)
-    
+
     const webpFile = new File([blob], uniqueFileName, { type: 'image/webp' })
     const uploaded = await createFile(webpFile as any, input.memberId, location)
     proofUrl = uploaded.url
@@ -376,10 +415,10 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
       // Pour STANDARD et JOURNALIERE, amount = montant mensuel (fixe)
       paymentUpdates.amount = contract.monthlyAmount
     }
-    const contrib = { 
+    const contrib = {
       id: generateContributionId(input.memberId, now), // ID personnalisé au format MK_CS_P_memberId_DATE_HEURE
-      amount: input.amount, 
-      paidAt: now, 
+      amount: input.amount,
+      paidAt: now,
       proofUrl: proofUrl || undefined,
       time: input.time,
       mode: input.mode,
@@ -468,10 +507,9 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   updated.status = status
 
   await updateContract(input.contractId, updated)
-  
+
   // Recalculer le statut du contrat après le paiement
-  void import('@/services/caisse/readers')
-    .then(({ recomputeNow }) => recomputeNow(input.contractId))
+  void recomputeNow(input.contractId)
     .catch((error) => {
       console.warn('[pay] Recalcul différé du contrat échoué:', error)
     })
@@ -485,7 +523,8 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   return { status, penalty, bonus: updated.bonusAccrued, nextDueAt }
 }
 
-export async function requestFinalRefund(contractId: string, reason?: string) {
+
+async function requestFinalRefund(contractId: string, reason?: string) {
   const c = await getContract(contractId)
   if (!c) throw new Error('Contrat introuvable')
   assertContractUnlocked(isCaisseSpecialeContractLocked(c.status))
@@ -520,7 +559,8 @@ export async function requestFinalRefund(contractId: string, reason?: string) {
   return true
 }
 
-export async function requestEarlyRefund(contractId: string, input?: {
+
+async function requestEarlyRefund(contractId: string, input?: {
   reason?: string
   withdrawalTime?: string
   withdrawalDate?: string
@@ -633,9 +673,9 @@ export async function requestEarlyRefund(contractId: string, input?: {
   const processedTime = input?.withdrawalTime || `${processedAt.getHours().toString().padStart(2, '0')}:${processedAt.getMinutes().toString().padStart(2, '0')}`
 
   await addRefund(contractId, {
-    type: 'EARLY', 
-    amountNominal, 
-    amountBonus, 
+    type: 'EARLY',
+    amountNominal,
+    amountBonus,
     deadlineAt: payoutDueAt,
     payoutDueAt,
     approvedAt,
@@ -668,7 +708,8 @@ export async function requestEarlyRefund(contractId: string, input?: {
   return true
 }
 
-export async function approveRefund(contractId: string, refundId: string) {
+
+async function approveRefund(contractId: string, refundId: string) {
   const refunds = await listRefunds(contractId)
   const refund = refunds.find((item: any) => item.id === refundId)
   if (!refund) throw new Error('Demande introuvable')
@@ -683,7 +724,8 @@ export async function approveRefund(contractId: string, refundId: string) {
   return true
 }
 
-export async function markRefundPaid(contractId: string, refundId: string, proof?: File, refundDetails?: {
+
+async function markRefundPaid(contractId: string, refundId: string, proof?: File, refundDetails?: {
   reason?: string
   withdrawalDate?: string
   withdrawalTime?: string
@@ -710,7 +752,8 @@ export async function markRefundPaid(contractId: string, refundId: string, proof
   return true
 }
 
-export async function cancelEarlyRefund(contractId: string, refundId: string) {
+
+async function cancelEarlyRefund(contractId: string, refundId: string) {
   // Autoriser l'annulation uniquement si statut PENDING
   const refunds = await listRefunds(contractId)
   const r = refunds.find((x: any) => x.id === refundId)
@@ -723,12 +766,13 @@ export async function cancelEarlyRefund(contractId: string, refundId: string) {
   return true
 }
 
+
 /**
  * Refus ou annulation d'un remboursement final non encore payé. La demande est
  * archivée avec son motif (l'historique est conservé) et le statut du contrat
  * est recalculé : une nouvelle demande de remboursement final redevient possible.
  */
-export async function cancelFinalRefund(contractId: string, refundId: string, reason: string) {
+async function cancelFinalRefund(contractId: string, refundId: string, reason: string) {
   const motif = reason?.trim()
   if (!motif) throw new Error('Le motif est obligatoire')
   const refunds = await listRefunds(contractId)
@@ -756,12 +800,13 @@ export async function cancelFinalRefund(contractId: string, refundId: string, re
     archiveReason: motif,
   })
   // FINAL_REFUND_PENDING → statut déduit des échéances et des demandes restantes
-  const { recomputeNow } = await import('@/services/caisse/readers')
+
   await recomputeNow(contractId)
   return true
 }
 
-export async function updatePaymentContribution(input: {
+
+async function updatePaymentContribution(input: {
   contractId: string
   paymentId: string
   contributionId: string
@@ -782,12 +827,12 @@ export async function updatePaymentContribution(input: {
   const { contractId, paymentId, contributionId, updates } = input
   const lockedContract = await getContract(contractId)
   assertContractUnlocked(isCaisseSpecialeContractLocked(lockedContract?.status))
-  
+
   // Récupérer le paiement et la contribution
   const payments = await listPayments(contractId)
   const payment = payments.find((p: any) => p.id === paymentId)
   if (!payment) throw new Error('Paiement introuvable')
-  
+
   // Pour les anciens paiements (ex. Libre) sans tableau contribs, en reconstituer un à partir du paiement
   if (!payment.contribs || !Array.isArray(payment.contribs) || payment.contribs.length === 0) {
     if (payment.status === 'PAID' && (payment.amount != null || payment.accumulatedAmount != null)) {
@@ -807,7 +852,7 @@ export async function updatePaymentContribution(input: {
       throw new Error('Aucune contribution trouvée dans ce paiement')
     }
   }
-  
+
   let contributionIndex = payment.contribs.findIndex((c: any) => c && (c.id === contributionId || String(c.id) === String(contributionId)))
   // Fallback : une seule contribution (STANDARD/LIBRE avec contrib.id absent ou contributionId === '__single__')
   if (contributionIndex === -1 && (payment.contribs.length === 1 || contributionId === '__single__')) {
@@ -816,17 +861,17 @@ export async function updatePaymentContribution(input: {
   if (contributionIndex === -1) {
     throw new Error('Contribution introuvable')
   }
-  
+
   const contribution = payment.contribs[contributionIndex]
-  
+
   // Traitement de la nouvelle preuve si fournie
   let newProofUrl: string | undefined
   let oldProofUrl: string | undefined
-  
+
   if (updates.proofFile) {
     // Sauvegarder l'ancienne URL pour suppression ultérieure
     oldProofUrl = contribution.proofUrl
-    
+
     // Upload de la nouvelle image
     const location = `caisse/${contractId}/payments/${paymentId}`
     const dataUrl = await compressImage(updates.proofFile, IMAGE_COMPRESSION_PRESETS.document)
@@ -839,7 +884,7 @@ export async function updatePaymentContribution(input: {
     newProofUrl = uploaded.url
     console.log('📸 Image modifiée uploadée:', uniqueFileName, '→', newProofUrl)
   }
-  
+
   // Le montant d'un versement enregistré n'est rectifiable que sur les contrats
   // où chaque versement porte son propre montant — Libre et Journalière — et
   // seulement par un superAdmin. Sur Standard, il découle de l'échéancier : le
@@ -874,7 +919,7 @@ export async function updatePaymentContribution(input: {
       newAmount = requestedAmount
     }
   }
-  
+
   const newPaidAt = updates.paidAt ?? (contribution.paidAt ? (typeof contribution.paidAt?.toDate === 'function' ? contribution.paidAt.toDate() : new Date(contribution.paidAt)) : undefined)
 
   // Mettre à jour la contribution
@@ -901,14 +946,14 @@ export async function updatePaymentContribution(input: {
     ...(updates.agentRecouvrementId !== undefined && { agentRecouvrementId: updates.agentRecouvrementId || undefined }),
     updatedAt: new Date()
   }
-  
+
   // Mettre à jour le tableau des contributions
   const updatedContribs = [...payment.contribs]
   updatedContribs[contributionIndex] = updatedContribution
-  
+
   // Calculer le nouveau montant accumulé
   const newAccumulatedAmount = updatedContribs.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
-  
+
   // Sérialiser les dates pour Firestore (Timestamp) afin que l'écriture persiste correctement
   const { Timestamp } = await import('firebase/firestore')
   const contribsForFirestore = updatedContribs.map((c: any) => stripUndefined({
@@ -945,7 +990,7 @@ export async function updatePaymentContribution(input: {
     paymentPayload.modificationReason = updates.modificationReason
   }
   await updatePayment(contractId, paymentId, stripUndefined(paymentPayload))
-  
+
   // Mettre à jour le contrat si nécessaire (recalculer les totaux)
   const contract = await getContract(contractId)
   if (contract) {
@@ -954,7 +999,7 @@ export async function updatePaymentContribution(input: {
       getActiveSettings(contract.caisseType),
     ])
     const totalNominalPaid = sumContractNominalPaid(allPayments)
-    
+
     await updateContract(contractId, {
       nominalPaid: totalNominalPaid,
       bonusAccrued: computeContractBonusFromPayments(
@@ -965,12 +1010,12 @@ export async function updatePaymentContribution(input: {
       updatedBy: auth?.currentUser?.uid || contractId
     })
   }
-  
+
   // Supprimer l'ancienne image si elle existe et qu'une nouvelle a été uploadée
   if (oldProofUrl && newProofUrl && oldProofUrl !== newProofUrl) {
     try {
       const storage = getStorageInstance()
-      
+
       // Fonction pour extraire le chemin du fichier depuis l'URL Firebase
       const extractFilePathFromUrl = (url: string): string | null => {
         try {
@@ -982,19 +1027,19 @@ export async function updatePaymentContribution(input: {
             const decodedPath = decodeURIComponent(pathParam)
             return decodedPath
           }
-          
+
           // Fallback: essayer d'extraire depuis le chemin de l'URL
           const pathMatch = url.match(/\/o\/([^?]+)/)
           if (pathMatch) {
             return decodeURIComponent(pathMatch[1])
           }
-          
+
           return null
         } catch {
           return null
         }
       }
-      
+
       const filePath = extractFilePathFromUrl(oldProofUrl)
       if (filePath) {
         const fileRef = ref(storage, filePath)
@@ -1017,22 +1062,23 @@ export async function updatePaymentContribution(input: {
   return true
 }
 
+
 /**
  * Fonction spécialisée pour les versements de groupe
  * Permet d'ajouter des contributions à un versement collectif par jour
  */
-export async function payGroup(input: { 
-  contractId: string; 
-  dueMonthIndex: number; 
-  memberId: string; 
+async function payGroup(input: {
+  contractId: string;
+  dueMonthIndex: number;
+  memberId: string;
   memberName: string;
   memberMatricule: string;
   memberPhotoURL?: string;
   memberContacts?: string[];
-  amount: number; 
-  file?: File; 
-  paidAt?: Date; 
-  time: string; 
+  amount: number;
+  file?: File;
+  paidAt?: Date;
+  time: string;
   mode: PaymentMode;
   withFees?: boolean;
   paymentMethodOther?: string;
@@ -1041,13 +1087,13 @@ export async function payGroup(input: {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
   assertContractUnlocked(isCaisseSpecialeContractLocked(contract.status))
-  
+
   // Vérifier que c'est bien un contrat de groupe
   const isGroupContract = contract.contractType === 'GROUP' || (contract as any).groupeId
   if (!isGroupContract) {
     throw new Error('Cette fonction est réservée aux contrats de groupe')
   }
-  
+
   const [payments, settings] = await Promise.all([
     listPayments(input.contractId),
     getActiveSettings((contract as any).caisseType),
@@ -1085,13 +1131,13 @@ export async function payGroup(input: {
   const actualToday = new Date() // Date actuelle réelle
   actualToday.setHours(0, 0, 0, 0)
   now.setHours(0, 0, 0, 0)
-  
+
   const dueAt = payment.dueAt ? (typeof (payment.dueAt as any)?.toDate === 'function' ? (payment.dueAt as any).toDate() : new Date(payment.dueAt)) : now
-  
+
   // Ne calculer les pénalités que si le versement n'est pas pour une date future
   let window: 'LATE_NO_PENALTY' | 'LATE_WITH_PENALTY' | 'DEFAULTED_AFTER_J12' = 'LATE_NO_PENALTY'
   let delayDays = 0
-  
+
   if (now <= actualToday) {
     // Le versement est pour aujourd'hui ou dans le passé : calculer les pénalités normalement
     const result = computeDueWindow(dueAt, now)
@@ -1123,17 +1169,17 @@ export async function payGroup(input: {
       fileType: input.file.type,
       memberId: input.memberId
     })
-    
+
     const location = `caisse/${input.contractId}/payments/${payment.id}/contributions`
     console.log('📁 [payGroup] Location:', location)
-    
+
     const dataUrl = await compressImage(input.file, IMAGE_COMPRESSION_PRESETS.document)
     const res = await fetch(dataUrl)
     const blob = await res.blob()
     // Générer un nom de fichier unique avec timestamp
     const uniqueFileName = `${Date.now()}_proof.webp`
     console.log('📝 [payGroup] Nom de fichier généré:', uniqueFileName)
-    
+
     const webpFile = new File([blob], uniqueFileName, { type: 'image/webp' })
     const uploaded = await createFile(webpFile as any, input.memberId, location)
     proofUrl = uploaded.url
@@ -1170,7 +1216,7 @@ export async function payGroup(input: {
     createdAt: now,
     updatedAt: now
   }
-  
+
   console.log('💾 [payGroup] Contribution créée:', {
     id: newContribution.id,
     proofUrl: newContribution.proofUrl,
@@ -1182,10 +1228,10 @@ export async function payGroup(input: {
   // Récupérer les contributions existantes ou créer un nouveau tableau
   const existingContributions = payment.groupContributions || []
   const updatedContributions = [...existingContributions, newContribution]
-  
+
   // Calculer le nouveau montant total
   const newTotalAmount = updatedContributions.reduce((sum, c) => sum + c.amount, 0)
-  
+
   // Mettre à jour le paiement
   const paymentUpdates: any = {
     isGroupPayment: true,
@@ -1212,7 +1258,7 @@ export async function payGroup(input: {
     type === 'LIBRE' || type === 'LIBRE_CHARITABLE'
       ? Math.max(100000, payment.targetAmount || 0)
       : contract.monthlyAmount
-  
+
   if (newTotalAmount >= targetForMonth) {
     paymentUpdates.status = 'PAID'
     paymentUpdates.paidAt = now
@@ -1252,8 +1298,7 @@ export async function payGroup(input: {
   })
 
   // Recalculer le statut du contrat après le paiement
-  void import('@/services/caisse/readers')
-    .then(({ recomputeNow }) => recomputeNow(input.contractId))
+  void recomputeNow(input.contractId)
     .catch((error) => {
       console.warn('[payGroup] Recalcul différé du contrat échoué:', error)
     })
@@ -1264,9 +1309,12 @@ export async function payGroup(input: {
     'Enregistrement d\'une contribution de groupe (caisse spéciale)',
   )
 
-  return { 
-    status: paymentUpdates.status || 'IN_PROGRESS', 
+  return {
+    status: paymentUpdates.status || 'IN_PROGRESS',
     contributionId: newContribution.id,
     totalAmount: newTotalAmount
   }
 }
+return { subscribe, pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, cancelFinalRefund, updatePaymentContribution, payGroup }
+}
+export const { subscribe, pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, cancelFinalRefund, updatePaymentContribution, payGroup } = createCaisseMutations()

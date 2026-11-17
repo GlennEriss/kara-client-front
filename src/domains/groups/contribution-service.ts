@@ -12,13 +12,21 @@ import {
   type DocumentData,
   type DocumentSnapshot,
 } from "firebase/firestore";
+
 import { db } from "@/firebase/firestore";
+
 import type { GroupProject, GroupCreditProjectLink, User } from "@/types/types";
+
 import type { GroupActor } from "./group-service";
+
 import { memberName, isOpenProject } from "./group-model";
+
 import { payoutAmounts } from "./payout-model";
+
 import { isGroupGuarantor } from "./group-guarantor";
+
 import { UNKNOWN_USER_ID } from "@/domains/financial/caisse-imprevue/import/unknownUser";
+
 import {
   planPeriods,
   plannedContribution,
@@ -31,18 +39,26 @@ import {
   type GroupContribution,
   type ContributionPayment,
 } from "./contribution-model";
+const createContributionServiceDefaults = { collection, doc, getDoc, getDocs, query, where, runTransaction, serverTimestamp, Timestamp, db }
+export function createContributionService(overrides: Partial<typeof createContributionServiceDefaults> = {}) {
+const { collection, doc, getDoc, getDocs, query, where, runTransaction, serverTimestamp, Timestamp, db } = { ...createContributionServiceDefaults, ...overrides }
+
 
 const idCheck = (id: string) => {
   if (!id || id.includes("/") || id === "." || id === "..")
     throw new Error("Référence de cotisation invalide.");
   return id;
 };
+
 const groupRef = (id: string) => doc(db, "groups", idCheck(id));
+
 const rowRef = (groupId: string, id: string) =>
   doc(db, "groups", idCheck(groupId), "contributions", idCheck(id));
+
 const actorCheck = (actor: GroupActor) => {
   if (!actor.id) throw new Error("Connectez-vous pour gérer les cotisations.");
 };
+
 const event = (description: string, actor: GroupActor) => ({
   id: crypto.randomUUID(),
   description,
@@ -50,6 +66,7 @@ const event = (description: string, actor: GroupActor) => ({
   byId: actor.id,
   byName: actor.name,
 });
+
 const projectOf = (group: DocumentData, projectId: string) => {
   const project = (group.projects ?? []).find(
     (p: GroupProject) => p.id === projectId,
@@ -58,12 +75,14 @@ const projectOf = (group: DocumentData, projectId: string) => {
     throw new Error("Choisissez un projet de caisse collective.");
   return project;
 };
+
 const lockProjects = (group: DocumentData, projectId: string) =>
   group.projects.map((p: GroupProject) =>
     p.id === projectId
       ? { ...p, contributionPlan: { ...p.contributionPlan, locked: true } }
       : p,
   );
+
 const saveGroupEvent = (
   transaction: Transaction,
   group: DocumentSnapshot,
@@ -77,6 +96,7 @@ const saveGroupEvent = (
     updatedAt: serverTimestamp(),
     updatedBy: actor.id,
   });
+
 async function memberRef(id: string) {
   const direct = await getDoc(doc(db, "users", idCheck(id)));
   if (direct.exists()) return direct.ref;
@@ -87,7 +107,8 @@ async function memberRef(id: string) {
     throw new Error("Un participant est introuvable ou ambigu.");
   return aliases.docs[0].ref;
 }
-export async function configureContributions(
+
+async function configureContributions(
   groupId: string,
   projectId: string,
   input: ContributionPlanInput,
@@ -157,7 +178,8 @@ export async function configureContributions(
     });
   });
 }
-export async function listContributions(
+
+async function listContributions(
   groupId: string,
   projectId: string,
 ): Promise<GroupContribution[]> {
@@ -169,6 +191,7 @@ export async function listContributions(
   );
   return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as GroupContribution);
 }
+
 async function readRow(
   tx: Transaction,
   groupId: string,
@@ -192,6 +215,7 @@ async function readRow(
     throw new Error("La référence de cotisation a changé.");
   return { group, project, snapshot, row };
 }
+
 async function activeReservation(tx: Transaction, row: GroupContribution) {
   if (row.financingContractId) return true;
   if (!row.financingDemandId) return false;
@@ -200,7 +224,8 @@ async function activeReservation(tx: Transaction, row: GroupContribution) {
     demand.exists() && !["REJECTED", "CANCELED"].includes(demand.data().status)
   );
 }
-export async function recordContributionPayment(
+
+async function recordContributionPayment(
   groupId: string,
   projectId: string,
   period: string,
@@ -285,9 +310,10 @@ export async function recordContributionPayment(
   });
 }
 
+
 /** Additional reads/validation inside the existing individual creation transaction.
  * A request or an unsigned contract only reserves the month; it never pays it. */
-export async function prepareContributionFinancing(
+async function prepareContributionFinancing(
   tx: Transaction,
   group: DocumentSnapshot,
   project: GroupProject,
@@ -356,7 +382,8 @@ export async function prepareContributionFinancing(
         : { financingContractId: targetId },
   };
 }
-export function writeContributionReservation(
+
+function writeContributionReservation(
   tx: Transaction,
   prepared: Awaited<ReturnType<typeof prepareContributionFinancing>>,
   actorId: string,
@@ -369,7 +396,8 @@ export function writeContributionReservation(
       updatedAt: serverTimestamp(),
     });
 }
-export async function releaseContributionFinancing(
+
+async function releaseContributionFinancing(
   tx: Transaction,
   groupId: string,
   link: GroupCreditProjectLink | null | undefined,
@@ -390,7 +418,8 @@ export async function releaseContributionFinancing(
     );
   return snapshot.ref;
 }
-export async function allocateContributionFinancing(
+
+async function allocateContributionFinancing(
   groupId: string,
   projectId: string,
   period: string,
@@ -479,3 +508,6 @@ export async function allocateContributionFinancing(
     );
   });
 }
+return { configureContributions, listContributions, recordContributionPayment, prepareContributionFinancing, writeContributionReservation, releaseContributionFinancing, allocateContributionFinancing }
+}
+export const { configureContributions, listContributions, recordContributionPayment, prepareContributionFinancing, writeContributionReservation, releaseContributionFinancing, allocateContributionFinancing } = createContributionService()

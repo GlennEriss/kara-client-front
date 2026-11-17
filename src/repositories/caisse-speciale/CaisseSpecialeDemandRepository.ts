@@ -5,6 +5,8 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "CaisseSpecialeDemandRepository";
 
     private toDemand(docSnap: any): CaisseSpecialeDemand {
@@ -74,7 +76,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
     }
 
     private async getDemandsWithClientSideFilters(filters: CaisseSpecialeDemandFilters): Promise<CaisseSpecialeDemandsPaginated> {
-        const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+        const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
         const colRef = collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands");
         const constraints: any[] = [];
 
@@ -145,7 +147,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
     async createDemand(data: Omit<CaisseSpecialeDemand, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CaisseSpecialeDemand> {
         try {
-            const { collection, doc, setDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, doc, setDoc, db, serverTimestamp } = await this.firestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -171,6 +173,8 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
             return created;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création de la demande:", error);
             throw error;
         }
@@ -178,15 +182,15 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
     async getDemandById(id: string): Promise<CaisseSpecialeDemand | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const demandRef = doc(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands", id);
             const docSnap = await getDoc(demandRef);
-            
+
             if (!docSnap.exists()) {
                 return null;
             }
-            
+
             const data = docSnap.data();
             const toDate = (v: unknown) => (v as any)?.toDate ? (v as any).toDate() : undefined;
             return {
@@ -201,6 +205,8 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 convertedAt: toDate(data.convertedAt),
             } as CaisseSpecialeDemand;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération de la demande:", error);
             return null;
         }
@@ -208,7 +214,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
     async getByContractId(contractId: string): Promise<CaisseSpecialeDemand | null> {
         try {
-            const { collection, db, getDocs, query, where, limit } = await getFirestore();
+            const { collection, db, getDocs, query, where, limit } = await this.firestore();
             const colRef = collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands");
             const q = query(colRef, where("contractId", "==", contractId), limit(1));
             const snap = await getDocs(q);
@@ -228,6 +234,8 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 convertedAt: toDate(data.convertedAt),
             } as CaisseSpecialeDemand;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur getByContractId:", error);
             return null;
         }
@@ -248,7 +256,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 return this.getPaginatedWithSearchMerge(filters!, normalizedSearch);
             }
 
-            const { collection, db, getDocs, getCountFromServer, query, where, orderBy, limit, startAfter } = await getFirestore();
+            const { collection, db, getDocs, getCountFromServer, query, where, orderBy, limit, startAfter } = await this.firestore();
 
             const colRef = collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands");
             const constraints: any[] = [];
@@ -303,6 +311,8 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 const countSnapshot = await getCountFromServer(baseQuery);
                 total = countSnapshot.data().count;
             } catch (countError) {
+      if (this.strict) throw countError
+
                 console.warn("getCountFromServer failed:", countError);
             }
 
@@ -340,6 +350,8 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
             const sortedDemands = this.sortDemands(extendedFilteredDemands, filters);
             return { items: sortedDemands, total };
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des demandes filtrées:", error);
             // Propager l'erreur pour afficher un message à l'utilisateur (ex: index Firestore manquant)
             throw error;
@@ -347,7 +359,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
     }
 
     private async getPaginatedWithSearchMerge(filters: CaisseSpecialeDemandFilters, normalizedQuery: string): Promise<CaisseSpecialeDemandsPaginated> {
-        const { collection, db, getDocs, query, where, orderBy, limit } = await getFirestore();
+        const { collection, db, getDocs, query, where, orderBy, limit } = await this.firestore();
         const colRef = collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands");
         const searchFields = ['searchableText', 'searchableTextFirstNameFirst', 'searchableTextMatriculeFirst'] as const;
         const fetchLimit = Math.min(100, (filters.limit || 12) * 5);
@@ -414,7 +426,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
     async getDemandsStats(_filters?: CaisseSpecialeDemandFilters): Promise<CaisseSpecialeDemandStats> {
         try {
-            const { collection, db, getCountFromServer, query, where } = await getFirestore();
+            const { collection, db, getCountFromServer, query, where } = await this.firestore();
             const colRef = collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands");
 
             const statuses = ['PENDING', 'APPROVED', 'REJECTED', 'CONVERTED'] as const;
@@ -429,6 +441,8 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
             return { total, pending, approved, rejected, converted };
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors du calcul des statistiques:", error);
             return {
                 total: 0,
@@ -448,7 +462,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
         adminName: string
     ): Promise<CaisseSpecialeDemand | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const demandRef = doc(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands", id);
 
@@ -478,6 +492,8 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
             return await this.getDemandById(id);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour du statut de la demande:", error);
             throw error;
         }
@@ -485,7 +501,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
     async updateDemand(id: string, data: Partial<CaisseSpecialeDemand>): Promise<CaisseSpecialeDemand | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const demandRef = doc(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands", id);
 
@@ -503,6 +519,8 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
             return await this.getDemandById(id);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour de la demande:", error);
             throw error;
         }
@@ -510,10 +528,12 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
     async deleteDemand(id: string): Promise<void> {
         try {
-            const { doc, deleteDoc, db } = await getFirestore();
+            const { doc, deleteDoc, db } = await this.firestore();
             const demandRef = doc(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands", id);
             await deleteDoc(demandRef);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression de la demande:", error);
             throw error;
         }

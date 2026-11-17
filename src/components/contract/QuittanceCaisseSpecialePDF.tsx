@@ -1,5 +1,3 @@
-'use client'
-
 import { buildMemberContractRow, buildMemberIdentificationRows } from '@/components/pdf/mutuelle/memberIdentification'
 import {
   EMPTY,
@@ -138,6 +136,7 @@ export const listCaisseSpecialeLiquidationFields = (input: CaisseSpecialeLiquida
 }
 
 const QuittanceCaisseSpecialePDF = ({
+  logoSrc,
   contract,
   refund,
   fillData,
@@ -145,6 +144,7 @@ const QuittanceCaisseSpecialePDF = ({
 }: CaisseSpecialeLiquidationInput & {
   fillData?: QuittanceCaisseSpecialePdfFillData
   completion?: DocumentCompletion | null
+  logoSrc?: string
 }) => {
   const signatures = fillData ?? DEFAULT_FILL_DATA
   const fields = buildCaisseSpecialeLiquidationFields({ contract, refund })
@@ -156,7 +156,7 @@ const QuittanceCaisseSpecialePDF = ({
     <Document>
       <Page size="A4" style={styles.page}>
         <MutuellePageChrome footerLabel="Procès-verbal de liquidation du contrat de Caisse Spéciale" />
-        <MutuelleHeader title="PROCÈS-VERBAL DE LIQUIDATION DU CONTRAT DE CAISSE SPÉCIALE" />
+        <MutuelleHeader logoSrc={logoSrc} title="PROCÈS-VERBAL DE LIQUIDATION DU CONTRAT DE CAISSE SPÉCIALE" />
 
         <Text style={styles.preamble}>
           Ce document constate la liquidation du contrat de Caisse Spéciale identifié ci-dessous et

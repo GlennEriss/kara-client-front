@@ -1,5 +1,3 @@
-'use client'
-
 import { Image, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
 
@@ -275,9 +273,9 @@ export const MutuellePageChrome = ({ footerLabel }: { footerLabel: string }) => 
   </>
 )
 
-export const MutuelleHeader = ({ title }: { title: string }) => (
+export const MutuelleHeader = ({ title, logoSrc }: { title: string; logoSrc?: string }) => (
   <View style={mutuelleStyles.header}>
-    <Image src={window.location.origin + '/Logo-Kara.jpg'} style={mutuelleStyles.logo} cache={false} />
+    <Image src={logoSrc || (typeof window !== 'undefined' ? window.location.origin + '/Logo-Kara.jpg' : '')} style={mutuelleStyles.logo} cache={false} />
     <Text style={mutuelleStyles.association}>{REGLEMENT_ENTETE.association}</Text>
     <Text style={mutuelleStyles.devise}>{REGLEMENT_ENTETE.devise}</Text>
     <Text style={mutuelleStyles.siege}>{REGLEMENT_ENTETE.siege}</Text>

@@ -94,11 +94,13 @@ const sanitizeFirestoreData = (value: any): any => {
 };
 
 export class CreditContractRepository implements ICreditContractRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false, private readonly createLinked: typeof import('@/domains/groups/project-credit-service').createLinkedCreditRecord = async (...args) => (await import('@/domains/groups/project-credit-service')).createLinkedCreditRecord(...args)) {}
+
     readonly name = "CreditContractRepository";
 
     async createContract(data: Omit<CreditContract, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CreditContract> {
         try {
-            const { collection, doc, setDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, doc, setDoc, db, serverTimestamp } = await this.firestore();
 
             const cleanData = sanitizeFirestoreData(data);
 
@@ -107,7 +109,7 @@ export class CreditContractRepository implements ICreditContractRepository {
             const contractRef = doc(db, firebaseCollectionNames.creditContracts || "creditContracts", contractId);
 
             if (cleanData.groupProject) {
-                const { createLinkedCreditRecord } = await import('@/domains/groups/project-credit-service');
+                const createLinkedCreditRecord = this.createLinked;
                 await createLinkedCreditRecord('creditContracts', contractId, cleanData);
             } else await setDoc(contractRef, {
                 ...cleanData,
@@ -122,6 +124,8 @@ export class CreditContractRepository implements ICreditContractRepository {
 
             return created;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création du contrat:", error);
             throw error;
         }
@@ -129,15 +133,15 @@ export class CreditContractRepository implements ICreditContractRepository {
 
     async getContractById(id: string): Promise<CreditContract | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const contractRef = doc(db, firebaseCollectionNames.creditContracts || "creditContracts", id);
             const docSnap = await getDoc(contractRef);
-            
+
             if (!docSnap.exists()) {
                 return null;
             }
-            
+
             const data = docSnap.data();
             const restMonthsRaw = (data as any).restMonths as Array<{ monthNumber: number; reason: string; recordedBy: string; recordedByName: string; recordedAt: unknown }> | undefined;
             const restMonths = mapRestMonths(restMonthsRaw);
@@ -174,13 +178,15 @@ export class CreditContractRepository implements ICreditContractRepository {
                 finalRepaymentModifiedAt: (data.finalRepaymentModifiedAt as any)?.toDate ? (data.finalRepaymentModifiedAt as any).toDate() : (data.finalRepaymentModifiedAt ? new Date(data.finalRepaymentModifiedAt as string) : undefined),
             } as CreditContract;
         } catch {
+      if (this.strict) throw new Error('Échec du stockage des données financières.')
+
             return null;
         }
     }
 
     async getAllContracts(): Promise<CreditContract[]> {
         try {
-            const { collection, db, getDocs, query, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, orderBy } = await this.firestore();
 
             const q = query(
                 collection(db, firebaseCollectionNames.creditContracts || "creditContracts"),
@@ -197,6 +203,8 @@ export class CreditContractRepository implements ICreditContractRepository {
 
             return contracts;
         } catch {
+      if (this.strict) throw new Error('Échec du stockage des données financières.')
+
             return [];
         }
     }
@@ -240,10 +248,10 @@ export class CreditContractRepository implements ICreditContractRepository {
 
     async getContractsWithFilters(filters?: CreditContractFilters): Promise<CreditContract[]> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
 
             const constraints: any[] = [];
-            
+
             if (filters?.status && filters.status !== 'all') {
                 constraints.push(where("status", "==", filters.status));
             }
@@ -262,7 +270,7 @@ export class CreditContractRepository implements ICreditContractRepository {
 
             const orderByField = filters?.orderByField || "createdAt";
             const orderByDirection = filters?.orderByDirection || "desc";
-            
+
             // Pour nextDueAt, on doit l'ajouter comme index composite ou utiliser une requête différente
             if (orderByField === "nextDueAt") {
                 constraints.push(orderBy("nextDueAt", orderByDirection));
@@ -329,6 +337,8 @@ export class CreditContractRepository implements ICreditContractRepository {
 
             return contracts;
         } catch {
+      if (this.strict) throw new Error('Échec du stockage des données financières.')
+
             return [];
         }
     }
@@ -363,6 +373,8 @@ export class CreditContractRepository implements ICreditContractRepository {
 
             return stats;
         } catch {
+      if (this.strict) throw new Error('Échec du stockage des données financières.')
+
             return {
                 total: 0,
                 active: 0,
@@ -396,7 +408,7 @@ export class CreditContractRepository implements ICreditContractRepository {
 
     async updateContract(id: string, data: Partial<Omit<CreditContract, 'id' | 'createdAt'>>): Promise<CreditContract | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const contractRef = doc(db, firebaseCollectionNames.creditContracts || "creditContracts", id);
 
@@ -409,6 +421,8 @@ export class CreditContractRepository implements ICreditContractRepository {
 
             return await this.getContractById(id);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour du contrat:", error);
             throw error;
         }
@@ -416,11 +430,13 @@ export class CreditContractRepository implements ICreditContractRepository {
 
     async deleteContract(id: string): Promise<void> {
         try {
-            const { doc, deleteDoc, db } = await getFirestore();
+            const { doc, deleteDoc, db } = await this.firestore();
 
             const contractRef = doc(db, firebaseCollectionNames.creditContracts || "creditContracts", id);
             await deleteDoc(contractRef);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression du contrat:", error);
             throw error;
         }

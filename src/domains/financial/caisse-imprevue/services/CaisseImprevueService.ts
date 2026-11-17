@@ -1,6 +1,6 @@
 /**
  * Service métier pour les Demandes Caisse Imprévue V2
- * 
+ *
  * Orchestre les repositories et implémente la logique métier
  * avec traçabilité complète selon le workflow V2.
  */
@@ -27,16 +27,30 @@ import type {
   DemandStats,
 } from '../entities/demand-filters.types'
 
+interface CaisseImprevueServicePorts {
+  demands: DemandCIRepository;
+  contracts: IContractCIRepository;
+  members: ReturnType<typeof RepositoryFactory.getMemberRepository>;
+  documents: ReturnType<typeof RepositoryFactory.getDocumentRepository>;
+  subscriptions: ReturnType<typeof RepositoryFactory.getSubscriptionCIRepository>;
+  firestore: () => Promise<typeof import('@/firebase/firestore')>;
+}
+
 export class CaisseImprevueService {
   private static instance: CaisseImprevueService
   private demandRepository: DemandCIRepository
   private contractRepository: IContractCIRepository
   private memberRepository: ReturnType<typeof RepositoryFactory.getMemberRepository>
 
-  private constructor() {
-    this.demandRepository = DemandCIRepository.getInstance()
-    this.contractRepository = RepositoryFactory.getContractCIRepository()
-    this.memberRepository = RepositoryFactory.getMemberRepository()
+  private readonly ports: CaisseImprevueServicePorts
+  constructor(ports: Partial<CaisseImprevueServicePorts> = {}) {
+    this.demandRepository = ports.demands ?? DemandCIRepository.getInstance()
+    this.contractRepository = ports.contracts ?? RepositoryFactory.getContractCIRepository()
+    this.memberRepository = ports.members ?? RepositoryFactory.getMemberRepository()
+    this.ports = { demands: this.demandRepository, contracts: this.contractRepository, members: this.memberRepository,
+      documents: ports.documents ?? RepositoryFactory.getDocumentRepository(),
+      subscriptions: ports.subscriptions ?? RepositoryFactory.getSubscriptionCIRepository(),
+      firestore: () => import('@/firebase/firestore'), ...ports }
   }
 
   static getInstance(): CaisseImprevueService {
@@ -183,7 +197,7 @@ export class CaisseImprevueService {
    */
   /** Supprime tous les documents d'une sous-collection d'un contrat CI, par lots. */
   private async deleteSubcollection(contractId: string, subName: string): Promise<void> {
-    const { db, collection, getDocs, writeBatch, doc } = await import('@/firebase/firestore')
+    const { db, collection, getDocs, writeBatch, doc } = await this.ports.firestore()
     const col = firebaseCollectionNames.contractsCI || 'contractsCI'
     const snap = await getDocs(collection(db, col, contractId, subName))
     const ids = snap.docs.map((d) => d.id)
@@ -196,11 +210,11 @@ export class CaisseImprevueService {
 
   /** Efface les fichiers de preuve (Storage) puis les documents d'une sous-collection. */
   private async deleteSubcollectionWithFiles(contractId: string, subName: string): Promise<void> {
-    const { db, collection, getDocs, writeBatch, doc } = await import('@/firebase/firestore')
+    const { db, collection, getDocs, writeBatch, doc } = await this.ports.firestore()
     const { collectStoragePaths } = await import('@/lib/storagePaths')
     const col = firebaseCollectionNames.contractsCI || 'contractsCI'
     const snap = await getDocs(collection(db, col, contractId, subName))
-    const documentRepository = RepositoryFactory.getDocumentRepository()
+    const documentRepository = this.ports.documents
 
     const paths: string[] = []
     for (const d of snap.docs) collectStoragePaths(d.data(), paths)
@@ -222,7 +236,7 @@ export class CaisseImprevueService {
 
   /** Supprime tous les documents d'une collection où `field == value`, par lots. */
   private async deleteAllWhere(colName: string, field: string, value: string): Promise<void> {
-    const { db, collection, query, where, getDocs, writeBatch, doc } = await import('@/firebase/firestore')
+    const { db, collection, query, where, getDocs, writeBatch, doc } = await this.ports.firestore()
     const snap = await getDocs(query(collection(db, colName), where(field, '==', value)))
     const ids = snap.docs.map((d) => d.id)
     for (let i = 0; i < ids.length; i += 400) {
@@ -395,7 +409,7 @@ export class CaisseImprevueService {
       throw new Error('Contrat introuvable')
     }
     assertContractUnlocked(isCaisseImprevueContractLocked(contract.status))
-    const documentRepository = RepositoryFactory.getDocumentRepository()
+    const documentRepository = this.ports.documents
 
     // 1) Sous-collections + fichiers de preuve (versements, aides, remboursements).
     await this.deleteSubcollectionWithFiles(contractId, 'payments')
@@ -454,7 +468,7 @@ export class CaisseImprevueService {
       throw new Error('Aucun contrat téléversé à remplacer')
     }
 
-    const documentRepository = RepositoryFactory.getDocumentRepository()
+    const documentRepository = this.ports.documents
 
     try {
       const oldDoc = await documentRepository.getDocumentById(contract.contractStartId)
@@ -508,7 +522,7 @@ export class CaisseImprevueService {
     if (!contract) throw new Error('Contrat introuvable')
     if (!contract.memberSignedDocumentId) throw new Error('Aucun document membre à valider')
 
-    const documentRepository = RepositoryFactory.getDocumentRepository()
+    const documentRepository = this.ports.documents
 
     const { url, path, size } = await documentRepository.uploadDocumentFile(
       file,
@@ -572,7 +586,7 @@ export class CaisseImprevueService {
       throw new Error('Contrat introuvable')
     }
     assertContractUnlocked(isCaisseImprevueContractLocked(contract.status))
-    const subscriptionRepository = RepositoryFactory.getSubscriptionCIRepository()
+    const subscriptionRepository = this.ports.subscriptions
     const subscription = await subscriptionRepository.getSubscriptionById(newSubscriptionId)
     if (!subscription) {
       throw new Error('Forfait introuvable')

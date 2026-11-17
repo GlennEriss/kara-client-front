@@ -20,6 +20,7 @@ export function mobileCapabilities(access: ResolvedAdminAccess) {
     dashboard: !access.isAgent,
     calendar: canWithAccess(access, 'calendar.view'),
     amounts: access.restrictedRole !== 'AgentRecouvrement',
+    finance: Object.fromEntries([['caisse-speciale','caisseSpeciale'],['caisse-imprevue','caisseImprevue'],['credit-speciale','creditSpeciale']].map(([key,prefix])=>[key, access.restrictedRole !== 'AgentRecouvrement' && canWithAccess(access, `${prefix}.view`)])),
   }
 }
 /** Les routes mobiles demandent un ID token Firebase, jamais un rôle fourni par le client. */

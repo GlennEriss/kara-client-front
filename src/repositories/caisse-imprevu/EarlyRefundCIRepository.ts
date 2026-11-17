@@ -5,6 +5,8 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "EarlyRefundCIRepository";
 
     /**
@@ -15,8 +17,8 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
         data: Omit<EarlyRefundCI, 'id' | 'createdAt' | 'updatedAt'>
     ): Promise<EarlyRefundCI> {
         try {
-            const { collection, addDoc, serverTimestamp, db } = await getFirestore();
-            
+            const { collection, addDoc, serverTimestamp, db } = await this.firestore();
+
             const earlyRefundsCollectionRef = collection(
                 db,
                 firebaseCollectionNames.contractsCI || "contractsCI",
@@ -36,8 +38,8 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
                         ? data.requestedWithdrawalDate
                         : new Date(data.requestedWithdrawalDate) }
                     : {}),
-                deadlineAt: data.deadlineAt instanceof Date 
-                    ? data.deadlineAt 
+                deadlineAt: data.deadlineAt instanceof Date
+                    ? data.deadlineAt
                     : new Date(data.deadlineAt),
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
@@ -50,6 +52,8 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
 
             return createdRefund;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création du retrait anticipé:", error);
             throw error;
         }
@@ -63,8 +67,8 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
         refundId: string
     ): Promise<EarlyRefundCI | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const refundRef = doc(
                 db,
                 firebaseCollectionNames.contractsCI || "contractsCI",
@@ -112,6 +116,8 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
                 paidAt: data.paidAt?.toDate ? data.paidAt.toDate() : undefined,
             } as EarlyRefundCI;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération du retrait anticipé:", error);
             return null;
         }
@@ -124,8 +130,8 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
         contractId: string
     ): Promise<EarlyRefundCI[]> {
         try {
-            const { collection, getDocs, query, orderBy, db } = await getFirestore();
-            
+            const { collection, getDocs, query, orderBy, db } = await this.firestore();
+
             const earlyRefundsCollectionRef = collection(
                 db,
                 firebaseCollectionNames.contractsCI || "contractsCI",
@@ -164,6 +170,8 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
                 } as EarlyRefundCI;
             });
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des retraits anticipés:", error);
             return [];
         }
@@ -178,8 +186,8 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
         updates: Partial<Omit<EarlyRefundCI, 'id' | 'createdAt' | 'updatedAt'>>
     ): Promise<EarlyRefundCI | null> {
         try {
-            const { doc, updateDoc, serverTimestamp, db } = await getFirestore();
-            
+            const { doc, updateDoc, serverTimestamp, db } = await this.firestore();
+
             const refundRef = doc(
                 db,
                 firebaseCollectionNames.contractsCI || "contractsCI",
@@ -195,23 +203,23 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
 
             // Gérer les dates si présentes
             if (updates.withdrawalDate) {
-                updateData.withdrawalDate = updates.withdrawalDate instanceof Date 
-                    ? updates.withdrawalDate 
+                updateData.withdrawalDate = updates.withdrawalDate instanceof Date
+                    ? updates.withdrawalDate
                     : new Date(updates.withdrawalDate);
             }
             if (updates.deadlineAt) {
-                updateData.deadlineAt = updates.deadlineAt instanceof Date 
-                    ? updates.deadlineAt 
+                updateData.deadlineAt = updates.deadlineAt instanceof Date
+                    ? updates.deadlineAt
                     : new Date(updates.deadlineAt);
             }
             if (updates.approvedAt) {
-                updateData.approvedAt = updates.approvedAt instanceof Date 
-                    ? updates.approvedAt 
+                updateData.approvedAt = updates.approvedAt instanceof Date
+                    ? updates.approvedAt
                     : new Date(updates.approvedAt);
             }
             if (updates.paidAt) {
-                updateData.paidAt = updates.paidAt instanceof Date 
-                    ? updates.paidAt 
+                updateData.paidAt = updates.paidAt instanceof Date
+                    ? updates.paidAt
                     : new Date(updates.paidAt);
             }
 
@@ -219,6 +227,8 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
 
             return await this.getEarlyRefundById(contractId, refundId);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour du retrait anticipé:", error);
             throw error;
         }
@@ -234,6 +244,8 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
         try {
             await this.updateEarlyRefund(contractId, refundId, { status: 'ARCHIVED' });
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression du retrait anticipé:", error);
             throw error;
         }

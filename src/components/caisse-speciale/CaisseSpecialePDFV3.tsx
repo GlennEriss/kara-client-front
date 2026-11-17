@@ -1,5 +1,3 @@
-'use client'
-
 import { buildMemberContractRow, buildMemberIdentificationRows } from '@/components/pdf/mutuelle/memberIdentification'
 import {
   EMPTY,
@@ -135,6 +133,7 @@ export const listCaisseSpecialeContractFields = (contract?: any): DocumentField[
   collectDocumentFields(buildCaisseSpecialeContractFields(contract))
 
 const CaisseSpecialePDFV3 = ({
+  logoSrc,
   contract,
   fillData,
   completion,
@@ -142,6 +141,7 @@ const CaisseSpecialePDFV3 = ({
   contract?: any
   fillData?: CaisseSpecialePdfFillData
   completion?: DocumentCompletion | null
+  logoSrc?: string
 }) => {
   const signatures = fillData ?? DEFAULT_FILL_DATA
   const fields = buildCaisseSpecialeContractFields(contract)
@@ -151,7 +151,7 @@ const CaisseSpecialePDFV3 = ({
     <Document>
       <Page size="A4" style={styles.page}>
         <MutuellePageChrome footerLabel="Contrat d’adhésion à la Caisse Spéciale" />
-        <MutuelleHeader title="CONTRAT D’ADHÉSION À LA CAISSE SPÉCIALE" />
+        <MutuelleHeader logoSrc={logoSrc} title="CONTRAT D’ADHÉSION À LA CAISSE SPÉCIALE" />
 
         <Text style={styles.preamble}>
           Le présent acte formalise l’adhésion du membre, dit l’épargnant, à la Caisse Spéciale de la

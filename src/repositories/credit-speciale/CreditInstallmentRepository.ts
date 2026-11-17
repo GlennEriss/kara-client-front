@@ -5,11 +5,13 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class CreditInstallmentRepository implements ICreditInstallmentRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "CreditInstallmentRepository";
 
     async createInstallment(data: Omit<CreditInstallment, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditInstallment> {
         try {
-            const { collection, addDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, addDoc, db, serverTimestamp } = await this.firestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -39,6 +41,8 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
             return created;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création de l'échéance:", error);
             throw error;
         }
@@ -46,7 +50,7 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
     async createInstallments(data: Array<Omit<CreditInstallment, 'id' | 'createdAt' | 'updatedAt'>>): Promise<CreditInstallment[]> {
         try {
-            const { collection, doc, db, serverTimestamp, writeBatch } = await getFirestore();
+            const { collection, doc, db, serverTimestamp, writeBatch } = await this.firestore();
             const batch = writeBatch(db);
             const collectionRef = collection(db, firebaseCollectionNames.creditInstallments || "creditInstallments");
             const createdIds: string[] = [];
@@ -92,6 +96,8 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
             return created;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création des échéances:", error);
             throw error;
         }
@@ -99,15 +105,15 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
     async getInstallmentById(id: string): Promise<CreditInstallment | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const installmentRef = doc(db, firebaseCollectionNames.creditInstallments || "creditInstallments", id);
             const docSnap = await getDoc(installmentRef);
-            
+
             if (!docSnap.exists()) {
                 return null;
             }
-            
+
             const data = docSnap.data();
             return {
                 id: docSnap.id,
@@ -118,6 +124,8 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             } as CreditInstallment;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération de l'échéance:", error);
             return null;
         }
@@ -125,7 +133,7 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
     async getAllInstallments(): Promise<CreditInstallment[]> {
         try {
-            const { collection, db, getDocs, query, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, orderBy } = await this.firestore();
 
             const q = query(
                 collection(db, firebaseCollectionNames.creditInstallments || "creditInstallments"),
@@ -149,6 +157,8 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
             return installments;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des échéances:", error);
             return [];
         }
@@ -156,10 +166,10 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
     async getInstallmentsWithFilters(filters?: CreditInstallmentFilters): Promise<CreditInstallment[]> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
 
             const constraints: any[] = [];
-            
+
             if (filters?.creditId) {
                 constraints.push(where("creditId", "==", filters.creditId));
             }
@@ -210,6 +220,8 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
             return installments;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des échéances filtrées:", error);
             return [];
         }
@@ -226,7 +238,7 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
     async getOverdueInstallmentsByCreditId(creditId: string): Promise<CreditInstallment[]> {
         const now = new Date();
         now.setHours(0, 0, 0, 0);
-        return this.getInstallmentsWithFilters({ creditId, dueDateTo: now }).then(installments => 
+        return this.getInstallmentsWithFilters({ creditId, dueDateTo: now }).then(installments =>
             installments.filter(i => i.status !== 'PAID' && i.dueDate < now)
         );
     }
@@ -235,15 +247,15 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
         const installments = await this.getInstallmentsByCreditId(creditId);
         const now = new Date();
         now.setHours(0, 0, 0, 0);
-        
+
         // Inclure aussi les échéances PARTIAL (partiellement payées) pour permettre de continuer à payer
         const pendingOrDue = installments.filter(i =>
             (i.status === 'PENDING' || i.status === 'DUE' || i.status === 'OVERDUE' || i.status === 'PARTIAL') &&
             i.remainingAmount > 0
         );
-        
+
         if (pendingOrDue.length === 0) return null;
-        
+
         // Retourner la première échéance non payée (triée par dueDate)
         return pendingOrDue[0];
     }
@@ -266,6 +278,8 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
             return stats;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors du calcul des statistiques:", error);
             return {
                 total: 0,
@@ -283,7 +297,7 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
     async updateInstallment(id: string, data: Partial<Omit<CreditInstallment, 'id' | 'createdAt'>>): Promise<CreditInstallment | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const installmentRef = doc(db, firebaseCollectionNames.creditInstallments || "creditInstallments", id);
 
@@ -309,6 +323,8 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
             return await this.getInstallmentById(id);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour de l'échéance:", error);
             throw error;
         }
@@ -316,11 +332,13 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
     async deleteInstallment(id: string): Promise<void> {
         try {
-            const { doc, deleteDoc, db } = await getFirestore();
+            const { doc, deleteDoc, db } = await this.firestore();
 
             const installmentRef = doc(db, firebaseCollectionNames.creditInstallments || "creditInstallments", id);
             await deleteDoc(installmentRef);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression de l'échéance:", error);
             throw error;
         }
@@ -329,13 +347,15 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
     async deleteInstallmentsByCreditId(creditId: string): Promise<void> {
         try {
             const installments = await this.getInstallmentsByCreditId(creditId);
-            const { doc, deleteDoc, db } = await getFirestore();
+            const { doc, deleteDoc, db } = await this.firestore();
 
             await Promise.all(installments.map((installment) => {
                 const installmentRef = doc(db, firebaseCollectionNames.creditInstallments || "creditInstallments", installment.id);
                 return deleteDoc(installmentRef);
             }));
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression des échéances:", error);
             throw error;
         }

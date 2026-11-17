@@ -5,11 +5,13 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class CreditPenaltyRepository implements ICreditPenaltyRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "CreditPenaltyRepository";
 
     async createPenalty(data: Omit<CreditPenalty, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditPenalty> {
         try {
-            const { collection, addDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, addDoc, db, serverTimestamp } = await this.firestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -40,6 +42,8 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
 
             return created;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création de la pénalité:", error);
             throw error;
         }
@@ -47,15 +51,15 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
 
     async getPenaltyById(id: string): Promise<CreditPenalty | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const penaltyRef = doc(db, firebaseCollectionNames.creditPenalties || "creditPenalties", id);
             const docSnap = await getDoc(penaltyRef);
-            
+
             if (!docSnap.exists()) {
                 return null;
             }
-            
+
             const data = docSnap.data();
             return {
                 id: docSnap.id,
@@ -68,6 +72,8 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             } as CreditPenalty;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération de la pénalité:", error);
             return null;
         }
@@ -75,7 +81,7 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
 
     async getAllPenalties(): Promise<CreditPenalty[]> {
         try {
-            const { collection, db, getDocs, query, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, orderBy } = await this.firestore();
 
             const q = query(
                 collection(db, firebaseCollectionNames.creditPenalties || "creditPenalties"),
@@ -101,6 +107,8 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
 
             return penalties;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des pénalités:", error);
             return [];
         }
@@ -108,10 +116,10 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
 
     async getPenaltiesWithFilters(filters?: CreditPenaltyFilters): Promise<CreditPenalty[]> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
 
             const constraints: any[] = [];
-            
+
             if (filters?.creditId) {
                 constraints.push(where("creditId", "==", filters.creditId));
             }
@@ -166,6 +174,8 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
 
             return penalties;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des pénalités filtrées:", error);
             return [];
         }
@@ -195,6 +205,8 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
 
             return stats;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors du calcul des statistiques:", error);
             return {
                 total: 0,
@@ -210,7 +222,7 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
 
     async updatePenalty(id: string, data: Partial<Omit<CreditPenalty, 'id' | 'createdAt'>>): Promise<CreditPenalty | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const penaltyRef = doc(db, firebaseCollectionNames.creditPenalties || "creditPenalties", id);
 
@@ -228,13 +240,15 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
 
             return await this.getPenaltyById(id);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour de la pénalité:", error);
             throw error;
         }
     }
 
     async markPenaltyUnpaid(id: string, userId: string): Promise<void> {
-        const { doc, updateDoc, db, serverTimestamp, deleteField } = await getFirestore();
+        const { doc, updateDoc, db, serverTimestamp, deleteField } = await this.firestore();
         const penaltyRef = doc(db, firebaseCollectionNames.creditPenalties || "creditPenalties", id);
         await updateDoc(penaltyRef, {
             paid: false,
@@ -247,11 +261,13 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
 
     async deletePenalty(id: string): Promise<void> {
         try {
-            const { doc, deleteDoc, db } = await getFirestore();
+            const { doc, deleteDoc, db } = await this.firestore();
 
             const penaltyRef = doc(db, firebaseCollectionNames.creditPenalties || "creditPenalties", id);
             await deleteDoc(penaltyRef);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression de la pénalité:", error);
             throw error;
         }

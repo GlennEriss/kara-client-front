@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    '/api/mobile/finance/**': ['./public/Logo-Kara.jpg', './public/assets/caisse-speciale/caissesp-logo.png'],
+  },
   images: {
     remotePatterns: [
       // Firebase Storage production

@@ -1,6 +1,6 @@
 /**
  * Repository V2 pour les Demandes Caisse Imprévue
- * 
+ *
  * Implémentation avec pagination serveur cursor-based, génération ID standardisé,
  * et traçabilité complète selon le workflow V2.
  */
@@ -44,11 +44,13 @@ import type {
   DemandStats,
 } from '../entities/demand-filters.types'
 
+const DemandCIRepositoryFirestore = { db, collection, query, where, orderBy, fbLimit, startAfter, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, getCountFromServer, Timestamp }
+
 export class DemandCIRepository implements IDemandCIRepository {
   private static instance: DemandCIRepository
   private readonly collectionName = firebaseCollectionNames.caisseImprevueDemands
 
-  private constructor() {}
+  constructor(private readonly firestore = DemandCIRepositoryFirestore, private readonly strict = false) {}
 
   static getInstance(): DemandCIRepository {
     if (!DemandCIRepository.instance) {
@@ -74,7 +76,7 @@ export class DemandCIRepository implements IDemandCIRepository {
     const month = String(now.getMonth() + 1).padStart(2, '0')
     const year = String(now.getFullYear()).slice(-2)
     const dateFormatted = `${day}${month}${year}`
-    
+
     const hours = String(now.getHours()).padStart(2, '0')
     const minutes = String(now.getMinutes()).padStart(2, '0')
     const timeFormatted = `${hours}${minutes}`
@@ -86,8 +88,10 @@ export class DemandCIRepository implements IDemandCIRepository {
    * Transforme un document Firestore en CaisseImprevueDemand
    */
   private transformDocument(docSnap: any): CaisseImprevueDemand {
+    const { Timestamp } = this.firestore
+
     const data = docSnap.data()
-    
+
     // Fonction helper pour convertir Timestamp en Date
     const toDate = (ts: any): Date | undefined => {
       if (!ts) return undefined
@@ -295,6 +299,8 @@ export class DemandCIRepository implements IDemandCIRepository {
     sort: SortParams,
     normalizedQuery: string
   ): Promise<PaginatedDemands> {
+    const { db, collection, query, where, orderBy, fbLimit, getDocs } = this.firestore
+
     const collectionRef = collection(db, this.collectionName)
     const searchFields = [
       'searchableText',
@@ -361,6 +367,8 @@ export class DemandCIRepository implements IDemandCIRepository {
     pagination: PaginationParams = { page: 1, limit: 10 },
     sort: SortParams = { sortBy: 'date', sortOrder: 'desc' }
   ): Promise<PaginatedDemands> {
+    const { db, collection, query, where, orderBy, fbLimit, startAfter, getDocs, doc, getDoc, getCountFromServer } = this.firestore
+
     try {
       const hasSearchQuery = Boolean(filters.searchQuery && filters.searchQuery.trim().length >= 2)
       const normalizedQuery = hasSearchQuery ? this.normalizeSearchQuery(filters.searchQuery!) : ''
@@ -455,12 +463,16 @@ export class DemandCIRepository implements IDemandCIRepository {
         },
       }
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la récupération paginée des demandes:', error)
       throw error
     }
   }
 
   async getById(id: string): Promise<CaisseImprevueDemand | null> {
+    const { db, doc, getDoc } = this.firestore
+
     try {
       const docRef = doc(db, this.collectionName, id)
       const docSnap = await getDoc(docRef)
@@ -471,6 +483,8 @@ export class DemandCIRepository implements IDemandCIRepository {
 
       return this.transformDocument(docSnap)
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la récupération de la demande:', error)
       throw error
     }
@@ -480,6 +494,8 @@ export class DemandCIRepository implements IDemandCIRepository {
     data: CreateCaisseImprevueDemandInput,
     memberMatricule: string
   ): Promise<CaisseImprevueDemand> {
+    const { db, doc, setDoc, serverTimestamp } = this.firestore
+
     try {
       // Générer l'ID standardisé
       const demandId = this.generateDemandId(memberMatricule)
@@ -521,6 +537,8 @@ export class DemandCIRepository implements IDemandCIRepository {
 
       return created
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la création de la demande:', error)
       throw error
     }
@@ -531,6 +549,8 @@ export class DemandCIRepository implements IDemandCIRepository {
     data: UpdateCaisseImprevueDemandInput,
     updatedBy: string
   ): Promise<CaisseImprevueDemand> {
+    const { db, doc, updateDoc, serverTimestamp } = this.firestore
+
     try {
       const demandRef = doc(db, this.collectionName, id)
 
@@ -556,6 +576,8 @@ export class DemandCIRepository implements IDemandCIRepository {
 
       return updated
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la mise à jour de la demande:', error)
       throw error
     }
@@ -566,6 +588,8 @@ export class DemandCIRepository implements IDemandCIRepository {
     input: AcceptDemandInput,
     acceptedBy: string
   ): Promise<CaisseImprevueDemand> {
+    const { db, doc, updateDoc, serverTimestamp, Timestamp } = this.firestore
+
     try {
       const demandRef = doc(db, this.collectionName, id)
       const now = Timestamp.now()
@@ -591,6 +615,8 @@ export class DemandCIRepository implements IDemandCIRepository {
 
       return updated
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de l\'acceptation de la demande:', error)
       throw error
     }
@@ -601,6 +627,8 @@ export class DemandCIRepository implements IDemandCIRepository {
     input: RejectDemandInput,
     rejectedBy: string
   ): Promise<CaisseImprevueDemand> {
+    const { db, doc, updateDoc, serverTimestamp, Timestamp } = this.firestore
+
     try {
       const demandRef = doc(db, this.collectionName, id)
       const now = Timestamp.now()
@@ -626,6 +654,8 @@ export class DemandCIRepository implements IDemandCIRepository {
 
       return updated
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors du refus de la demande:', error)
       throw error
     }
@@ -636,10 +666,12 @@ export class DemandCIRepository implements IDemandCIRepository {
     input: ReopenDemandInput,
     reopenedBy: string
   ): Promise<CaisseImprevueDemand> {
+    const { db, doc, updateDoc, serverTimestamp, Timestamp } = this.firestore
+
     try {
       const demandRef = doc(db, this.collectionName, id)
       const currentDemand = await this.getById(id)
-      
+
       if (!currentDemand) {
         throw new Error('Demande non trouvée')
       }
@@ -666,6 +698,8 @@ export class DemandCIRepository implements IDemandCIRepository {
 
       return updated
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la réouverture de la demande:', error)
       throw error
     }
@@ -676,6 +710,8 @@ export class DemandCIRepository implements IDemandCIRepository {
     input: ConvertDemandInput,
     convertedBy: string
   ): Promise<CaisseImprevueDemand> {
+    const { db, doc, updateDoc, serverTimestamp, Timestamp } = this.firestore
+
     try {
       if (!input.contractId) {
         throw new Error('contractId est requis pour convertir une demande en contrat')
@@ -705,12 +741,16 @@ export class DemandCIRepository implements IDemandCIRepository {
 
       return updated
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la conversion de la demande:', error)
       throw error
     }
   }
 
   async delete(id: string, deletedBy: string): Promise<void> {
+    const { db, doc, updateDoc, deleteDoc, serverTimestamp, Timestamp } = this.firestore
+
     try {
       const demandRef = doc(db, this.collectionName, id)
       const now = Timestamp.now()
@@ -726,6 +766,8 @@ export class DemandCIRepository implements IDemandCIRepository {
       // Supprimer le document
       await deleteDoc(demandRef)
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la suppression de la demande:', error)
       throw error
     }
@@ -736,6 +778,8 @@ export class DemandCIRepository implements IDemandCIRepository {
     filters: DemandFilters = {},
     limit: number = 50
   ): Promise<CaisseImprevueDemand[]> {
+    const { db, collection, query, where, orderBy, fbLimit, getDocs } = this.firestore
+
     try {
       const collectionRef = collection(db, this.collectionName)
       const normalizedQuery = searchQuery.trim().toLowerCase()
@@ -758,12 +802,12 @@ export class DemandCIRepository implements IDemandCIRepository {
 
       snapshot.forEach((docSnap) => {
         const demand = this.transformDocument(docSnap)
-        
+
         // Filtrer aussi par prénom côté client si nécessaire
         const matchesFirstName = demand.memberFirstName
           ?.toLowerCase()
           .includes(normalizedQuery)
-        
+
         const matchesLastName = demand.memberLastName
           ?.toLowerCase()
           .includes(normalizedQuery)
@@ -775,19 +819,23 @@ export class DemandCIRepository implements IDemandCIRepository {
 
       return results
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la recherche de demandes:', error)
       throw error
     }
   }
 
   async getStats(filters: DemandFilters = {}): Promise<DemandStats> {
+    const { db, collection, query, where, getCountFromServer } = this.firestore
+
     try {
       const collectionRef = collection(db, this.collectionName)
       const constraints: any[] = []
 
       // ⚠️ IMPORTANT : Les stats sont GLOBALES, on n'applique PAS le filtre de statut
       // Les stats doivent afficher les valeurs globales indépendamment du tab actif
-      
+
       // Appliquer seulement les filtres non-statut (forfait, membre, etc.)
       if (filters.subscriptionCIID) {
         constraints.push(where('subscriptionCIID', '==', filters.subscriptionCIID))
@@ -842,6 +890,8 @@ export class DemandCIRepository implements IDemandCIRepository {
         monthly: counts.monthly,
       }
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors du calcul des statistiques:', error)
       throw error
     }

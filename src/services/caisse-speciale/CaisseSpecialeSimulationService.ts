@@ -16,12 +16,13 @@ import { addContractMonths } from '@/utils/contract-months'
  * sera versé, au lieu d'un mois d'avance.
  * Aucune persistance.
  */
-export async function runCaisseSpecialeSimulation(
-  input: CaisseSpecialeSimulationInput
+export async function runCaisseSpecialeSimulationWithSettings(
+  input: CaisseSpecialeSimulationInput,
+  loadSettings: typeof getActiveSettings = getActiveSettings
 ): Promise<CaisseSpecialeSimulationResult> {
   const { caisseType, monthlyAmount, durationMonths, startDate } = input
 
-  const settings = await getActiveSettings(caisseType as CaisseType)
+  const settings = await loadSettings(caisseType as CaisseType)
   const rows: CaisseSpecialeSimulationRow[] = []
   const start = new Date(startDate)
 
@@ -67,4 +68,8 @@ export async function runCaisseSpecialeSimulation(
 export async function hasActiveSettingsForType(caisseType: CaisseType): Promise<boolean> {
   const settings = await getActiveSettings(caisseType)
   return settings != null
+}
+
+export function runCaisseSpecialeSimulation(input: CaisseSpecialeSimulationInput) {
+  return runCaisseSpecialeSimulationWithSettings(input)
 }

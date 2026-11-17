@@ -28,11 +28,14 @@ export function matchesEarlyWithdrawalFilter(
  * Firestore ne permet pas de joindre un contrat à sa sous-collection : les
  * sous-collections des contrats candidats sont donc lues en parallèle.
  */
+const browserRefundReader = { db, collection, getDocs }
 export async function getEarlyWithdrawalContractIds(
   fund: RefundFund,
   filter: EarlyWithdrawalFilter,
   candidateContractIds: string[],
+  firestore = browserRefundReader,
 ): Promise<Set<string>> {
+  const { db, collection, getDocs } = firestore
   if (filter === 'all') return new Set()
 
   const parentCollection = fund === 'CS' ? 'caisseContracts' : 'contractsCI'

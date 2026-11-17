@@ -5,6 +5,8 @@ import { IRepository } from '@/repositories/IRepository'
 const getFirestore = () => import('@/firebase/firestore')
 
 export class SupportCIRepository implements ISupportCIRepository, IRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
   readonly name = 'SupportCIRepository'
   private readonly contractsCollection = 'contractsCI'
 
@@ -47,8 +49,8 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
     contractId: string,
     support: Omit<SupportCI, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<SupportCI> {
-    const { collection, doc, addDoc, updateDoc, Timestamp, arrayUnion, db } = await getFirestore()
-    
+    const { collection, doc, addDoc, updateDoc, Timestamp, arrayUnion, db } = await this.firestore()
+
     const supportsRef = collection(db, this.contractsCollection, contractId, 'supports')
 
     const now = Timestamp.now()
@@ -82,8 +84,8 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
    * Récupère un support par son ID
    */
   async getSupportById(contractId: string, supportId: string): Promise<SupportCI | null> {
-    const { doc, getDoc, db } = await getFirestore()
-    
+    const { doc, getDoc, db } = await this.firestore()
+
     const supportRef = doc(db, this.contractsCollection, contractId, 'supports', supportId)
     const supportSnap = await getDoc(supportRef)
 
@@ -98,8 +100,8 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
    * Récupère le support actif d'un contrat
    */
   async getActiveSupportByContractId(contractId: string): Promise<SupportCI | null> {
-    const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
-    
+    const { collection, query, where, orderBy, getDocs, db } = await this.firestore()
+
     const supportsRef = collection(db, this.contractsCollection, contractId, 'supports')
     const q = query(supportsRef, where('status', '==', 'ACTIVE'), orderBy('createdAt', 'desc'))
 
@@ -117,8 +119,8 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
    * Récupère l'historique complet des supports d'un contrat
    */
   async getSupportHistory(contractId: string): Promise<SupportCI[]> {
-    const { collection, query, orderBy, getDocs, db } = await getFirestore()
-    
+    const { collection, query, orderBy, getDocs, db } = await this.firestore()
+
     const supportsRef = collection(db, this.contractsCollection, contractId, 'supports')
     const q = query(supportsRef, orderBy('createdAt', 'desc'))
 
@@ -135,8 +137,8 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
     supportId: string,
     repayment: Omit<SupportRepaymentCI, 'createdAt'>
   ): Promise<void> {
-    const { doc, updateDoc, Timestamp, arrayUnion, db } = await getFirestore()
-    
+    const { doc, updateDoc, Timestamp, arrayUnion, db } = await this.firestore()
+
     const supportRef = doc(db, this.contractsCollection, contractId, 'supports', supportId)
 
     const repaymentWithTimestamp = {
@@ -159,8 +161,8 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
     status: 'ACTIVE' | 'REPAID',
     repaidAt?: Date
   ): Promise<void> {
-    const { doc, updateDoc, Timestamp, db } = await getFirestore()
-    
+    const { doc, updateDoc, Timestamp, db } = await this.firestore()
+
     const supportRef = doc(db, this.contractsCollection, contractId, 'supports', supportId)
     const contractRef = doc(db, this.contractsCollection, contractId)
 
@@ -171,7 +173,7 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
 
     if (status === 'REPAID') {
       updateData.repaidAt = repaidAt ? Timestamp.fromDate(repaidAt) : Timestamp.now()
-      
+
       // Mettre à jour le contrat pour retirer le currentSupportId
       await updateDoc(contractRef, {
         currentSupportId: null,
@@ -191,7 +193,7 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
     adminId: string,
     adminDocumentUrl?: string
   ): Promise<void> {
-    const { doc, updateDoc, Timestamp, db } = await getFirestore()
+    const { doc, updateDoc, Timestamp, db } = await this.firestore()
     const supportRef = doc(db, this.contractsCollection, contractId, 'supports', supportId)
     await updateDoc(supportRef, {
       status: 'ACTIVE',
@@ -212,7 +214,7 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
     adminId: string,
     rejectionReason: string
   ): Promise<void> {
-    const { doc, updateDoc, Timestamp, db } = await getFirestore()
+    const { doc, updateDoc, Timestamp, db } = await this.firestore()
     const supportRef = doc(db, this.contractsCollection, contractId, 'supports', supportId)
     const contractRef = doc(db, this.contractsCollection, contractId)
     await updateDoc(supportRef, {
@@ -239,8 +241,8 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
     amountRepaid: number,
     amountRemaining: number
   ): Promise<void> {
-    const { doc, updateDoc, Timestamp, db } = await getFirestore()
-    
+    const { doc, updateDoc, Timestamp, db } = await this.firestore()
+
     const supportRef = doc(db, this.contractsCollection, contractId, 'supports', supportId)
 
     await updateDoc(supportRef, {
