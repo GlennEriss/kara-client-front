@@ -80,20 +80,39 @@ export function installToolsRuntime(): () => void {
     } catch { sendError() }
   }
   window.KaraMobileDownload = url => { void sendFile(url, 'document-LE-KARA', 'share') }
-  const click = (event: MouseEvent) => {
-    const anchor = event.target instanceof Element ? event.target.closest('a') : null
-    if (!anchor) return
+  const interceptAnchor = (anchor: HTMLAnchorElement) => {
     const href = anchor.href
     if (href.startsWith('tel:') || /^https:\/\/(wa\.me|api\.whatsapp\.com)\//.test(href)) {
-      event.preventDefault()
       postToolMessage({ type: 'kara.tools.external', sessionId: marker.sessionId, url: href })
+      return true
     } else if ((anchor.hasAttribute('download') || href.startsWith('blob:')) && allowedFileUrl(href)) {
+      void sendFile(href, anchor.download || 'document-LE-KARA', 'share')
+      return true
+    }
+    return false
+  }
+  const click = (event: MouseEvent) => {
+    const anchor = event.target instanceof Element ? event.target.closest('a') : null
+    if (anchor && interceptAnchor(anchor)) {
       event.preventDefault()
       event.stopImmediatePropagation()
-      void sendFile(href, anchor.download || 'document-LE-KARA', 'share')
     }
   }
   document.addEventListener('click', click, true)
+  // jsPDF/FileSaver déclenche un événement non bouillonnant sur un lien détaché.
+  // Ces téléchargements ne passent jamais par l'écouteur du document.
+  const originalClick = HTMLAnchorElement.prototype.click
+  const originalDispatch = HTMLAnchorElement.prototype.dispatchEvent
+  HTMLAnchorElement.prototype.click = function() {
+    if (!interceptAnchor(this)) originalClick.call(this)
+  }
+  HTMLAnchorElement.prototype.dispatchEvent = function(event) {
+    if (event.type === 'click' && interceptAnchor(this)) {
+      event.preventDefault()
+      return false
+    }
+    return originalDispatch.call(this, event)
+  }
   const originalOpen = window.open
   window.open = function(url, target, features) {
     const value = url?.toString() ?? ''
@@ -115,6 +134,8 @@ export function installToolsRuntime(): () => void {
   return () => {
     installed = false
     document.removeEventListener('click', click, true)
+    HTMLAnchorElement.prototype.click = originalClick
+    HTMLAnchorElement.prototype.dispatchEvent = originalDispatch
     observer.disconnect()
     window.open = originalOpen
     delete window.KaraMobileAppearance

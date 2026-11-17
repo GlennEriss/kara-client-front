@@ -30,6 +30,25 @@ describe('documents et apparence dans les outils intégrés', () => {
     expect(data).toMatchObject({ type: 'kara.tools.file', sessionId: 'a'.repeat(48), filename: 'recu.pdf', mime: 'application/pdf' })
     expect(data.base64).toMatch(/^JVBER/)
   })
+  it.each(['click', 'dispatch'] as const)('intercepte un lien détaché de générateur de document (%s)', async method => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['%PDF-1.4 detached'], { type: 'application/pdf' }) }))
+    cleanup = installToolsRuntime()
+    const anchor = document.createElement('a')
+    anchor.href = `blob:${window.location.origin}/detached`
+    anchor.download = 'export.pdf'
+    if (method === 'click') anchor.click()
+    else anchor.dispatchEvent(new MouseEvent('click'))
+    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(post.mock.calls[0][0])).toMatchObject({ type: 'kara.tools.file', filename: 'export.pdf', mime: 'application/pdf' })
+  })
+  it('restaure le comportement des liens à la fermeture des outils', () => {
+    const click = HTMLAnchorElement.prototype.click
+    const dispatch = HTMLAnchorElement.prototype.dispatchEvent
+    cleanup = installToolsRuntime()
+    cleanup()
+    expect(HTMLAnchorElement.prototype.click).toBe(click)
+    expect(HTMLAnchorElement.prototype.dispatchEvent).toBe(dispatch)
+  })
   it('ne télécharge pas un fichier hébergé sur un projet étranger', async () => {
     const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock)
     cleanup = installToolsRuntime()
