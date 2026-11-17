@@ -215,12 +215,17 @@ export async function getFinanceFile(
             'public/assets/caisse-speciale/caissesp-logo.png',
           ),
         )
-        const sharp = (await import('sharp')).default
-        const info = await sharp(buffer).metadata()
+        // Le logo local est un PNG : ses dimensions sont dans l’en-tête IHDR.
+        // Évite une dépendance native pour la seule lecture de ce fichier fixe.
+        if (
+          buffer.length < 24 ||
+          !buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
+          buffer.toString('ascii', 12, 16) !== 'IHDR'
+        ) throw new Error('Logo PNG invalide')
         logo = {
           dataUrl: `data:image/png;base64,${buffer.toString('base64')}`,
-          width: info.width!,
-          height: info.height!,
+          width: buffer.readUInt32BE(16),
+          height: buffer.readUInt32BE(20),
         }
       } catch {
         /* Les reçus restent disponibles si le logo ne peut pas être chargé. */
