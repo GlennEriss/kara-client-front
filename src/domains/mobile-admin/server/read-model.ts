@@ -1,3 +1,4 @@
+import { memberRecentForm } from './membership-presentation'
 import { searchHelp } from '@/domains/help/utils/help-search'
 import { BirthdaysService } from '@/domains/memberships/services/BirthdaysService'
 import {
@@ -238,6 +239,8 @@ export function filterRows(
       return false
     if (input.birthdayPeriod) {
       const days = Number(row.daysUntil)
+      if (input.birthdayPeriod === 'nearby' && days > 30 && days < 358)
+        return false
       if (
         (input.birthdayPeriod === 'today' && days !== 0) ||
         (input.birthdayPeriod === 'week' && (days < 1 || days > 7)) ||
@@ -545,6 +548,12 @@ export async function relatedRows(
           canWithAccess(caller.access, creditPermission(r.creditType)),
         )
     }
+    const form = await memberRecentForm(services, row.id, groups)
+    groups.push({
+      key: 'payment-form',
+      label: 'Historique d’activité',
+      items: plain(form.products).map((p: any) => ({ ...p, id: p.product })),
+    })
     if (canWithAccess(caller.access, 'vehicules.view'))
       await read(
         'member-vehicles',

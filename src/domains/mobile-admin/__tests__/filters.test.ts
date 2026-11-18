@@ -34,6 +34,20 @@ describe('filtres des sections natives', () => {
     ).toHaveLength(2)
     expect(listSchema.safeParse({ birthdayMonths: '13' }).success).toBe(false)
   })
+  it('limite la vue anniversaire initiale aux groupes visibles du site et borne la pagination', () => {
+    const rows = [0, 1, 7, 8, 30, 31, 357, 358, 364].map((daysUntil) => ({
+      id: String(daysUntil),
+      daysUntil,
+    }))
+    expect(
+      filterRows(rows, { birthdayPeriod: 'nearby' }, 'birthdays').map(
+        (r) => r.daysUntil,
+      ),
+    ).toEqual([0, 1, 7, 8, 30, 358, 364])
+    expect(listSchema.parse({ limit: '10' }).limit).toBe(10)
+    expect(listSchema.safeParse({ limit: '201' }).success).toBe(false)
+    expect(listSchema.safeParse({ limit: '0' }).success).toBe(false)
+  })
   it('filtre les appels sur leur date prévue au lieu de leur date de création', () => {
     expect(
       filterRows(

@@ -1,3 +1,8 @@
+import { NextRequest } from 'next/server'
+import { createElement } from 'react'
+import { renderToBuffer } from '@react-pdf/renderer'
+import { IdentifiantsMembrePDF } from '@/domains/memberships/components/IdentifiantsMembrePDF'
+import { POST as resetMemberPassword } from '@/app/api/auth/admin/reset-member-password/route'
 import { updateMembershipRequestBeneficiary } from '@/db/membership.db'
 import { z } from 'zod'
 import { registerSchema, IdentityDocumentEnum } from '@/schemas/schemas'
@@ -269,6 +274,89 @@ export function memberActions(
           return { id: result.requestId }
         },
         { scope: 'workspace' },
+      ),
+      action(
+        'member.credentials',
+        'Générer les identifiants de connexion',
+        'members.edit',
+        [textField('confirmMatricule', 'Recopiez le matricule du membre')],
+        async (ctx, d) => {
+          const matricule = ctx.row.matricule || ctx.id
+          if (d.confirmMatricule.trim() !== matricule)
+            throw Error('Le matricule saisi ne correspond pas au membre.')
+          const response = await resetMemberPassword(
+            new NextRequest(
+              'http://localhost/api/auth/admin/reset-member-password',
+              {
+                method: 'POST',
+                headers: {
+                  authorization: `Bearer ${ctx.token}`,
+                  'content-type': 'application/json',
+                },
+                body: JSON.stringify({ memberId: ctx.id }),
+              },
+            ),
+          )
+          const result = await response.json()
+          if (!response.ok)
+            throw Error(
+              result.details || result.error || 'Génération impossible.',
+            )
+          const bytes = await renderToBuffer(
+            createElement<any>(IdentifiantsMembrePDF, {
+              data: {
+                matricule,
+                email: result.email,
+                identifiant: result.email || ctx.row.email || matricule,
+                motDePasse: result.newPassword,
+              },
+            }),
+          )
+          return {
+            documents: [
+              {
+                filename: `identifiants-${matricule}.pdf`,
+                mime: 'application/pdf',
+                base64: bytes.toString('base64'),
+              },
+            ],
+          }
+        },
+        { sensitiveResult: true },
+      ),
+      action(
+        'member.adhesion',
+        'Téléverser la fiche d’adhésion',
+        'members.edit',
+        [fileField('document', 'Fiche d’adhésion (PDF)')],
+        async (ctx) => {
+          if (ctx.files.document?.type !== 'application/pdf')
+            throw Error('Choisissez un fichier PDF.')
+          const uploaded = await upload(ctx, 'document', 'MEMBERSHIP_ADHESION')
+          const [member] =
+            await ctx.services.memberDatabase.enrichWithSubscriptionsBatch([
+              ctx.row,
+            ] as any)
+          if (member.lastSubscription?.id)
+            await ctx.services.subscriptions.updateSubscription(
+              member.lastSubscription.id,
+              { adhesionPdfURL: uploaded.url },
+            )
+          await ctx.services.users.updateUser(ctx.id, {
+            adhesionPdfURL: uploaded.url,
+          })
+          if (ctx.row.dossier)
+            await ctx.services.db
+              .collection('membership-requests')
+              .doc(ctx.row.dossier)
+              .update({
+                adhesionPdfURL: uploaded.url,
+                adhesionPdfUpdatedBy: actor(ctx).id,
+                updatedAt: new Date(),
+              })
+              .catch(() => {})
+          return { id: ctx.id }
+        },
       ),
       action(
         'member.identity.update',
@@ -592,16 +680,20 @@ export function memberActions(
     ),
     action(
       'request.payment',
-      'Enregistrer le paiement',
+      'Enregistrer un paiement',
       'memberRequests.edit',
       [
-        moneyField(),
+        { ...moneyField(), initial: 10300 },
         dateField(),
         timeField(),
         selectField('mode', 'Moyen de paiement', paymentModes),
         boolField('withFees', 'Avec frais'),
         textField('paymentMethodOther', 'Préciser le moyen de paiement', false),
-        fileField('proof', 'Preuve de paiement', false),
+        {
+          ...fileField('proof', 'Preuve de paiement', false),
+          accept: ['image/jpeg', 'image/png', 'image/webp'],
+          maxBytes: 5 * 1024 * 1024,
+        },
         textArea(
           'proofJustification',
           'Justification sans preuve (20 caractères minimum)',
@@ -613,6 +705,18 @@ export function memberActions(
           throw Error(
             'Ajoutez une preuve ou une justification de 20 caractères minimum.',
           )
+        if (
+          ctx.files.proof &&
+          (!['image/jpeg', 'image/png', 'image/webp'].includes(
+            ctx.files.proof.type,
+          ) ||
+            ctx.files.proof.size > 5 * 1024 * 1024)
+        )
+          throw Error(
+            'La preuve doit être une image JPG, PNG ou WEBP de 5 Mo maximum.',
+          )
+        if ((d.proofJustification || '').length > 500)
+          throw Error('La justification ne doit pas dépasser 500 caractères.')
         const proof = ctx.files.proof
           ? await upload(ctx, 'proof', 'MEMBERSHIP_PAYMENT')
           : undefined
@@ -621,6 +725,7 @@ export function memberActions(
           adminId: actor(ctx).id,
           paymentInfo: {
             ...d,
+            paymentType: 'Membership',
             date: asDate(d.date, d.time).toISOString(),
             ...(proof ? { proofUrl: proof.url, proofPath: proof.path } : {}),
           },

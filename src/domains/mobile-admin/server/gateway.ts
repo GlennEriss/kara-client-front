@@ -1,3 +1,7 @@
+import {
+  membershipOverview,
+  membershipCardRows,
+} from './membership-presentation'
 import { PERMISSION_MODULES } from '@/constantes/permissions'
 import {
   placementDocumentData,
@@ -50,6 +54,7 @@ export const listSchema = z
     search: z.string().max(180).default(''),
     status: z.string().max(80).default(''),
     page: z.coerce.number().int().min(1).max(10000).default(1),
+    limit: z.coerce.number().int().min(1).max(200).default(25),
     memberId: identifier.optional(),
     parentId: identifier.optional(),
     ...Object.fromEntries(
@@ -79,7 +84,9 @@ export const listSchema = z
       ].map((k) => [k, z.string().max(180).optional()]),
     ),
     isSubscriptionValid: z.enum(['true', 'false']).optional(),
-    birthdayPeriod: z.enum(['today', 'week', 'upcoming', 'recent']).optional(),
+    birthdayPeriod: z
+      .enum(['today', 'week', 'upcoming', 'recent', 'nearby'])
+      .optional(),
     birthdayMonths: z
       .string()
       .regex(/^(?:[1-9]|1[0-2])(?:,(?:[1-9]|1[0-2])){0,9}$/)
@@ -185,6 +192,33 @@ export async function getAdminWorkspace(request: NextRequest, key: string) {
     const actions = adminActions(access.module, dataset)
       .filter((a) => a.scope === 'workspace' && canAction(access.caller, a))
       .map((a) => publicAdminAction(a))
+    const batchMembership = [
+      'members',
+      'member-requests',
+      'birthdays',
+    ].includes(key)
+    const overview =
+      batchMembership && dataset.key !== 'duplicates'
+        ? membershipOverview(key, all)
+        : undefined
+    const cardRows =
+      batchMembership && dataset.key !== 'duplicates'
+        ? await membershipCardRows(
+            access.services,
+            key,
+            selected.slice(
+              (input.page - 1) * input.limit,
+              input.page * input.limit,
+            ),
+          )
+        : selected.slice(
+            (input.page - 1) * input.limit,
+            input.page * input.limit,
+          )
+    const duplicateCount =
+      key === 'member-requests' && dataset.key !== 'duplicates'
+        ? (await access.services.duplicates.getUnresolvedGroups()).length
+        : undefined
     return mobileJson(
       safePublicRecord({
         module: key,
@@ -194,16 +228,29 @@ export async function getAdminWorkspace(request: NextRequest, key: string) {
           key: d.key,
           label: d.label,
         })),
-        items: selected
-          .slice((input.page - 1) * 25, input.page * 25)
-          .map((r) =>
-            redactAdminAmounts(
-              { ...r, displayName: title(r) },
-              access.caller.access.restrictedRole !== 'AgentRecouvrement',
-            ),
+        overview,
+        duplicateCount,
+        items: cardRows.map((r) =>
+          redactAdminAmounts(
+            {
+              ...r,
+              displayName: title(r),
+              ...(batchMembership
+                ? {
+                    availableActions: visibleActions(
+                      access.caller,
+                      access.module,
+                      dataset,
+                      r,
+                    ).map((a) => a.id),
+                  }
+                : {}),
+            },
+            access.caller.access.restrictedRole !== 'AgentRecouvrement',
           ),
+        ),
         total: selected.length,
-        more: input.page * 25 < selected.length,
+        more: input.page * input.limit < selected.length,
         actions,
         statuses: [...counts].map(([value, count]) => ({
           value,
@@ -338,6 +385,29 @@ export async function getAdminDetail(
         .repository.getById(row.dossier)
       if (dossier?.identity?.beneficiary)
         row.beneficiary = dossier.identity.beneficiary
+    }
+    if (key === 'members') {
+      const enriched =
+        await access.services.memberDatabase.enrichWithSubscriptionsBatch([
+          row,
+        ] as any)
+      Object.assign(row, plain(enriched[0]))
+    }
+    const beneficiary =
+      key === 'members'
+        ? row.beneficiary
+        : key === 'member-requests'
+          ? row.identity?.beneficiary
+          : undefined
+    if (beneficiary?.matricule && !beneficiary.isUnknown) {
+      const member = await access.services.users.getUserById(
+        beneficiary.matricule,
+      )
+      if (member)
+        Object.assign(beneficiary, {
+          firstName: member.firstName,
+          lastName: member.lastName,
+        })
     }
     const editedAccess =
       key === 'admins' ? resolveAdminAccess([row], {}) : undefined
