@@ -21,9 +21,13 @@ import {
   serverTimestamp,
   getCountFromServer,
 } from '@/firebase/firestore'
+
 import { functions } from '@/firebase/functions'
+
 import { httpsCallable } from 'firebase/functions'
+
 import { IMembershipRepository } from './interfaces/IMembershipRepository'
+
 import {
   MembershipRequest,
   MembershipRequestFilters,
@@ -32,19 +36,32 @@ import {
   PaymentInfo,
   MembershipRequestPagination,
 } from '../entities/MembershipRequest'
+
 import {
   MEMBERSHIP_REQUEST_COLLECTIONS,
   MEMBERSHIP_REQUEST_PAGINATION,
   PAYMENT_MODES,
   type PaymentMode,
 } from '@/constantes/membership-requests'
+
 import type { RegisterFormData } from '@/types/types'
+
 import { PaymentRepositoryV2 } from './PaymentRepositoryV2'
+
 import { getAlgoliaSearchService } from '@/services/search/AlgoliaSearchService'
+
 import { generateMatricule } from '@/db/user.db'
+
 import { buildMembershipPaymentId } from '../utils/membershipPaymentId'
+
 import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
+
 import { MembershipErrorHandler } from '../services/MembershipErrorHandler'
+
+const createMembershipRepositoryV2Defaults = { db, collection, query, where, orderBy, fbLimit, startAfter, getDocs, doc, getDoc, updateDoc, setDoc, serverTimestamp, getCountFromServer, PaymentRepositoryV2, DocumentRepository, generateMatricule, httpsCallable };
+export function createMembershipRepositoryV2(overrides: Partial<typeof createMembershipRepositoryV2Defaults> = {}, options: { awaitEffects?: boolean } = {}) {
+const { db, collection, query, where, orderBy, fbLimit, startAfter, getDocs, doc, getDoc, updateDoc, setDoc, serverTimestamp, getCountFromServer, PaymentRepositoryV2, DocumentRepository, generateMatricule, httpsCallable } = { ...createMembershipRepositoryV2Defaults, ...overrides };
+
 
 /** Converts a Firestore Timestamp, Date, string, or number to a valid Date — returns null if unresolvable. */
 function toValidDate(value: any): Date | null {
@@ -57,7 +74,8 @@ function toValidDate(value: any): Date | null {
   }
 }
 
-export class MembershipRepositoryV2 implements IMembershipRepository {
+
+class MembershipRepositoryV2 implements IMembershipRepository {
   private static instance: MembershipRepositoryV2
   private readonly collectionName = MEMBERSHIP_REQUEST_COLLECTIONS.REQUESTS
   private paymentRepository: PaymentRepositoryV2
@@ -388,6 +406,7 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       payment.proofPath = paymentInfo.proofPath
     }
 
+    if(paymentInfo.proofJustification)payment.proofJustification=paymentInfo.proofJustification
     const docRef = doc(db, this.collectionName, id)
     const currentPayments = existing.payments || []
 
@@ -642,7 +661,7 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
 
         // Enrichissement média post-création (non bloquant pour l'UX).
         if (mediaUploadTasks.length > 0) {
-          void Promise.allSettled(mediaUploadTasks)
+          const mediaCompletion = Promise.allSettled(mediaUploadTasks)
             .then(async (results) => {
               const mediaPatch: Record<string, string> = {}
               for (const result of results) {
@@ -661,6 +680,7 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
             .catch((mediaPatchError: any) => {
               console.error("❌ ERREUR lors de la mise à jour média post-création:", mediaPatchError)
             })
+          if (options.awaitEffects) await mediaCompletion
         }
 
         return matricule // Retourner le matricule comme ID
@@ -886,3 +906,7 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
     } as MembershipRequest
   }
 }
+return { MembershipRepositoryV2 };
+}
+export const { MembershipRepositoryV2 } = createMembershipRepositoryV2();
+export type MembershipRepositoryV2 = ReturnType<ReturnType<typeof createMembershipRepositoryV2>['MembershipRepositoryV2']['getInstance']>;

@@ -1,3 +1,4 @@
+import { isCreditModule } from '../credit-module'
 import { canWithAccess } from '@/domains/auth/access-policy'
 import { mobileJson, requireMobileCaller } from '@/domains/mobile/server/access'
 import type { NextRequest } from 'next/server'
@@ -11,6 +12,8 @@ export const financePermissionPrefix = (module: FinanceModule) =>
     'caisse-speciale': 'caisseSpeciale',
     'caisse-imprevue': 'caisseImprevue',
     'credit-speciale': 'creditSpeciale',
+    'credit-fixe': 'creditFixe',
+    'caisse-aide': 'creditAide',
   })[module]
 export async function requireFinanceCaller(
   request: NextRequest,
@@ -96,7 +99,7 @@ export async function guardFinanceTarget(
     throw new Error('La création doit démarrer depuis la section concernée.')
   // The parent contract always comes from the authenticated route, never from a
   // child ID supplied by the client. Validate every cross-document selector.
-  if (data.paymentId && module === 'credit-speciale') {
+  if (data.paymentId && isCreditModule(module)) {
     const items = await services.creditPayments.getPaymentsByCreditId(id)
     if (!items.some((item) => item.id === data.paymentId))
       throw new Error('Ce paiement ne relève pas du contrat.')

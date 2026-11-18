@@ -13,8 +13,8 @@ type CreatePayload = VehicleInsuranceFormValues & {
 export class VehicleInsuranceService {
   private notificationService: NotificationService
 
-  constructor(private readonly repository: VehicleInsuranceRepository = RepositoryFactory.getVehicleInsuranceRepository()) {
-    this.notificationService = ServiceFactory.getNotificationService()
+  constructor(private readonly repository: VehicleInsuranceRepository = RepositoryFactory.getVehicleInsuranceRepository(), notificationService?: NotificationService) {
+    this.notificationService = notificationService ?? ServiceFactory.getNotificationService()
   }
 
   list(filters?: VehicleInsuranceFilters, page: number = 1, pageSize: number = 12): Promise<VehicleInsuranceListResult> {
@@ -357,4 +357,3 @@ export class VehicleInsuranceService {
     return cleaned
   }
 }
-

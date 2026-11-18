@@ -5,11 +5,12 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class PlacementDemandRepository implements IPlacementDemandRepository {
+  constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
     readonly name = "PlacementDemandRepository";
 
     async createDemand(data: Omit<PlacementDemand, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<PlacementDemand> {
         try {
-            const { collection, doc, setDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, doc, setDoc, db, serverTimestamp } = await this.firestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -35,6 +36,7 @@ export class PlacementDemandRepository implements IPlacementDemandRepository {
 
             return created;
         } catch (error) {
+      if (this.strict) throw error
             console.error("Erreur lors de la création de la demande:", error);
             throw error;
         }
@@ -42,7 +44,7 @@ export class PlacementDemandRepository implements IPlacementDemandRepository {
 
     async getDemandById(id: string): Promise<PlacementDemand | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
+            const { doc, getDoc, db } = await this.firestore();
             
             const demandRef = doc(db, firebaseCollectionNames.placementDemands || "placementDemands", id);
             const docSnap = await getDoc(demandRef);
@@ -61,6 +63,7 @@ export class PlacementDemandRepository implements IPlacementDemandRepository {
                 reopenedAt: (data.reopenedAt as any)?.toDate ? (data.reopenedAt as any).toDate() : undefined,
             } as PlacementDemand;
         } catch (error) {
+      if (this.strict) throw error
             console.error("Erreur lors de la récupération de la demande:", error);
             return null;
         }
@@ -68,7 +71,7 @@ export class PlacementDemandRepository implements IPlacementDemandRepository {
 
     async getDemandsWithFilters(filters?: PlacementDemandFilters): Promise<PlacementDemand[]> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
 
             const constraints: any[] = [];
             
@@ -144,6 +147,7 @@ export class PlacementDemandRepository implements IPlacementDemandRepository {
 
             return demands;
         } catch (error) {
+      if (this.strict) throw error
             console.error("Erreur lors de la récupération des demandes filtrées:", error);
             return [];
         }
@@ -165,6 +169,7 @@ export class PlacementDemandRepository implements IPlacementDemandRepository {
 
             return stats;
         } catch (error) {
+      if (this.strict) throw error
             console.error("Erreur lors du calcul des statistiques:", error);
             return {
                 total: 0,
@@ -186,7 +191,7 @@ export class PlacementDemandRepository implements IPlacementDemandRepository {
         adminName: string
     ): Promise<PlacementDemand | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const demandRef = doc(db, firebaseCollectionNames.placementDemands || "placementDemands", id);
 
@@ -202,6 +207,7 @@ export class PlacementDemandRepository implements IPlacementDemandRepository {
 
             return await this.getDemandById(id);
         } catch (error) {
+      if (this.strict) throw error
             console.error("Erreur lors de la mise à jour du statut de la demande:", error);
             throw error;
         }
@@ -209,7 +215,7 @@ export class PlacementDemandRepository implements IPlacementDemandRepository {
 
     async updateDemand(id: string, data: Partial<PlacementDemand>): Promise<PlacementDemand | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const demandRef = doc(db, firebaseCollectionNames.placementDemands || "placementDemands", id);
 
@@ -227,9 +233,9 @@ export class PlacementDemandRepository implements IPlacementDemandRepository {
 
             return await this.getDemandById(id);
         } catch (error) {
+      if (this.strict) throw error
             console.error("Erreur lors de la mise à jour de la demande:", error);
             throw error;
         }
     }
 }
-

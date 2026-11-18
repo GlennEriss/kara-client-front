@@ -46,14 +46,12 @@ describe('documents contractuels générés sans navigateur', () => {
     async (module) => {
       const services = {
         members: {
-          getMemberById: vi
-            .fn()
-            .mockResolvedValue({
-              matricule: '9999.TEST',
-              firstName: 'Membre',
-              lastName: 'Fictif',
-              contacts: [],
-            }),
+          getMemberById: vi.fn().mockResolvedValue({
+            matricule: '9999.TEST',
+            firstName: 'Membre',
+            lastName: 'Fictif',
+            contacts: [],
+          }),
         },
       }
       for (const liquidation of [false, true]) {

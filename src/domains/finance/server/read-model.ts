@@ -1,3 +1,4 @@
+import { isCreditModule, creditTypeForModule } from '../credit-module'
 import { firebaseCollectionNames as names } from '@/constantes/firebase-collection-names'
 import { fromFirestore } from '@/domains/mobile/server/calendar-service'
 import { computeCreditInstallments } from '@/utils/credit-installments'
@@ -22,6 +23,10 @@ export function financeCollection(module: FinanceModule, scope: FinanceScope) {
       scope === 'demand' ? names.caisseImprevueDemands : names.contractsCI,
     'credit-speciale':
       scope === 'demand' ? names.creditDemands : names.creditContracts,
+    'credit-fixe':
+      scope === 'demand' ? names.creditDemands : names.creditContracts,
+    'caisse-aide':
+      scope === 'demand' ? names.creditDemands : names.creditContracts,
   }[module]
 }
 export async function readFinanceTarget(
@@ -39,8 +44,8 @@ export async function readFinanceTarget(
     ...(fromFirestore(snapshot.data()) as Record<string, any>),
     id: snapshot.id,
   }
-  if (module === 'credit-speciale' && row.creditType !== 'SPECIALE')
-    throw new Error('Ce dossier ne relève pas du crédit spécial.')
+  if (isCreditModule(module) && row.creditType !== creditTypeForModule(module))
+    throw new Error('Ce dossier ne relève pas de cette section de crédit.')
   return row
 }
 const fullName = (row: any) =>
@@ -98,8 +103,8 @@ export async function listFinanceRows(
       : input.kind === 'settings'
         ? 'settings'
         : 'contract'
-  if (module === 'credit-speciale' && scope === 'settings')
-    throw new Error('Le crédit spécial ne dispose pas de forfaits de caisse.')
+  if (isCreditModule(module) && scope === 'settings')
+    throw new Error('Cette section de crédit ne dispose pas de forfaits de caisse.')
   if (module === 'caisse-speciale' && scope === 'contract') {
     const result = await services.csContractService.getContractsWithFilters(
       {
@@ -150,17 +155,17 @@ export async function listFinanceRows(
   // Existing repositories perform the same search and business filters as the site.
   // Cursor slicing happens after those filters for repositories without cursor APIs.
   let rows: Record<string, any>[]
-  if (module === 'credit-speciale' && scope === 'demand')
+  if (isCreditModule(module) && scope === 'demand')
     rows = await services.creditSpeciale.getDemandsWithFilters({
       search: input.search,
       status: input.status as any,
-      creditType: 'SPECIALE',
+      creditType: creditTypeForModule(module),
     })
-  else if (module === 'credit-speciale')
+  else if (isCreditModule(module))
     rows = await services.creditSpeciale.getContractsWithFilters({
       search: input.search,
       status: input.status as any,
-      creditType: 'SPECIALE',
+      creditType: creditTypeForModule(module),
     })
   else if (scope === 'settings')
     rows =
@@ -263,10 +268,16 @@ export async function financeContractDetail(
   ] = await Promise.all([
     services.creditSpeciale.getPaymentsByCreditId(id),
     services.creditSpeciale.getPenaltiesByCreditId(id),
-    services.creditSpeciale.getRemunerationsByCreditId(id),
-    services.creditSpeciale.getGuarantorPaymentsByCreditId(id),
+    module === 'credit-speciale'
+      ? services.creditSpeciale.getRemunerationsByCreditId(id)
+      : Promise.resolve([]),
+    module === 'credit-speciale'
+      ? services.creditSpeciale.getGuarantorPaymentsByCreditId(id)
+      : Promise.resolve([]),
     services.documents.getDocumentsByContractId(id),
-    services.creditSpeciale.checkExtensionEligibility(id),
+    module === 'credit-speciale'
+      ? services.creditSpeciale.checkExtensionEligibility(id)
+      : Promise.resolve(undefined),
   ])
   const installments = computeCreditInstallments(
     withBusinessDates(record) as CreditContract,
@@ -277,10 +288,10 @@ export async function financeContractDetail(
     record: (await enrichFinanceRows(services, module, [record]))[0],
     payments,
     penalties,
-    remunerations,
-    guarantorPayments,
+    ...(module === 'credit-speciale'
+      ? { remunerations, guarantorPayments, extensionEligibility }
+      : {}),
     documents,
     installments,
-    extensionEligibility,
   }
 }

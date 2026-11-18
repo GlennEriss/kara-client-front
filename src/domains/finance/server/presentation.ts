@@ -1,3 +1,4 @@
+import { isCreditModule, creditTypeForModule } from '../credit-module'
 /* eslint-disable no-restricted-imports -- Réutilise les calculs métier purs du site pour préserver les échéances et les soldes. */
 import { fromFirestore } from '@/domains/mobile/server/calendar-service'
 import {
@@ -157,7 +158,7 @@ export function summarizePresentedRows(rows: Row[], module: FinanceModule) {
     rows.reduce((total, r) => total + number(r.financeView[key]), 0)
   const byType = new Map<string, number>()
   for (const row of rows) {
-    const key = module === 'credit-speciale' ? row.status : row.financeView.type
+    const key = isCreditModule(module) ? row.status : row.financeView.type
     byType.set(key, (byType.get(key) || 0) + 1)
   }
   return {
@@ -165,10 +166,9 @@ export function summarizePresentedRows(rows: Row[], module: FinanceModule) {
     active: count('ACTIVE'),
     closed: rows.filter((r) => ended.has(r.status)).length,
     partial: count('PARTIAL'),
-    overdue:
-      module === 'credit-speciale'
-        ? count('OVERDUE')
-        : rows.filter((r) => r.financeView.overdue).length,
+    overdue: isCreditModule(module)
+      ? count('OVERDUE')
+      : rows.filter((r) => r.financeView.overdue).length,
     finished: count('FINISHED'),
     canceled: count('CANCELED', 'RESCINDED'),
     transformed: count('TRANSFORMED'),
@@ -190,7 +190,7 @@ export function financeTimeline(
   payments: Row[],
   now = new Date(),
 ) {
-  if (module === 'credit-speciale') return []
+  if (isCreditModule(module)) return []
   const cs = module === 'caisse-speciale'
   const duration = number(cs ? row.monthsPlanned : row.subscriptionCIDuration)
   if (duration > 1200) throw new Error('Durée du contrat invalide.')
@@ -240,8 +240,8 @@ export async function presentedContracts(
   let source = services.db
     .collection(financeCollection(module, 'contract'))
     .limit(5001)
-  if (module === 'credit-speciale')
-    source = source.where('creditType', '==', 'SPECIALE')
+  if (isCreditModule(module))
+    source = source.where('creditType', '==', creditTypeForModule(module))
   const snapshot = await source.get()
   if (snapshot.size > 5000)
     throw new Error(
@@ -258,17 +258,16 @@ export async function presentedContracts(
   )
   const named = await enrichFinanceRows(services, module, raw)
   const now = new Date()
-  const penalties =
-    module === 'credit-speciale'
-      ? await services.creditPenalties.getAllPenalties()
-      : []
+  const penalties = isCreditModule(module)
+    ? await services.creditPenalties.getAllPenalties()
+    : []
   const rows: Row[] = await mapWithConcurrency(named, 6, (row) =>
     projectFinanceContract(
       services,
       module,
       row,
       now,
-      module === 'credit-speciale'
+      isCreditModule(module)
         ? { penalties: penalties.filter((p) => p.creditId === row.id) }
         : {},
     ),
@@ -421,10 +420,9 @@ export async function projectFinanceContract(
       paid,
       total,
       penalties,
-      remaining:
-        module === 'credit-speciale'
-          ? number(row.amountRemaining)
-          : Math.max(0, total - paid),
+      remaining: isCreditModule(module)
+        ? number(row.amountRemaining)
+        : Math.max(0, total - paid),
       duration,
       durationUnit: row.durationUnit || 'MONTHS',
       paidPeriods,

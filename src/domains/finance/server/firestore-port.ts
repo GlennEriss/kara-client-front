@@ -91,6 +91,7 @@ export function createServerFirestorePort(
     deleteField: () => FieldValue.delete(),
     increment: (value: number) => FieldValue.increment(value),
     arrayUnion: (...values: unknown[]) => FieldValue.arrayUnion(...values),
+    arrayRemove: (...values: unknown[]) => FieldValue.arrayRemove(...values),
     getDoc: async (ref: any) => snapshot(await ref.get()),
     getDocs: async (ref: any) => querySnapshot(await ref.get()),
     getCountFromServer: async (ref: any) => ref.count().get(),

@@ -11,9 +11,13 @@
  */
 
 import { collection, doc, setDoc, getDoc, query, where, getDocs, orderBy, limit, serverTimestamp } from 'firebase/firestore'
+
 import { db } from '@/firebase/firestore'
+
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+
 import type { Payment } from '@/types/types'
+
 
 export interface CentralizedPayment extends Payment {
   id: string
@@ -27,6 +31,7 @@ export interface CentralizedPayment extends Payment {
   updatedAt: Date
 }
 
+
 export interface PaymentFilters {
   sourceType?: CentralizedPayment['sourceType']
   sourceId?: string
@@ -37,8 +42,12 @@ export interface PaymentFilters {
   recordedBy?: string
   mode?: Payment['mode']
 }
+const createPaymentRepositoryV2Defaults = { collection, doc, setDoc, getDoc, query, where, getDocs, orderBy, limit, serverTimestamp, db };
+export function createPaymentRepositoryV2(overrides: Partial<typeof createPaymentRepositoryV2Defaults> = {}) {
+const { collection, doc, setDoc, getDoc, query, where, getDocs, orderBy, limit, serverTimestamp, db } = { ...createPaymentRepositoryV2Defaults, ...overrides };
 
-export class PaymentRepositoryV2 {
+
+class PaymentRepositoryV2 {
   private static instance: PaymentRepositoryV2
   private readonly collectionName = firebaseCollectionNames.payments
 
@@ -186,3 +195,7 @@ export class PaymentRepositoryV2 {
     } as CentralizedPayment
   }
 }
+return { PaymentRepositoryV2 };
+}
+export const { PaymentRepositoryV2 } = createPaymentRepositoryV2();
+export type PaymentRepositoryV2 = ReturnType<ReturnType<typeof createPaymentRepositoryV2>['PaymentRepositoryV2']['getInstance']>;

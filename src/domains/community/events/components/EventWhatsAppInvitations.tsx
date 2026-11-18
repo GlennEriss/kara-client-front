@@ -47,7 +47,7 @@ export function EventWhatsAppInvitations({ event, contributionNotice }: { event:
   const [includeContribution, setIncludeContribution] = useState(true)
   const [introduction, setIntroduction] = useState('LE KARA a le plaisir de vous inviter à cet événement. Votre participation est la bienvenue !')
   const recipients = useQuery({
-    queryKey: ['event-invitation-recipients'], queryFn: loadInvitationRecipients,
+    queryKey: ['event-invitation-recipients'], queryFn: () => loadInvitationRecipients(),
     enabled: open && !event.blockedReason, staleTime: 60_000,
   })
   useEffect(() => {

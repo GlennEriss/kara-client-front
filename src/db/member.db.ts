@@ -20,23 +20,6 @@ import {
 } from 'firebase/firestore'
 
 /**
- * Fonction helper pour convertir les dates Firestore
- */
-function convertFirestoreDate(dateField: any): Date | null {
-  if (!dateField) return null
-  if (dateField.toDate && typeof dateField.toDate === 'function') {
-    return dateField.toDate()
-  }
-  if (dateField instanceof Date) {
-    return dateField
-  }
-  if (typeof dateField === 'string') {
-    return new Date(dateField)
-  }
-  return null
-}
-
-/**
  * Interface pour les résultats paginés des membres
  */
 export interface PaginatedMembers {
@@ -60,11 +43,32 @@ export interface MemberWithSubscription extends User {
   lastSubscription?: Subscription | null
   isSubscriptionValid?: boolean
 }
+const createMemberDatabaseDefaults = {db,arrayRemove,arrayUnion,collection,doc,getCountFromServer,getDoc,getDocs,limit,orderBy,query,serverTimestamp,startAfter,updateDoc,where};
+export function createMemberDatabase(overrides: Partial<typeof createMemberDatabaseDefaults> = {}) {
+const {db,arrayRemove,arrayUnion,collection,doc,getCountFromServer,getDoc,getDocs,limit,orderBy,query,serverTimestamp,startAfter,updateDoc,where} = {...createMemberDatabaseDefaults,...overrides};
+
+
+/**
+ * Fonction helper pour convertir les dates Firestore
+ */
+function convertFirestoreDate(dateField: any): Date | null {
+  if (!dateField) return null
+  if (dateField.toDate && typeof dateField.toDate === 'function') {
+    return dateField.toDate()
+  }
+  if (dateField instanceof Date) {
+    return dateField
+  }
+  if (typeof dateField === 'string') {
+    return new Date(dateField)
+  }
+  return null
+}
 
 /**
  * Compte le nombre de membres rattachés à un groupId
  */
-export async function countMembersByGroup(groupId: string): Promise<number> {
+async function countMembersByGroup(groupId: string): Promise<number> {
   try {
     const membersRef = collection(db, 'users')
     const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
@@ -80,7 +84,7 @@ export async function countMembersByGroup(groupId: string): Promise<number> {
 /**
  * Retire un membre d'un groupe en mettant à jour updatedBy et updatedAt
  */
-export async function removeMemberFromGroup(userId: string, groupId: string, updatedBy: string): Promise<boolean> {
+async function removeMemberFromGroup(userId: string, groupId: string, updatedBy: string): Promise<boolean> {
   try {
     const userRef = doc(db, 'users', userId)
     // Récupérer les groupes actuels et retirer le groupe spécifique
@@ -103,7 +107,7 @@ export async function removeMemberFromGroup(userId: string, groupId: string, upd
 /**
  * Associe un contrat de Caisse Spéciale à un membre (User) ou un groupe
  */
-export async function addCaisseContractToEntity(entityId: string, contractId: string, entityType: 'USER' | 'GROUP'): Promise<boolean> {
+async function addCaisseContractToEntity(entityId: string, contractId: string, entityType: 'USER' | 'GROUP'): Promise<boolean> {
   try {
     if (entityType === 'USER') {
       const userRef = doc(db, 'users', entityId)
@@ -128,14 +132,14 @@ export async function addCaisseContractToEntity(entityId: string, contractId: st
 /**
  * Associe un contrat de Caisse Spéciale à un membre (User) - Compatibilité
  */
-export async function addCaisseContractToUser(userId: string, contractId: string): Promise<boolean> {
+async function addCaisseContractToUser(userId: string, contractId: string): Promise<boolean> {
   return addCaisseContractToEntity(userId, contractId, 'USER')
 }
 
 /**
  * Retire un contrat Caisse Spéciale d'un membre ou d'un groupe (caisseContractIds).
  */
-export async function removeCaisseContractFromEntity(
+async function removeCaisseContractFromEntity(
   entityId: string,
   contractId: string,
   entityType: 'USER' | 'GROUP'
@@ -226,7 +230,7 @@ async function enrichWithSubscriptionsBatch(members: User[]): Promise<MemberWith
  * et on ne garde que ceux de la page courante.
  * Pour les grands datasets, utiliser la pagination par curseur.
  */
-export async function getMembers(
+async function getMembers(
   filters: UserFilters = {},
   page: number = 1,
   itemsPerPage: number = 10,
@@ -514,7 +518,7 @@ export async function getMembers(
 /**
  * Récupère un membre avec sa dernière subscription via requête directe
  */
-export async function getMemberWithSubscription(userId: string): Promise<MemberWithSubscription | null> {
+async function getMemberWithSubscription(userId: string): Promise<MemberWithSubscription | null> {
   try {
     // Récupérer le membre
     const userDoc = await getDoc(doc(db, 'users', userId))
@@ -626,7 +630,7 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
 /**
  * Récupère toutes les subscriptions d'un membre via requête directe
  */
-export async function getMemberSubscriptions(userId: string): Promise<Subscription[]> {
+async function getMemberSubscriptions(userId: string): Promise<Subscription[]> {
   try {
     // Requête pour récupérer toutes les subscriptions de cet utilisateur
     const subscriptionsQuery = query(
@@ -667,7 +671,7 @@ export async function getMemberSubscriptions(userId: string): Promise<Subscripti
 /**
  * Récupère les statistiques des membres
  */
-export async function getMemberStats(): Promise<UserStats> {
+async function getMemberStats(): Promise<UserStats> {
   try {
     const membersRef = collection(db, 'users')
     const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
@@ -749,7 +753,7 @@ export async function getMemberStats(): Promise<UserStats> {
 /**
  * Récupère les membres d'un groupe spécifique
  */
-export async function getMembersByGroup(groupId: string): Promise<User[]> {
+async function getMembersByGroup(groupId: string): Promise<User[]> {
   try {
     const membersRef = collection(db, 'users')
 
@@ -799,7 +803,7 @@ export async function getMembersByGroup(groupId: string): Promise<User[]> {
 /**
  * Récupère le MembershipRequest associé à un User via son dossier
  */
-export async function getMembershipRequestByDossier(dossierId: string) {
+async function getMembershipRequestByDossier(dossierId: string) {
   try {
     const dossierDoc = await getDoc(doc(db, 'membership-requests', dossierId))
     if (!dossierDoc.exists()) {
@@ -839,7 +843,7 @@ export async function getMembershipRequestByDossier(dossierId: string) {
  * @param updatedBy - ID de l'administrateur qui effectue la mise à jour
  * @returns Promise<boolean>
  */
-export async function updateMemberHasCar(
+async function updateMemberHasCar(
   memberId: string,
   hasCar: boolean,
   updatedBy: string
@@ -861,7 +865,7 @@ export async function updateMemberHasCar(
 /**
  * Recherche des membres par terme de recherche
  */
-export async function searchMembers(searchTerm: string, limit: number = 10): Promise<User[]> {
+async function searchMembers(searchTerm: string, limit: number = 10): Promise<User[]> {
   try {
     const rawTerm = searchTerm.trim()
     if (rawTerm.length < 2) {
@@ -941,3 +945,6 @@ export async function searchMembers(searchTerm: string, limit: number = 10): Pro
     throw new Error('Impossible de rechercher les membres')
   }
 }
+return {enrichWithSubscriptionsBatch,countMembersByGroup,removeMemberFromGroup,addCaisseContractToEntity,addCaisseContractToUser,removeCaisseContractFromEntity,getMembers,getMemberWithSubscription,getMemberSubscriptions,getMemberStats,getMembersByGroup,getMembershipRequestByDossier,updateMemberHasCar,searchMembers};
+}
+export const {countMembersByGroup,removeMemberFromGroup,addCaisseContractToEntity,addCaisseContractToUser,removeCaisseContractFromEntity,getMembers,getMemberWithSubscription,getMemberSubscriptions,getMemberStats,getMembersByGroup,getMembershipRequestByDossier,updateMemberHasCar,searchMembers} = createMemberDatabase();

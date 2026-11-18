@@ -1,3 +1,4 @@
+import { isCreditModule } from '../credit-module'
 import { z } from 'zod'
 import { financeListSchema } from './list-query'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -55,6 +56,8 @@ const labels = {
   'caisse-speciale': 'Caisse spéciale',
   'caisse-imprevue': 'Caisse imprévue',
   'credit-speciale': 'Crédit spécial',
+  'credit-fixe': 'Crédit fixe',
+  'caisse-aide': 'Caisse aide',
 }
 const jsonValue = (value: unknown) => JSON.parse(JSON.stringify(value ?? null))
 function errorResponse(error: unknown) {
@@ -167,7 +170,7 @@ export async function getFinanceWorkspace(
       kind: input.kind,
       actions: permittedActions(result.caller, result.module, 'workspace'),
       canSettings:
-        result.module !== 'credit-speciale' &&
+        !isCreditModule(result.module) &&
         canWithAccess(
           result.caller.access,
           `${financePermissionPrefix(result.module)}.settings`,
@@ -223,7 +226,7 @@ export async function getFinanceDetail(
     return mobileJson({
       ...jsonValue(detail),
       ...(kind === 'contract' &&
-      result.module !== 'credit-speciale' &&
+      !isCreditModule(result.module) &&
       'payments' in detail
         ? {
             installments: financeTimeline(

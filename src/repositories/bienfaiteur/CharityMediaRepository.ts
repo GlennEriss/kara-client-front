@@ -1,8 +1,12 @@
 import { CharityMedia } from '@/types/types'
 
 const getFirestore = () => import('@/firebase/firestore')
+const createCharityMediaRepositoryDefaults = {getFirestore};
+export function createCharityMediaRepository(overrides: Partial<typeof createCharityMediaRepositoryDefaults> = {}) {
+const {getFirestore} = {...createCharityMediaRepositoryDefaults,...overrides};
 
-export class CharityMediaRepository {
+
+class CharityMediaRepository {
   /**
    * Récupère tous les médias d'un évènement
    */
@@ -159,4 +163,7 @@ export class CharityMediaRepository {
     }
   }
 }
-
+return {CharityMediaRepository};
+}
+export const {CharityMediaRepository} = createCharityMediaRepository();
+export type CharityMediaRepository = InstanceType<ReturnType<typeof createCharityMediaRepository>['CharityMediaRepository']>;

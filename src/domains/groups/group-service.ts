@@ -12,10 +12,15 @@ import {
   Timestamp,
   where,
 } from "firebase/firestore";
+
 import { db } from "@/firebase/firestore";
+
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
+
 import type { GroupProject, User } from "@/types/types";
+
 import { mapWithConcurrency } from "@/utils/mapWithConcurrency";
+
 import {
   memberName,
   isOpenProject,
@@ -23,16 +28,26 @@ import {
   validateProject,
   type GroupProjectDraft,
 } from "./group-model";
+
 import { sameParticipants, supportsPayoutOrder } from "./payout-order";
+
 import { groupGuarantorName, isGroupGuarantor } from "./group-guarantor";
+
 import { agreementLedgerRef } from './agreements/agreement-service';
+
 
 export interface GroupActor {
   id: string;
   name: string;
 }
+const createGroupServiceDefaults = { arrayRemove, arrayUnion, collection, doc, getCountFromServer, getDoc, getDocs, query, runTransaction, serverTimestamp, Timestamp, where, db, agreementLedgerRef };
+export function createGroupService(overrides: Partial<typeof createGroupServiceDefaults> = {}) {
+const { arrayRemove, arrayUnion, collection, doc, getCountFromServer, getDoc, getDocs, query, runTransaction, serverTimestamp, Timestamp, where, db, agreementLedgerRef } = { ...createGroupServiceDefaults, ...overrides };
+
 const groups = () => collection(db, firebaseCollectionNames.groups);
+
 const users = () => collection(db, firebaseCollectionNames.users);
+
 const event = (description: string, actor: GroupActor) => ({
   id: crypto.randomUUID(),
   description,
@@ -40,14 +55,17 @@ const event = (description: string, actor: GroupActor) => ({
   byId: actor.id,
   byName: actor.name,
 });
+
 const assertActor = (actor: GroupActor) => {
   if (!actor.id) throw new Error("Connectez-vous pour modifier un groupe.");
 };
+
 const isMember = (data: Record<string, unknown>) =>
   Array.isArray(data.roles) &&
   data.roles.some((role) =>
     ["Adherant", "Bienfaiteur", "Sympathisant"].includes(String(role)),
   );
+
 
 function projectPayload(
   draft: GroupProjectDraft,
@@ -70,7 +88,8 @@ function projectPayload(
   };
 }
 
-export async function createCollectiveGroup(
+
+async function createCollectiveGroup(
   input: {
     name: string;
     description: string;
@@ -152,7 +171,8 @@ export async function createCollectiveGroup(
   return ref.id;
 }
 
-export async function addGroupMembers(
+
+async function addGroupMembers(
   groupId: string,
   ids: string[],
   actor: GroupActor,
@@ -195,7 +215,8 @@ export async function addGroupMembers(
   });
 }
 
-export async function removeGroupMember(
+
+async function removeGroupMember(
   groupId: string,
   memberId: string,
   actor: GroupActor,
@@ -251,7 +272,8 @@ export async function removeGroupMember(
   });
 }
 
-export async function saveGroupProject(
+
+async function saveGroupProject(
   groupId: string,
   draft: GroupProjectDraft,
   actor: GroupActor,
@@ -327,7 +349,8 @@ export async function saveGroupProject(
   });
 }
 
-export async function saveGroupPayoutOrder(
+
+async function saveGroupPayoutOrder(
   groupId: string,
   projectId: string,
   participantIds: string[],
@@ -392,7 +415,8 @@ export async function saveGroupPayoutOrder(
   });
 }
 
-export async function updateCollectiveGroup(
+
+async function updateCollectiveGroup(
   groupId: string,
   changes: {
     name: string;
@@ -451,7 +475,8 @@ export async function updateCollectiveGroup(
   });
 }
 
-export async function getGroupMemberCounts(
+
+async function getGroupMemberCounts(
   ids: string[],
 ): Promise<Record<string, number>> {
   return Object.fromEntries(
@@ -471,8 +496,9 @@ export async function getGroupMemberCounts(
   );
 }
 
+
 /** Annuaire léger : une lecture par membre, sans charger ses contrats ou abonnements. */
-export async function listGroupCandidates(): Promise<User[]> {
+async function listGroupCandidates(): Promise<User[]> {
   const snapshot = await getDocs(
     query(
       users(),
@@ -490,7 +516,8 @@ export async function listGroupCandidates(): Promise<User[]> {
     );
 }
 
-export async function deleteEmptyGroup(groupId: string): Promise<void> {
+
+async function deleteEmptyGroup(groupId: string): Promise<void> {
   // Les projets et contrats sont conservés : la suppression n'est proposée que pour un groupe vide.
   const initial = await getDoc(doc(groups(), groupId));
   if (!initial.exists()) return;
@@ -518,3 +545,6 @@ export async function deleteEmptyGroup(groupId: string): Promise<void> {
     transaction.delete(group.ref);
   });
 }
+return { createCollectiveGroup, addGroupMembers, removeGroupMember, saveGroupProject, saveGroupPayoutOrder, updateCollectiveGroup, getGroupMemberCounts, listGroupCandidates, deleteEmptyGroup };
+}
+export const { createCollectiveGroup, addGroupMembers, removeGroupMember, saveGroupProject, saveGroupPayoutOrder, updateCollectiveGroup, getGroupMemberCounts, listGroupCandidates, deleteEmptyGroup } = createGroupService();

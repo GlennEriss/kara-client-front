@@ -1,5 +1,3 @@
-'use client'
-
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
 
@@ -329,11 +327,13 @@ export interface StatutsKaraPDFProps {
   /** Ajoute la note d'orientation et la procédure de mise en conformité. */
   avecAnnexes?: boolean
   /** Lieu, date et signataires. Omis => document vierge à signer à la main. */
+  logoSrc?: string
   fillData?: SignataireFillData
 }
 
 const StatutsKaraPDF = ({
   avecAnnexes = false,
+  logoSrc,
   fillData = statutsFillDataParDefaut(),
 }: StatutsKaraPDFProps) => (
   <Document>
@@ -348,7 +348,7 @@ const StatutsKaraPDF = ({
       </Text>
 
       <View style={styles.header}>
-        <Image src={window.location.origin + '/Logo-Kara.jpg'} style={styles.logo} cache={false} />
+        <Image src={logoSrc || (typeof window !== 'undefined' ? window.location.origin + '/Logo-Kara.jpg' : '')} style={styles.logo} cache={false} />
         <Text style={styles.association}>{STATUTS_ENTETE.association}</Text>
         <Text style={styles.docTitle}>{STATUTS_ENTETE.titre}</Text>
         <Text style={styles.devise}>{STATUTS_ENTETE.devise}</Text>

@@ -1,4 +1,5 @@
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+
 import {
     addDoc,
     collection,
@@ -17,10 +18,53 @@ import {
     updateDoc,
     where
 } from '@/firebase/firestore'
+
 import type { AgentRecouvrement, AgentsFilters, AgentsStats } from '@/types/types'
+
 import type { QueryConstraint } from 'firebase/firestore'
 
+
+export interface PaginatedAgents {
+  data: AgentRecouvrement[]
+  pagination: {
+    currentPage: number
+    totalPages: number
+    totalItems: number
+    itemsPerPage: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+    nextCursor: DocumentSnapshot | null
+    prevCursor: DocumentSnapshot | null
+  }
+}
+
+
+export interface CreateAgentInput {
+  nom: string
+  prenom: string
+  sexe: 'M' | 'F'
+  pieceIdentite: {
+    type: string
+    numero: string
+    dateDelivrance: Date
+    dateExpiration: Date
+  }
+  dateNaissance: Date
+  lieuNaissance: string
+  tel1: string
+  tel2?: string
+  photoUrl?: string | null
+  photoPath?: string | null
+  actif?: boolean
+  createdBy: string
+}
+const createAgentsRepositoryDefaults = { addDoc, collection, db, deleteDoc, doc, DocumentSnapshot, getDoc, getDocs, limit, orderBy, query, serverTimestamp, startAfter, Timestamp, updateDoc, where };
+export function createAgentsRepository(overrides: Partial<typeof createAgentsRepositoryDefaults> = {}) {
+const { addDoc, collection, db, deleteDoc, doc, DocumentSnapshot, getDoc, getDocs, limit, orderBy, query, serverTimestamp, startAfter, Timestamp, updateDoc, where } = { ...createAgentsRepositoryDefaults, ...overrides };
+
+
 const COLLECTION = firebaseCollectionNames.agentsRecouvrement || 'agentsRecouvrement'
+
 
 function toDate(value: unknown): Date {
   if (!value) return new Date(0)
@@ -43,6 +87,7 @@ function toDate(value: unknown): Date {
   const d = new Date(value as string | number)
   return isNaN(d.getTime()) ? new Date(0) : d
 }
+
 
 function mapDocToAgent(docSnap: DocumentSnapshot): AgentRecouvrement {
   const data = docSnap.data() || {}
@@ -77,6 +122,7 @@ function mapDocToAgent(docSnap: DocumentSnapshot): AgentRecouvrement {
   }
 }
 
+
 function sanitizeForFirestore<T>(value: T): T {
   if (Array.isArray(value)) {
     return value.map((v) => sanitizeForFirestore(v)) as unknown as T
@@ -94,21 +140,8 @@ function sanitizeForFirestore<T>(value: T): T {
   return value
 }
 
-export interface PaginatedAgents {
-  data: AgentRecouvrement[]
-  pagination: {
-    currentPage: number
-    totalPages: number
-    totalItems: number
-    itemsPerPage: number
-    hasNextPage: boolean
-    hasPrevPage: boolean
-    nextCursor: DocumentSnapshot | null
-    prevCursor: DocumentSnapshot | null
-  }
-}
 
-export async function getAgentsWithFilters(
+async function getAgentsWithFilters(
   filters: AgentsFilters = {},
   page: number = 1,
   itemsPerPage: number = 12,
@@ -177,7 +210,8 @@ export async function getAgentsWithFilters(
   }
 }
 
-export async function getAgentsAnniversairesMois(
+
+async function getAgentsAnniversairesMois(
   page: number = 1,
   itemsPerPage: number = 12,
   cursor?: DocumentSnapshot
@@ -218,14 +252,16 @@ export async function getAgentsAnniversairesMois(
   }
 }
 
-export async function getAgentById(id: string): Promise<AgentRecouvrement | null> {
+
+async function getAgentById(id: string): Promise<AgentRecouvrement | null> {
   const ref = doc(db, COLLECTION, id)
   const snap = await getDoc(ref)
   if (!snap.exists()) return null
   return mapDocToAgent(snap)
 }
 
-export async function getAgentsStats(): Promise<AgentsStats> {
+
+async function getAgentsStats(): Promise<AgentsStats> {
   const agentsRef = collection(db, COLLECTION)
   const allSnap = await getDocs(query(agentsRef))
 
@@ -257,25 +293,6 @@ export async function getAgentsStats(): Promise<AgentsStats> {
   }
 }
 
-export interface CreateAgentInput {
-  nom: string
-  prenom: string
-  sexe: 'M' | 'F'
-  pieceIdentite: {
-    type: string
-    numero: string
-    dateDelivrance: Date
-    dateExpiration: Date
-  }
-  dateNaissance: Date
-  lieuNaissance: string
-  tel1: string
-  tel2?: string
-  photoUrl?: string | null
-  photoPath?: string | null
-  actif?: boolean
-  createdBy: string
-}
 
 function computeSearchableTexts(input: CreateAgentInput): {
   searchableTextLastNameFirst: string
@@ -297,6 +314,7 @@ function computeSearchableTexts(input: CreateAgentInput): {
   }
 }
 
+
 function computeBirthMonthDay(date: Date): { birthMonth: number; birthDay: number } {
   return {
     birthMonth: date.getMonth() + 1,
@@ -304,7 +322,8 @@ function computeBirthMonthDay(date: Date): { birthMonth: number; birthDay: numbe
   }
 }
 
-export async function createAgent(input: CreateAgentInput): Promise<string> {
+
+async function createAgent(input: CreateAgentInput): Promise<string> {
   const agentsRef = collection(db, COLLECTION)
   const searchable = computeSearchableTexts(input)
   const { birthMonth, birthDay } = computeBirthMonthDay(input.dateNaissance)
@@ -327,7 +346,8 @@ export async function createAgent(input: CreateAgentInput): Promise<string> {
   return docRef.id
 }
 
-export async function updateAgent(
+
+async function updateAgent(
   id: string,
   updates: Partial<Omit<AgentRecouvrement, 'id' | 'createdAt' | 'createdBy'>>,
   updatedBy: string
@@ -384,23 +404,30 @@ export async function updateAgent(
   return true
 }
 
-export async function deactivateAgent(id: string, updatedBy: string): Promise<boolean> {
+
+async function deactivateAgent(id: string, updatedBy: string): Promise<boolean> {
   return updateAgent(id, { actif: false }, updatedBy)
 }
 
-export async function reactivateAgent(id: string, updatedBy: string): Promise<boolean> {
+
+async function reactivateAgent(id: string, updatedBy: string): Promise<boolean> {
   return updateAgent(id, { actif: true }, updatedBy)
 }
 
-export async function deleteAgent(id: string): Promise<boolean> {
+
+async function deleteAgent(id: string): Promise<boolean> {
   const ref = doc(db, COLLECTION, id)
   await deleteDoc(ref)
   return true
 }
 
-export async function getAgentsActifs(): Promise<AgentRecouvrement[]> {
+
+async function getAgentsActifs(): Promise<AgentRecouvrement[]> {
   const agentsRef = collection(db, COLLECTION)
   const q = query(agentsRef, where('actif', '==', true), orderBy('nom', 'asc'))
   const snap = await getDocs(q)
   return snap.docs.map(mapDocToAgent)
 }
+return { getAgentsWithFilters, getAgentsAnniversairesMois, getAgentById, getAgentsStats, createAgent, updateAgent, deactivateAgent, reactivateAgent, deleteAgent, getAgentsActifs };
+}
+export const { getAgentsWithFilters, getAgentsAnniversairesMois, getAgentById, getAgentsStats, createAgent, updateAgent, deactivateAgent, reactivateAgent, deleteAgent, getAgentsActifs } = createAgentsRepository();

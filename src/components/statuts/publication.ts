@@ -21,9 +21,13 @@ export interface DocumentPublie extends SignataireFillData {
   publishedAt?: unknown
   publishedBy?: string | null
 }
+const createAssociationPublicationsDefaults = {doc,getDoc,serverTimestamp,setDoc,db};
+export function createAssociationPublications(overrides: Partial<typeof createAssociationPublicationsDefaults> = {}) {
+const {doc,getDoc,serverTimestamp,setDoc,db} = {...createAssociationPublicationsDefaults,...overrides};
+
 
 /** Lit la publication en vigueur, ou `null` si le texte n'a jamais été publié. */
-export async function lireDocumentPublie(
+async function lireDocumentPublie(
   documentId: AssociationDocumentId,
 ): Promise<DocumentPublie | null> {
   if (!db) return null
@@ -36,7 +40,7 @@ export async function lireDocumentPublie(
  * Publie le document aux membres. Écrase la publication précédente : c'est
  * toujours le dernier texte adopté qui fait foi.
  */
-export async function publierDocument(
+async function publierDocument(
   documentId: AssociationDocumentId,
   fillData: SignataireFillData,
   version: string,
@@ -50,3 +54,6 @@ export async function publierDocument(
     publishedBy: publishedBy ?? null,
   })
 }
+return {lireDocumentPublie,publierDocument};
+}
+export const {lireDocumentPublie,publierDocument} = createAssociationPublications();

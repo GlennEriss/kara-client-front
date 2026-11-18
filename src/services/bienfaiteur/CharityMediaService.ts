@@ -2,11 +2,15 @@ import { CharityMediaRepository } from '@/repositories/bienfaiteur/CharityMediaR
 import { CharityMedia } from '@/types/types'
 import { ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject } from '@/firebase/storage'
 import { getStorageInstance } from '@/firebase/storage'
+const createCharityMediaServiceDefaults = {CharityMediaRepository,ref,uploadBytes,uploadBytesResumable,getDownloadURL,deleteObject,getStorageInstance};
+export function createCharityMediaService(overrides: Partial<typeof createCharityMediaServiceDefaults> = {}) {
+const {CharityMediaRepository,ref,uploadBytes,uploadBytesResumable,getDownloadURL,deleteObject,getStorageInstance} = {...createCharityMediaServiceDefaults,...overrides};
+
 
 /**
  * Upload une image de couverture pour un évènement de charité
  */
-export async function uploadCharityEventCover(
+async function uploadCharityEventCover(
   file: File,
   eventId?: string
 ): Promise<{ url: string; path: string }> {
@@ -41,7 +45,7 @@ export async function uploadCharityEventCover(
 /**
  * Supprime une image de couverture
  */
-export async function deleteCharityEventCover(filePath: string): Promise<void> {
+async function deleteCharityEventCover(filePath: string): Promise<void> {
   try {
     const storage = getStorageInstance()
     const storageRef = ref(storage, filePath)
@@ -55,7 +59,7 @@ export async function deleteCharityEventCover(filePath: string): Promise<void> {
 /**
  * Upload une preuve de contribution (image ou PDF)
  */
-export async function uploadContributionProof(
+async function uploadContributionProof(
   file: File,
   eventId: string,
   contributionId: string
@@ -97,7 +101,7 @@ export async function uploadContributionProof(
   }
 }
 
-export class CharityMediaService {
+class CharityMediaService {
   /**
    * Récupère tous les médias d'un évènement
    */
@@ -226,3 +230,7 @@ export class CharityMediaService {
     await CharityMediaRepository.delete(eventId, mediaId)
   }
 }
+return {uploadCharityEventCover,deleteCharityEventCover,uploadContributionProof,CharityMediaService};
+}
+export const {uploadCharityEventCover,deleteCharityEventCover,uploadContributionProof,CharityMediaService} = createCharityMediaService();
+export type CharityMediaService = InstanceType<ReturnType<typeof createCharityMediaService>['CharityMediaService']>;

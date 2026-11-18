@@ -1,6 +1,9 @@
 import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-names'
+
 import { db as firestore } from '@/firebase/firestore'
+
 import type { User, UserFilters, UserRole, UserStats } from '@/types/types'
+
 import {
     collection,
     doc,
@@ -16,6 +19,11 @@ import {
     updateDoc,
     where
 } from 'firebase/firestore'
+
+const createUsersRepositoryDefaults = { firestore, collection, doc, firestoreLimit, getCountFromServer, getDoc, getDocs, orderBy, query, setDoc, startAfter, Timestamp, updateDoc, where };
+export function createUsersRepository(overrides: Partial<typeof createUsersRepositoryDefaults> = {}) {
+const { firestore, collection, doc, firestoreLimit, getCountFromServer, getDoc, getDocs, orderBy, query, setDoc, startAfter, Timestamp, updateDoc, where } = { ...createUsersRepositoryDefaults, ...overrides };
+
 
 // Supprime récursivement les clés avec valeur undefined (Firestore ne les accepte pas)
 function sanitizeForFirestore<T>(value: T): T {
@@ -33,6 +41,7 @@ function sanitizeForFirestore<T>(value: T): T {
   return value
 }
 
+
 // Convertit de manière sûre un champ Firestore (Timestamp | Date | string | number) en Date
 function toDateSafe(value: any): Date {
   try {
@@ -47,12 +56,13 @@ function toDateSafe(value: any): Date {
   return new Date(0)
 }
 
+
 /**
  * Génère un matricule unique au format nombreUser.MK.dateCréation
  * Ex: 1234.MK.150125
  * Vérifie l'unicité dans membershipRequests ET users
  */
-export async function generateMatricule(): Promise<string> {
+async function generateMatricule(): Promise<string> {
   try {
     let matricule: string = ''
     let isUnique = false
@@ -120,6 +130,7 @@ export async function generateMatricule(): Promise<string> {
   }
 }
 
+
 /**
  * Vérifie l'unicité d'un matricule dans une collection spécifique
  */
@@ -135,10 +146,11 @@ async function checkMatriculeUniquenessInCollection(collectionName: string, matr
   }
 }
 
+
 /**
  * Crée un nouvel utilisateur dans la collection users
  */
-export async function createUser(userData: Omit<User, 'id' | 'matricule' | 'createdAt' | 'updatedAt'>): Promise<User> {
+async function createUser(userData: Omit<User, 'id' | 'matricule' | 'createdAt' | 'updatedAt'>): Promise<User> {
   try {
     // Générer le matricule
     const matricule = await generateMatricule()
@@ -170,10 +182,11 @@ export async function createUser(userData: Omit<User, 'id' | 'matricule' | 'crea
   }
 }
 
+
 /**
  * Crée un nouvel utilisateur avec un matricule existant
  */
-export async function createUserWithMatricule(
+async function createUserWithMatricule(
   userData: Omit<User, 'id' | 'matricule' | 'createdAt' | 'updatedAt'>, 
   existingMatricule: string
 ): Promise<User> {
@@ -205,11 +218,12 @@ export async function createUserWithMatricule(
   }
 }
 
+
 /**
  * Crée un document utilisateur minimal sans stocker le champ `id`.
  * Ajoute automatiquement `matricule`, `createdAt`, `updatedAt`.
  */
-export async function createUserRawWithMatricule(
+async function createUserRawWithMatricule(
   data: Record<string, any>,
   matricule: string
 ): Promise<void> {
@@ -229,10 +243,11 @@ export async function createUserRawWithMatricule(
   }
 }
 
+
 /**
  * Récupère un utilisateur par son ID/matricule
  */
-export async function getUserById(userId: string): Promise<User | null> {
+async function getUserById(userId: string): Promise<User | null> {
   try {
     const userRef = doc(firestore, FIREBASE_COLLECTION_NAMES.USERS, userId)
     const docSnap = await getDoc(userRef)
@@ -254,10 +269,11 @@ export async function getUserById(userId: string): Promise<User | null> {
   }
 }
 
+
 /**
  * Récupère un utilisateur par son email
  */
-export async function getUserByEmail(email: string): Promise<User | null> {
+async function getUserByEmail(email: string): Promise<User | null> {
   try {
     const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
     const q = query(usersRef, where('email', '==', email), firestoreLimit(1))
@@ -282,12 +298,13 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   }
 }
 
+
 /**
  * Récupère plusieurs utilisateurs à partir de leurs matricules.
  * Requêtes groupées par paquets de 10 (limite Firestore `in`).
  * Retourne une Map matricule (normalisé/trim) -> User.
  */
-export async function getUsersByMatricules(matricules: string[]): Promise<Map<string, User>> {
+async function getUsersByMatricules(matricules: string[]): Promise<Map<string, User>> {
   const result = new Map<string, User>()
   const unique = Array.from(
     new Set(
@@ -317,10 +334,11 @@ export async function getUsersByMatricules(matricules: string[]): Promise<Map<st
   return result
 }
 
+
 /**
  * Met à jour un utilisateur
  */
-export async function updateUser(userId: string, updates: Partial<Omit<User, 'id' | 'matricule' | 'createdAt'>>): Promise<boolean> {
+async function updateUser(userId: string, updates: Partial<Omit<User, 'id' | 'matricule' | 'createdAt'>>): Promise<boolean> {
   try {
     const userRef = doc(firestore, FIREBASE_COLLECTION_NAMES.USERS, userId)
     
@@ -338,11 +356,12 @@ export async function updateUser(userId: string, updates: Partial<Omit<User, 'id
   }
 }
 
+
 /**
  * Récupère plusieurs utilisateurs par lot (chunk de 10 ids max par requête Firestore "in")
  * Cherche à la fois par le champ 'id' et par le champ 'matricule' pour couvrir les deux cas
  */
-export async function getUsersByIds(userIds: string[]): Promise<User[]> {
+async function getUsersByIds(userIds: string[]): Promise<User[]> {
   try {
     const ids = Array.from(new Set(userIds.filter(Boolean)))
     if (ids.length === 0) return []
@@ -393,10 +412,11 @@ export async function getUsersByIds(userIds: string[]): Promise<User[]> {
   }
 }
 
+
 /**
  * Supprime un utilisateur (soft delete en désactivant)
  */
-export async function deactivateUser(userId: string): Promise<boolean> {
+async function deactivateUser(userId: string): Promise<boolean> {
   try {
     return await updateUser(userId, { 
       isActive: false,
@@ -408,10 +428,11 @@ export async function deactivateUser(userId: string): Promise<boolean> {
   }
 }
 
+
 /**
  * Récupère tous les utilisateurs avec filtres et pagination
  */
-export async function getAllUsers(filters: UserFilters = {}): Promise<{ users: User[], total: number }> {
+async function getAllUsers(filters: UserFilters = {}): Promise<{ users: User[], total: number }> {
   try {
     const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
     let q = query(usersRef)
@@ -472,12 +493,13 @@ export async function getAllUsers(filters: UserFilters = {}): Promise<{ users: U
   }
 }
 
+
 /**
  * Récupère une page d'utilisateurs avec pagination Firestore côté serveur
  * La pagination est basée sur le champ createdAt décroissant.
  * Retourne un curseur (ISO string) utilisable pour la page suivante.
  */
-export async function getUsersPage(params: { limit?: number; cursorCreatedAt?: string }): Promise<{ users: User[]; nextCursorCreatedAt: string | null }> {
+async function getUsersPage(params: { limit?: number; cursorCreatedAt?: string }): Promise<{ users: User[]; nextCursorCreatedAt: string | null }> {
   const { limit = 20, cursorCreatedAt } = params || {}
   const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
   let q = query(usersRef, orderBy('createdAt', 'desc'), firestoreLimit(limit))
@@ -508,10 +530,11 @@ export async function getUsersPage(params: { limit?: number; cursorCreatedAt?: s
   return { users, nextCursorCreatedAt }
 }
 
+
 /**
  * Ajoute une souscription à un utilisateur
  */
-export async function addSubscriptionToUser(userId: string, subscriptionId: string): Promise<boolean> {
+async function addSubscriptionToUser(userId: string, subscriptionId: string): Promise<boolean> {
   try {
     const user = await getUserById(userId)
     if (!user) {
@@ -526,10 +549,11 @@ export async function addSubscriptionToUser(userId: string, subscriptionId: stri
   }
 }
 
+
 /**
  * Retire une souscription d'un utilisateur
  */
-export async function removeSubscriptionFromUser(userId: string, subscriptionId: string): Promise<boolean> {
+async function removeSubscriptionFromUser(userId: string, subscriptionId: string): Promise<boolean> {
   try {
     const user = await getUserById(userId)
     if (!user) {
@@ -544,10 +568,11 @@ export async function removeSubscriptionFromUser(userId: string, subscriptionId:
   }
 }
 
+
 /**
  * Récupère les statistiques des utilisateurs
  */
-export async function getUserStats(): Promise<UserStats> {
+async function getUserStats(): Promise<UserStats> {
   try {
     const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
     
@@ -608,10 +633,11 @@ export async function getUserStats(): Promise<UserStats> {
   }
 }
 
+
 /**
  * Ajoute un rôle à un utilisateur
  */
-export async function addRoleToUser(userId: string, role: UserRole): Promise<boolean> {
+async function addRoleToUser(userId: string, role: UserRole): Promise<boolean> {
   try {
     const user = await getUserById(userId)
     if (!user) {
@@ -632,10 +658,11 @@ export async function addRoleToUser(userId: string, role: UserRole): Promise<boo
   }
 }
 
+
 /**
  * Retire un rôle d'un utilisateur
  */
-export async function removeRoleFromUser(userId: string, role: UserRole): Promise<boolean> {
+async function removeRoleFromUser(userId: string, role: UserRole): Promise<boolean> {
   try {
     const user = await getUserById(userId)
     if (!user) {
@@ -650,10 +677,11 @@ export async function removeRoleFromUser(userId: string, role: UserRole): Promis
   }
 }
 
+
 /**
  * Vérifie si un utilisateur a un rôle spécifique
  */
-export async function userHasRole(userId: string, role: UserRole): Promise<boolean> {
+async function userHasRole(userId: string, role: UserRole): Promise<boolean> {
   try {
     const user = await getUserById(userId)
     if (!user) {
@@ -667,17 +695,19 @@ export async function userHasRole(userId: string, role: UserRole): Promise<boole
   }
 }
 
+
 /**
  * Vérifie si un utilisateur est admin
  */
-export async function isUserAdmin(userId: string): Promise<boolean> {
+async function isUserAdmin(userId: string): Promise<boolean> {
   return await userHasRole(userId, 'Admin')
 }
+
 
 /**
  * Récupère tous les utilisateurs ayant un rôle spécifique
  */
-export async function getUsersByRole(role: UserRole): Promise<User[]> {
+async function getUsersByRole(role: UserRole): Promise<User[]> {
   try {
     const result = await getAllUsers({ roles: [role] })
     return result.users
@@ -687,10 +717,11 @@ export async function getUsersByRole(role: UserRole): Promise<User[]> {
   }
 }
 
+
 /**
  * Recherche des utilisateurs par nom, prénom ou matricule
  */
-export async function searchUsers(
+async function searchUsers(
   searchQuery: string, 
   limit: number = 20
 ): Promise<User[]> {
@@ -858,3 +889,6 @@ export async function searchUsers(
     throw new Error('Impossible de rechercher les utilisateurs')
   }
 }
+return { generateMatricule, createUser, createUserWithMatricule, createUserRawWithMatricule, getUserById, getUserByEmail, getUsersByMatricules, updateUser, getUsersByIds, deactivateUser, getAllUsers, getUsersPage, addSubscriptionToUser, removeSubscriptionFromUser, getUserStats, addRoleToUser, removeRoleFromUser, userHasRole, isUserAdmin, getUsersByRole, searchUsers };
+}
+export const { generateMatricule, createUser, createUserWithMatricule, createUserRawWithMatricule, getUserById, getUserByEmail, getUsersByMatricules, updateUser, getUsersByIds, deactivateUser, getAllUsers, getUsersPage, addSubscriptionToUser, removeSubscriptionFromUser, getUserStats, addRoleToUser, removeRoleFromUser, userHasRole, isUserAdmin, getUsersByRole, searchUsers } = createUsersRepository();

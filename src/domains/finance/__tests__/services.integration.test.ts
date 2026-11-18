@@ -63,17 +63,14 @@ describe.skipIf(!enabled)(
         'http://127.0.0.1:8189/emulator/v1/projects/demo-kara-native-finance/databases/(default)/documents',
         { method: 'DELETE' },
       )
-      await adminFirestore!
-        .collection('users')
-        .doc('test-member')
-        .set({
-          id: 'test-member',
-          matricule: '9999.TEST',
-          firstName: 'Membre',
-          lastName: 'Fictif',
-          contacts: [],
-          groupIds: [],
-        })
+      await adminFirestore!.collection('users').doc('test-member').set({
+        id: 'test-member',
+        matricule: '9999.TEST',
+        firstName: 'Membre',
+        lastName: 'Fictif',
+        contacts: [],
+        groupIds: [],
+      })
       await adminFirestore!
         .collection('admins')
         .doc('test-admin')
@@ -146,33 +143,30 @@ describe.skipIf(!enabled)(
     it('répartit un versement CI sur deux mois sans navigateur ni session web', async () => {
       const s = createFinanceServices(caller)
       const id = 'test-CI'
-      await adminFirestore!
-        .collection('contractsCI')
-        .doc(id)
-        .set({
-          id,
-          memberId: 'test-member',
-          memberFirstName: 'Membre',
-          memberLastName: 'Fictif',
-          memberContacts: [],
-          subscriptionCIID: 'test-sub',
-          subscriptionCICode: 'A',
-          subscriptionCIAmountPerMonth: 10000,
-          subscriptionCINominal: 120000,
-          subscriptionCIDuration: 12,
-          subscriptionCISupportMin: 1000,
-          subscriptionCISupportMax: 5000,
-          paymentFrequency: 'MONTHLY',
-          firstPaymentDate: day,
-          status: 'ACTIVE',
-          supportHistory: [],
-          totalMonthsPaid: 0,
-          isEligibleForSupport: false,
-          createdBy: 'test-admin',
-          updatedBy: 'test-admin',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
+      await adminFirestore!.collection('contractsCI').doc(id).set({
+        id,
+        memberId: 'test-member',
+        memberFirstName: 'Membre',
+        memberLastName: 'Fictif',
+        memberContacts: [],
+        subscriptionCIID: 'test-sub',
+        subscriptionCICode: 'A',
+        subscriptionCIAmountPerMonth: 10000,
+        subscriptionCINominal: 120000,
+        subscriptionCIDuration: 12,
+        subscriptionCISupportMin: 1000,
+        subscriptionCISupportMax: 5000,
+        paymentFrequency: 'MONTHLY',
+        firstPaymentDate: day,
+        status: 'ACTIVE',
+        supportHistory: [],
+        totalMonthsPaid: 0,
+        isEligibleForSupport: false,
+        createdBy: 'test-admin',
+        updatedBy: 'test-admin',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
       await s.caisseImprevue.createVersement(
         id,
         0,

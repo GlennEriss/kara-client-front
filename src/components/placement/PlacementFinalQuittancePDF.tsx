@@ -1,5 +1,3 @@
-'use client'
-
 import {
   DEFAULT_DOCUMENT_PLACE,
   EMPTY,
@@ -62,6 +60,7 @@ export type PlacementFinalQuittancePdfProps = {
   amountInWords: string
   /** Ville d'émission par défaut, remplacée par le lieu saisi dans la modale. */
   city?: string
+  logoSrc?:string
   completion?: DocumentCompletion | null
 }
 
@@ -127,6 +126,7 @@ export default function PlacementFinalQuittancePDF({
   amountInWords,
   city = DEFAULT_DOCUMENT_PLACE,
   completion,
+  logoSrc,
 }: PlacementFinalQuittancePdfProps) {
   const fields = buildPlacementLiquidationFields({ placement, member, commissions, amountInWords })
   const [[lastNameField, firstNameField]] = fields.member
@@ -139,7 +139,7 @@ export default function PlacementFinalQuittancePDF({
     <Document>
       <Page size="A4" style={mutuelleStyles.page}>
         <MutuellePageChrome footerLabel="Procès-verbal de liquidation du placement" />
-        <MutuelleHeader title="PROCÈS-VERBAL DE LIQUIDATION DU PLACEMENT (VOLET BIENFAITEUR)" />
+        <MutuelleHeader logoSrc={logoSrc} title="PROCÈS-VERBAL DE LIQUIDATION DU PLACEMENT (VOLET BIENFAITEUR)" />
 
         <Text style={mutuelleStyles.preamble}>
           Ce document constate la liquidation du placement identifié ci-dessous et la restitution au

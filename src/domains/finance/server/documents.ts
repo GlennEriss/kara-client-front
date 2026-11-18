@@ -4,9 +4,14 @@ import { adminApp } from '@/firebase/admin'
 import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
 
 export const MAX_FINANCE_FILE_BYTES = 8 * 1024 * 1024
-export async function validateFinanceFile(file: File): Promise<void> {
-  if (!file.size || file.size > MAX_FINANCE_FILE_BYTES)
-    throw new Error('Le document doit peser entre 1 octet et 8 Mo.')
+export async function validateFinanceFile(
+  file: File,
+  maxBytes = MAX_FINANCE_FILE_BYTES,
+): Promise<void> {
+  if (!file.size || file.size > maxBytes)
+    throw new Error(
+      `Le document doit peser entre 1 octet et ${Math.round(maxBytes / (1024 * 1024))} Mo.`,
+    )
   const bytes = Buffer.from(await file.slice(0, 16).arrayBuffer())
   const valid =
     (file.type === 'application/pdf' &&
@@ -48,7 +53,10 @@ export class ServerFinanceDocuments extends DocumentRepository {
       'image/png': 'png',
       'image/webp': 'webp',
     }[file.type]!
-    const path = `mobile-finance/${segment(memberId)}/${segment(documentType)}/${randomUUID()}.${extension}`
+    const path =
+      documentType === 'GROUP_AGREEMENT_PROOF'
+        ? `group-agreements/${segment(memberId)}/${randomUUID()}.${extension}`
+        : `mobile-finance/${segment(memberId)}/${segment(documentType)}/${randomUUID()}.${extension}`
     const token = randomUUID()
     const bucket = this.bucket()
     await bucket.file(path).save(Buffer.from(await file.arrayBuffer()), {

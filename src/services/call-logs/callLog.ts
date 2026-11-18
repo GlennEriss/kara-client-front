@@ -108,6 +108,10 @@ export interface CallLog {
 }
 
 export type CallLogInput = Omit<CallLog, 'id' | 'createdAt'>
+const createCallLogsServiceDefaults = {addDoc,collection,getDocs,fbLimit,orderBy,query,serverTimestamp,Timestamp,db};
+export function createCallLogsService(overrides: Partial<typeof createCallLogsServiceDefaults> = {}) {
+const {addDoc,collection,getDocs,fbLimit,orderBy,query,serverTimestamp,Timestamp,db} = {...createCallLogsServiceDefaults,...overrides};
+
 
 /** Retire les valeurs `undefined` (Firestore les refuse). */
 function sanitize<T extends Record<string, any>>(obj: T): T {
@@ -135,7 +139,7 @@ function toOptionalDate(value: unknown): Date | undefined {
  * Enregistre un compte rendu de contact. Lève en cas d'échec : l'appelant
  * doit prévenir l'utilisateur pour qu'il ressaisisse.
  */
-export async function createCallLog(entry: CallLogInput): Promise<string> {
+async function createCallLog(entry: CallLogInput): Promise<string> {
   const payload = sanitize({
     ...entry,
     summary: entry.summary.trim(),
@@ -184,7 +188,7 @@ function mapCallLog(id: string, data: Record<string, any>): CallLog {
  * contact », ce qui est le comportement voulu : une relance d'il y a un an
  * n'informe plus sur la situation courante.
  */
-export async function listCallLogs(max = 1000): Promise<CallLog[]> {
+async function listCallLogs(max = 1000): Promise<CallLog[]> {
   const q = query(
     collection(db, firebaseCollectionNames.callLogs),
     orderBy('createdAt', 'desc'),
@@ -193,3 +197,6 @@ export async function listCallLogs(max = 1000): Promise<CallLog[]> {
   const snap = await getDocs(q)
   return snap.docs.map((d) => mapCallLog(d.id, d.data() as Record<string, any>))
 }
+return {createCallLog,listCallLogs};
+}
+export const {createCallLog,listCallLogs} = createCallLogsService();

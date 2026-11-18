@@ -75,6 +75,31 @@ export interface PaginatedAdmins {
   }
 }
 
+// ================== MUTATIONS ==================
+
+export interface CreateAdminInput {
+  firstName: string
+  lastName: string
+  birthDate: string
+  civility: 'Monsieur' | 'Madame' | 'Mademoiselle'
+  gender: 'Homme' | 'Femme'
+  email?: string
+  contacts: string[] // longueur=1
+  roles: AdminRole[] // longueur>=1
+  permissions?: string[] // permissions fines (ignorées pour les superAdmins)
+  permissionsVersion?: number
+  mustChangePassword?: boolean
+  photoURL?: string | null
+  photoPath?: string | null
+  isActive?: boolean
+  createdBy?: string
+  updatedBy?: string
+}
+const createAdminsRepositoryDefaults = {addDoc,collection,db,deleteDoc,doc,getDoc,getDocs,limit,orderBy,query,serverTimestamp,setDoc,startAfter,updateDoc,where};
+export function createAdminsRepository(overrides: Partial<typeof createAdminsRepositoryDefaults> = {}) {
+const {addDoc,collection,db,deleteDoc,doc,getDoc,getDocs,limit,orderBy,query,serverTimestamp,setDoc,startAfter,updateDoc,where} = {...createAdminsRepositoryDefaults,...overrides};
+
+
 // =============== SANITIZE HELPERS ===============
 function sanitizeForFirestore<T>(value: T): T {
   if (Array.isArray(value)) {
@@ -127,7 +152,7 @@ function mapAdmin(docSnap: any): AdminUser {
 
 // ================== QUERIES ==================
 
-export async function getAdmins(
+async function getAdmins(
   filters: AdminFilters = {},
   page: number = 1,
   itemsPerPage: number = 10,
@@ -200,14 +225,14 @@ export async function getAdmins(
   }
 }
 
-export async function getAdminById(id: string): Promise<AdminUser | null> {
+async function getAdminById(id: string): Promise<AdminUser | null> {
   const ref = doc(db, 'admins', id)
   const snap = await getDoc(ref)
   if (!snap.exists()) return null
   return mapAdmin(snap)
 }
 
-export async function searchAdmins(searchTerm: string, limitSize: number = 20): Promise<AdminUser[]> {
+async function searchAdmins(searchTerm: string, limitSize: number = 20): Promise<AdminUser[]> {
   // Récupération simple et filtrage côté client
   const firstPage = await getAdmins({ orderByField: 'createdAt', orderByDirection: 'desc' }, 1, limitSize)
   const s = searchTerm.toLowerCase()
@@ -218,28 +243,7 @@ export async function searchAdmins(searchTerm: string, limitSize: number = 20): 
   )
 }
 
-// ================== MUTATIONS ==================
-
-export interface CreateAdminInput {
-  firstName: string
-  lastName: string
-  birthDate: string
-  civility: 'Monsieur' | 'Madame' | 'Mademoiselle'
-  gender: 'Homme' | 'Femme'
-  email?: string
-  contacts: string[] // longueur=1
-  roles: AdminRole[] // longueur>=1
-  permissions?: string[] // permissions fines (ignorées pour les superAdmins)
-  permissionsVersion?: number
-  mustChangePassword?: boolean
-  photoURL?: string | null
-  photoPath?: string | null
-  isActive?: boolean
-  createdBy?: string
-  updatedBy?: string
-}
-
-export async function createAdmin(input: CreateAdminInput): Promise<string> {
+async function createAdmin(input: CreateAdminInput): Promise<string> {
   const adminsRef = collection(db, 'admins')
   const payload = sanitizeForFirestore({
     ...input,
@@ -254,7 +258,7 @@ export async function createAdmin(input: CreateAdminInput): Promise<string> {
 }
 
 // Crée un admin avec un ID spécifique (ex: matricule)
-export async function createAdminWithId(id: string, input: CreateAdminInput): Promise<string> {
+async function createAdminWithId(id: string, input: CreateAdminInput): Promise<string> {
   const ref = doc(db, 'admins', id)
   const payload = sanitizeForFirestore({
     ...input,
@@ -266,7 +270,7 @@ export async function createAdminWithId(id: string, input: CreateAdminInput): Pr
   return id
 }
 
-export async function updateAdmin(id: string, updates: Partial<Omit<AdminUser, 'id'>>): Promise<boolean> {
+async function updateAdmin(id: string, updates: Partial<Omit<AdminUser, 'id'>>): Promise<boolean> {
   const ref = doc(db, 'admins', id)
   await updateDoc(ref, {
     ...updates,
@@ -276,7 +280,7 @@ export async function updateAdmin(id: string, updates: Partial<Omit<AdminUser, '
 }
 
 // Met à jour l'admin côté Firestore ET (optionnel) côté Firebase Auth (displayName/phone/photo)
-export async function updateAdminDeep(
+async function updateAdminDeep(
   id: string,
   updates: Partial<Omit<AdminUser, 'id'>> & { updateAuth?: { phoneNumber?: string; displayName?: string; photoURL?: string } }
 ): Promise<boolean> {
@@ -300,9 +304,11 @@ export async function updateAdminDeep(
   return true
 }
 
-export async function deleteAdmin(id: string): Promise<boolean> {
+async function deleteAdmin(id: string): Promise<boolean> {
   const ref = doc(db, 'admins', id)
   await deleteDoc(ref)
   return true
 }
-
+return {getAdmins,getAdminById,searchAdmins,createAdmin,createAdminWithId,updateAdmin,updateAdminDeep,deleteAdmin};
+}
+export const {getAdmins,getAdminById,searchAdmins,createAdmin,createAdminWithId,updateAdmin,updateAdminDeep,deleteAdmin} = createAdminsRepository();

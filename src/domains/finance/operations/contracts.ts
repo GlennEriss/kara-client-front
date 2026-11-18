@@ -1,3 +1,4 @@
+import { isCreditModule } from '../credit-module'
 import { addDays } from 'date-fns'
 import {
   actorName,
@@ -28,86 +29,81 @@ export function contractActions(module: FinanceModule): FinanceAction[] {
     extra = {},
   ) =>
     defineAction(module, id, label, 'contract', permission, fields, run, extra)
-  const workspace =
-    module === 'credit-speciale'
-      ? []
-      : [
-          defineAction(
-            module,
-            'contract.create',
-            'Nouveau contrat',
-            'workspace',
-            'create',
-            module === 'caisse-speciale'
-              ? [
-                  idField('memberId', 'Membre', 'members', false),
-                  idField('groupeId', 'Groupe', 'groups', false),
-                  selectField('caisseType', 'Type de caisse', caisseTypes),
-                  moneyField('monthlyAmount', 'Mensualité (FCFA)'),
-                  numberField('monthsPlanned', 'Durée (mois)', 1, 60),
-                  dateField('firstPaymentDate', 'Première échéance'),
-                  contactField,
-                ]
-              : [
-                  idField('memberId', 'Membre', 'members'),
-                  idField('subscriptionCIID', 'Forfait', 'subscriptions'),
-                  selectField('paymentFrequency', 'Fréquence', [
-                    { value: 'MONTHLY', label: 'Mensuelle' },
-                    { value: 'DAILY', label: 'Journalière' },
-                  ]),
-                  dateField('firstPaymentDate', 'Première échéance'),
-                  { ...contactField, required: true },
-                ],
-            async (ctx, d) => {
-              if (module === 'caisse-speciale') {
-                if (!!d.memberId === !!d.groupeId)
-                  throw new Error(
-                    'Sélectionnez soit un membre, soit un groupe.',
-                  )
-                return ctx.services.cs.subscribe({
-                  ...d,
-                  createdBy: ctx.caller.claims.uid,
-                })
-              }
-              const member = await ctx.services.members.getMemberById(
-                  d.memberId,
-                ),
-                sub = await ctx.services.ciSubscriptions.getSubscriptionById(
-                  d.subscriptionCIID,
-                )
-              if (
-                !member ||
-                !sub ||
-                sub.status !== 'ACTIVE' ||
-                !d.emergencyContact
-              )
-                throw new Error(
-                  'Le membre, un forfait actif et le contact d’urgence sont requis.',
-                )
-              return ctx.services.caisseImprevue.createContractCI({
+  const workspace = isCreditModule(module)
+    ? []
+    : [
+        defineAction(
+          module,
+          'contract.create',
+          'Nouveau contrat',
+          'workspace',
+          'create',
+          module === 'caisse-speciale'
+            ? [
+                idField('memberId', 'Membre', 'members', false),
+                idField('groupeId', 'Groupe', 'groups', false),
+                selectField('caisseType', 'Type de caisse', caisseTypes),
+                moneyField('monthlyAmount', 'Mensualité (FCFA)'),
+                numberField('monthsPlanned', 'Durée (mois)', 1, 60),
+                dateField('firstPaymentDate', 'Première échéance'),
+                contactField,
+              ]
+            : [
+                idField('memberId', 'Membre', 'members'),
+                idField('subscriptionCIID', 'Forfait', 'subscriptions'),
+                selectField('paymentFrequency', 'Fréquence', [
+                  { value: 'MONTHLY', label: 'Mensuelle' },
+                  { value: 'DAILY', label: 'Journalière' },
+                ]),
+                dateField('firstPaymentDate', 'Première échéance'),
+                { ...contactField, required: true },
+              ],
+          async (ctx, d) => {
+            if (module === 'caisse-speciale') {
+              if (!!d.memberId === !!d.groupeId)
+                throw new Error('Sélectionnez soit un membre, soit un groupe.')
+              return ctx.services.cs.subscribe({
                 ...d,
-                id: crypto.randomUUID(),
-                memberFirstName: member.firstName,
-                memberLastName: member.lastName,
-                memberContacts: member.contacts || [],
-                memberEmail: member.email,
-                subscriptionCICode: sub.code,
-                subscriptionCILabel: sub.label,
-                subscriptionCIAmountPerMonth: sub.amountPerMonth,
-                subscriptionCINominal: sub.nominal,
-                subscriptionCIDuration: sub.durationInMonths,
-                subscriptionCISupportMin: sub.supportMin,
-                subscriptionCISupportMax: sub.supportMax,
-                status: 'ACTIVE',
-                totalMonthsPaid: 0,
-                isEligibleForSupport: false,
-                supportHistory: [],
                 createdBy: ctx.caller.claims.uid,
-                updatedBy: ctx.caller.claims.uid,
               })
-            },
-          ),
-        ]
+            }
+            const member = await ctx.services.members.getMemberById(d.memberId),
+              sub = await ctx.services.ciSubscriptions.getSubscriptionById(
+                d.subscriptionCIID,
+              )
+            if (
+              !member ||
+              !sub ||
+              sub.status !== 'ACTIVE' ||
+              !d.emergencyContact
+            )
+              throw new Error(
+                'Le membre, un forfait actif et le contact d’urgence sont requis.',
+              )
+            return ctx.services.caisseImprevue.createContractCI({
+              ...d,
+              id: crypto.randomUUID(),
+              memberFirstName: member.firstName,
+              memberLastName: member.lastName,
+              memberContacts: member.contacts || [],
+              memberEmail: member.email,
+              subscriptionCICode: sub.code,
+              subscriptionCILabel: sub.label,
+              subscriptionCIAmountPerMonth: sub.amountPerMonth,
+              subscriptionCINominal: sub.nominal,
+              subscriptionCIDuration: sub.durationInMonths,
+              subscriptionCISupportMin: sub.supportMin,
+              subscriptionCISupportMax: sub.supportMax,
+              status: 'ACTIVE',
+              totalMonthsPaid: 0,
+              isEligibleForSupport: false,
+              supportHistory: [],
+              createdBy: ctx.caller.claims.uid,
+              updatedBy: ctx.caller.claims.uid,
+            })
+          },
+        ),
+      ]
   const docs = [
     action(
       'document.upload',
@@ -192,7 +188,7 @@ export function contractActions(module: FinanceModule): FinanceAction[] {
       { destructive: true, superAdminOnly: true },
     ),
   ]
-  if (module === 'credit-speciale')
+  if (isCreditModule(module))
     return [
       ...workspace,
       ...docs,
@@ -432,7 +428,14 @@ export function contractActions(module: FinanceModule): FinanceAction[] {
             adminName: actorName(ctx.caller),
           }),
       ),
-    ]
+    ].filter(
+      (item) =>
+        module === 'credit-speciale' ||
+        (!['contract.rest', 'contract.extend', 'contract.fixed'].includes(
+          item.id,
+        ) &&
+          !item.id.startsWith('shop.')),
+    )
   return [
     ...workspace,
     ...docs,

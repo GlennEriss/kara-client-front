@@ -7,11 +7,17 @@ import {
   type DocumentData,
   type Transaction,
 } from 'firebase/firestore'
+
 import { db } from '@/firebase/firestore'
+
 import type { User } from '@/types/types'
+
 import type { GroupActor } from '../group-service'
+
 import { isIdentifiedGroupMember } from '../group-guarantor'
+
 import { memberName } from '../group-model'
+
 import {
   agreementBalance,
   agreementBatchSignature,
@@ -27,14 +33,32 @@ import {
   type GroupAgreement,
 } from './agreement-model'
 
+
+type AgreementChange = { next: GroupAgreement; description: string } | null
+
+
+export type AgreementPaymentInput = Pick<
+  AgreementPayment,
+  'id' | 'amount' | 'date' | 'mode' | 'receivedBy'
+> &
+  Partial<Pick<AgreementPayment, 'reference' | 'note' | 'proofUrl'>>
+const createAgreementServiceDefaults = { collection, doc, getDocs, runTransaction, serverTimestamp, db };
+export function createAgreementService(overrides: Partial<typeof createAgreementServiceDefaults> = {}) {
+const { collection, doc, getDocs, runTransaction, serverTimestamp, db } = { ...createAgreementServiceDefaults, ...overrides };
+
+
 const groupRef = (id: string) => doc(db, 'groups', agreementId(id))
+
 const agreementRef = (groupId: string, id: string) =>
   doc(db, 'groups', agreementId(groupId), 'agreements', agreementId(id))
-export const agreementLedgerRef = (groupId: string) =>
+
+const agreementLedgerRef = (groupId: string) =>
   doc(db, 'groupAgreementLedgers', agreementId(groupId))
+
 const checkActor = (actor: GroupActor) => {
   if (!actor.id) throw new Error('Connectez-vous pour gérer les accords entre membres.')
 }
+
 const event = (description: string, actor: GroupActor) => ({
   id: crypto.randomUUID(),
   description,
@@ -42,15 +66,18 @@ const event = (description: string, actor: GroupActor) => ({
   byId: actor.id,
   byName: actor.name,
 })
+
 function ledgerOf(data: DocumentData | undefined) {
   return {
     agreementCount: Number(data?.agreementCount || 0),
     openByMember: { ...(data?.openByMember || {}) } as Record<string, number>,
   }
 }
+
 function bump(counts: Record<string, number>, ids: string[], delta: number) {
   for (const id of new Set(ids)) counts[id] = Math.max(0, (counts[id] || 0) + delta)
 }
+
 function identity(
   snapshot: { exists(): boolean; id: string; data(): DocumentData | undefined },
   groupId: string,
@@ -66,15 +93,17 @@ function identity(
     )
   return member
 }
-export async function listGroupAgreements(groupId: string): Promise<GroupAgreement[]> {
+
+async function listGroupAgreements(groupId: string): Promise<GroupAgreement[]> {
   const snapshot = await getDocs(collection(db, 'groups', agreementId(groupId), 'agreements'))
   return snapshot.docs
     .map((d) => ({ ...d.data(), id: d.id }) as GroupAgreement)
     .sort((a, b) => b.agreementDate.localeCompare(a.agreementDate) || a.id.localeCompare(b.id))
 }
 
+
 /** One atomic agreement per buyer. A stable request ID makes network retries safe. */
-export async function createGroupAgreements(
+async function createGroupAgreements(
   input: AgreementBatchDraft,
   actor: GroupActor,
 ): Promise<string[]> {
@@ -174,7 +203,6 @@ export async function createGroupAgreements(
   })
 }
 
-type AgreementChange = { next: GroupAgreement; description: string } | null
 async function updateAgreement(
   groupId: string,
   id: string,
@@ -221,12 +249,7 @@ async function updateAgreement(
   })
 }
 
-export type AgreementPaymentInput = Pick<
-  AgreementPayment,
-  'id' | 'amount' | 'date' | 'mode' | 'receivedBy'
-> &
-  Partial<Pick<AgreementPayment, 'reference' | 'note' | 'proofUrl'>>
-export async function recordAgreementPayment(
+async function recordAgreementPayment(
   groupId: string,
   id: string,
   input: AgreementPaymentInput,
@@ -295,7 +318,8 @@ export async function recordAgreementPayment(
     }
   })
 }
-export async function voidAgreementPayment(
+
+async function voidAgreementPayment(
   groupId: string,
   id: string,
   paymentId: string,
@@ -327,7 +351,8 @@ export async function voidAgreementPayment(
     }
   })
 }
-export async function cancelGroupAgreement(
+
+async function cancelGroupAgreement(
   groupId: string,
   id: string,
   reason: string,
@@ -347,7 +372,8 @@ export async function cancelGroupAgreement(
     }
   })
 }
-export async function recordAgreementRemittance(
+
+async function recordAgreementRemittance(
   groupId: string,
   id: string,
   input: Omit<AgreementPaymentInput, 'receivedBy'>,
@@ -411,7 +437,8 @@ export async function recordAgreementRemittance(
     }
   })
 }
-export async function voidAgreementRemittance(
+
+async function voidAgreementRemittance(
   groupId: string,
   id: string,
   remittanceId: string,
@@ -443,7 +470,8 @@ export async function voidAgreementRemittance(
     }
   })
 }
-export async function recordAgreementReminder(
+
+async function recordAgreementReminder(
   groupId: string,
   id: string,
   input: Omit<AgreementReminder, 'recordedAt' | 'byId' | 'byName'>,
@@ -494,3 +522,6 @@ export async function recordAgreementReminder(
     }
   })
 }
+return { agreementLedgerRef, listGroupAgreements, createGroupAgreements, recordAgreementPayment, voidAgreementPayment, cancelGroupAgreement, recordAgreementRemittance, voidAgreementRemittance, recordAgreementReminder };
+}
+export const { agreementLedgerRef, listGroupAgreements, createGroupAgreements, recordAgreementPayment, voidAgreementPayment, cancelGroupAgreement, recordAgreementRemittance, voidAgreementRemittance, recordAgreementReminder } = createAgreementService();

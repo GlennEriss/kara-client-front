@@ -14,6 +14,7 @@ interface CursorCache {
 }
 
 export class ProfessionRepository implements IProfessionRepository {
+  constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
   readonly name = "ProfessionRepository";
   
   // Cache des curseurs pour éviter de refaire les requêtes
@@ -39,7 +40,7 @@ export class ProfessionRepository implements IProfessionRepository {
    */
   async findByName(professionName: string): Promise<ProfessionSearchResult> {
     try {
-      const { collection, db, getDocs, query, where } = await getFirestore();
+      const { collection, db, getDocs, query, where } = await this.firestore();
       
       const normalizedName = normalizeName(professionName);
       
@@ -89,6 +90,7 @@ export class ProfessionRepository implements IProfessionRepository {
       };
       
     } catch (error) {
+      if (this.strict) throw error;
       console.error("Erreur lors de la recherche de profession:", error);
       return { found: false, suggestions: [] };
     }
@@ -99,7 +101,7 @@ export class ProfessionRepository implements IProfessionRepository {
    */
   async create(data: Omit<Profession, 'id' | 'createdAt' | 'updatedAt'>, adminId: string): Promise<Profession> {
     try {
-      const { collection, addDoc, db, serverTimestamp } = await getFirestore();
+      const { collection, addDoc, db, serverTimestamp } = await this.firestore();
       const normalizedName = normalizeName(data.name);
       
       // Filtrer les valeurs undefined pour éviter les erreurs Firebase
@@ -133,6 +135,7 @@ export class ProfessionRepository implements IProfessionRepository {
       
       return createdProfession;
     } catch (error) {
+      if (this.strict) throw error;
       console.error("Erreur lors de la création de la profession:", error);
       throw error;
     }
@@ -143,7 +146,7 @@ export class ProfessionRepository implements IProfessionRepository {
    */
   async getById(id: string): Promise<Profession | null> {
     try {
-      const { doc, getDoc, db } = await getFirestore();
+      const { doc, getDoc, db } = await this.firestore();
       const docRef = doc(db, firebaseCollectionNames.professions || "professions", id);
       const snapshot = await getDoc(docRef);
       
@@ -163,6 +166,7 @@ export class ProfessionRepository implements IProfessionRepository {
         createdBy: data.createdBy,
       };
     } catch (error) {
+      if (this.strict) throw error;
       console.error("Erreur lors de la récupération de la profession:", error);
       return null;
     }
@@ -173,7 +177,7 @@ export class ProfessionRepository implements IProfessionRepository {
    */
   async getAll(filters?: ProfessionFilters): Promise<Profession[]> {
     try {
-      const { collection, db, getDocs, query, orderBy, where } = await getFirestore();
+      const { collection, db, getDocs, query, orderBy, where } = await this.firestore();
       const jobsRef = collection(db, firebaseCollectionNames.professions || "professions");
       const constraints: any[] = [];
 
@@ -206,6 +210,7 @@ export class ProfessionRepository implements IProfessionRepository {
 
       return professions;
     } catch (error) {
+      if (this.strict) throw error;
       console.error("Erreur lors de la récupération des professions:", error);
       return [];
     }
@@ -229,7 +234,7 @@ export class ProfessionRepository implements IProfessionRepository {
         doc,
         getDoc,
         getCountFromServer
-      } = await getFirestore();
+      } = await this.firestore();
       
       const jobsRef = collection(db, firebaseCollectionNames.professions || "professions");
       const constraints: any[] = [];
@@ -374,6 +379,7 @@ export class ProfessionRepository implements IProfessionRepository {
         },
       };
     } catch (error) {
+      if (this.strict) throw error;
       console.error("Erreur lors de la récupération paginée des professions:", error);
       return {
         data: [],
@@ -394,7 +400,7 @@ export class ProfessionRepository implements IProfessionRepository {
    */
   async update(id: string, updates: Partial<Omit<Profession, 'id' | 'createdAt' | 'createdBy'>>): Promise<Profession | null> {
     try {
-      const { doc, db, updateDoc, serverTimestamp } = await getFirestore();
+      const { doc, db, updateDoc, serverTimestamp } = await this.firestore();
       const ref = doc(db, firebaseCollectionNames.professions || 'professions', id);
       const payload: any = { ...updates, updatedAt: serverTimestamp() };
       if (updates.name) {
@@ -407,6 +413,7 @@ export class ProfessionRepository implements IProfessionRepository {
       
       return await this.getById(id);
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur updateProfession:', error);
       throw error;
     }
@@ -417,13 +424,14 @@ export class ProfessionRepository implements IProfessionRepository {
    */
   async delete(id: string): Promise<void> {
     try {
-      const { doc, db, deleteDoc } = await getFirestore();
+      const { doc, db, deleteDoc } = await this.firestore();
       const ref = doc(db, firebaseCollectionNames.professions || 'professions', id);
       await deleteDoc(ref);
       
       // Nettoyer le cache après suppression
       this.clearCursorCache();
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur deleteProfession:', error);
       throw error;
     }
@@ -466,6 +474,7 @@ export class ProfessionRepository implements IProfessionRepository {
       };
       
     } catch (error) {
+      if (this.strict) throw error;
       console.error("Erreur lors de la recherche ou création de profession:", error);
       throw new Error("Impossible de traiter la profession");
     }

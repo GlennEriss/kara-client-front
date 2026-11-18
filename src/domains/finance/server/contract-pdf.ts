@@ -1,3 +1,4 @@
+import { isCreditModule } from '../credit-module'
 import { createElement } from 'react'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { readFile } from 'node:fs/promises'
@@ -58,7 +59,7 @@ export async function generateContractDocument(
           ? CreditQuittance
           : CreditPDF
   // Credit templates require a record even for a blank version.
-  if (module === 'credit-speciale' && blank)
+  if (isCreditModule(module) && blank)
     common.contract = {
       ...detail.record,
       clientFirstName: '',

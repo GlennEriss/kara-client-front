@@ -3,8 +3,12 @@ import { CharityParticipantRepository } from '@/repositories/bienfaiteur/Charity
 import { CharityEventService } from './CharityEventService'
 import { CharityContribution, CharityContributionInput, EnrichedCharityContribution } from '@/types/types'
 import { db, doc, getDoc } from '@/firebase/firestore'
+const createCharityContributionServiceDefaults = {CharityContributionRepository,CharityParticipantRepository,CharityEventService,db,doc,getDoc};
+export function createCharityContributionService(overrides: Partial<typeof createCharityContributionServiceDefaults> = {}) {
+const {CharityContributionRepository,CharityParticipantRepository,CharityEventService,db,doc,getDoc} = {...createCharityContributionServiceDefaults,...overrides};
 
-export class CharityContributionService {
+
+class CharityContributionService {
   /**
    * Récupère toutes les contributions d'un évènement
    */
@@ -321,4 +325,7 @@ export class CharityContributionService {
     }
   }
 }
-
+return {CharityContributionService};
+}
+export const {CharityContributionService} = createCharityContributionService();
+export type CharityContributionService = InstanceType<ReturnType<typeof createCharityContributionService>['CharityContributionService']>;

@@ -34,7 +34,10 @@ vi.mock('@/firebase/app', () => ({
   app: {},
 }));
 
-vi.mock('@/firebase/firestore', () => ({
+// Les factories des adaptateurs injectent le SDK ; conserver ses exports purs
+// permet d’automocker les repositories sans initialiser une base réelle.
+vi.mock('@/firebase/firestore', async () => ({
+  ...(await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore')),
   db: {},
 }));
 
@@ -42,8 +45,10 @@ vi.mock('@/firebase/auth', () => ({
   auth: {},
 }));
 
-vi.mock('@/firebase/storage', () => ({
+vi.mock('@/firebase/storage', async () => ({
+  ...(await vi.importActual<typeof import('firebase/storage')>('firebase/storage')),
   storage: {},
+  getStorageInstance: vi.fn(() => ({})),
   getStorage: vi.fn(() => ({})),
 }));
 

@@ -14,6 +14,7 @@ interface CursorCache {
 }
 
 export class CompanyRepository implements ICompanyRepository {
+  constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
   readonly name = "CompanyRepository";
   
   // Cache des curseurs pour éviter de refaire les requêtes
@@ -39,7 +40,7 @@ export class CompanyRepository implements ICompanyRepository {
    */
   async findByName(companyName: string): Promise<CompanySearchResult> {
     try {
-      const { collection, db, getDocs, query, where } = await getFirestore();
+      const { collection, db, getDocs, query, where } = await this.firestore();
       
       const normalizedName = normalizeName(companyName);
       
@@ -90,6 +91,7 @@ export class CompanyRepository implements ICompanyRepository {
       };
       
     } catch (error) {
+      if (this.strict) throw error;
       console.error("Erreur lors de la recherche d'entreprise:", error);
       return { found: false, suggestions: [] };
     }
@@ -100,7 +102,7 @@ export class CompanyRepository implements ICompanyRepository {
    */
   async create(data: Omit<Company, 'id' | 'createdAt' | 'updatedAt'>, adminId: string): Promise<Company> {
     try {
-      const { collection, addDoc, db, serverTimestamp } = await getFirestore();
+      const { collection, addDoc, db, serverTimestamp } = await this.firestore();
       const normalizedName = normalizeName(data.name);
       
       // Filtrer les valeurs undefined pour éviter les erreurs Firebase
@@ -137,6 +139,7 @@ export class CompanyRepository implements ICompanyRepository {
       
       return createdCompany;
     } catch (error) {
+      if (this.strict) throw error;
       console.error("Erreur lors de la création de l'entreprise:", error);
       throw error;
     }
@@ -147,7 +150,7 @@ export class CompanyRepository implements ICompanyRepository {
    */
   async getById(id: string): Promise<Company | null> {
     try {
-      const { doc, getDoc, db } = await getFirestore();
+      const { doc, getDoc, db } = await this.firestore();
       const docRef = doc(db, firebaseCollectionNames.companies || "companies", id);
       const snapshot = await getDoc(docRef);
       
@@ -168,6 +171,7 @@ export class CompanyRepository implements ICompanyRepository {
         createdBy: data.createdBy,
       };
     } catch (error) {
+      if (this.strict) throw error;
       console.error("Erreur lors de la récupération de l'entreprise:", error);
       return null;
     }
@@ -178,7 +182,7 @@ export class CompanyRepository implements ICompanyRepository {
    */
   async getAll(filters?: CompanyFilters): Promise<Company[]> {
     try {
-      const { collection, db, getDocs, query, orderBy, where } = await getFirestore();
+      const { collection, db, getDocs, query, orderBy, where } = await this.firestore();
       const colRef = collection(db, firebaseCollectionNames.companies || 'companies');
       const constraints: any[] = [];
 
@@ -212,6 +216,7 @@ export class CompanyRepository implements ICompanyRepository {
 
       return companies;
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la récupération des entreprises:', error);
       return [];
     }
@@ -235,7 +240,7 @@ export class CompanyRepository implements ICompanyRepository {
         doc,
         getDoc,
         getCountFromServer
-      } = await getFirestore();
+      } = await this.firestore();
       
       const colRef = collection(db, firebaseCollectionNames.companies || 'companies');
       const constraints: any[] = [];
@@ -382,6 +387,7 @@ export class CompanyRepository implements ICompanyRepository {
         },
       };
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la récupération paginée des entreprises:', error);
       return {
         data: [],
@@ -402,7 +408,7 @@ export class CompanyRepository implements ICompanyRepository {
    */
   async update(id: string, updates: Partial<Omit<Company, 'id' | 'createdAt' | 'createdBy'>>): Promise<Company | null> {
     try {
-      const { doc, db, updateDoc, serverTimestamp } = await getFirestore();
+      const { doc, db, updateDoc, serverTimestamp } = await this.firestore();
       const ref = doc(db, firebaseCollectionNames.companies || 'companies', id);
       const payload: any = { ...updates, updatedAt: serverTimestamp() };
       if (updates.name) {
@@ -415,6 +421,7 @@ export class CompanyRepository implements ICompanyRepository {
       
       return await this.getById(id);
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur updateCompany:', error);
       throw error;
     }
@@ -425,13 +432,14 @@ export class CompanyRepository implements ICompanyRepository {
    */
   async delete(id: string): Promise<void> {
     try {
-      const { doc, db, deleteDoc } = await getFirestore();
+      const { doc, db, deleteDoc } = await this.firestore();
       const ref = doc(db, firebaseCollectionNames.companies || 'companies', id);
       await deleteDoc(ref);
       
       // Nettoyer le cache après suppression
       this.clearCursorCache();
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur deleteCompany:', error);
       throw error;
     }
@@ -482,6 +490,7 @@ export class CompanyRepository implements ICompanyRepository {
       };
       
     } catch (error) {
+      if (this.strict) throw error;
       console.error("Erreur lors de la recherche ou création d'entreprise:", error);
       throw new Error("Impossible de traiter l'entreprise");
     }

@@ -2,16 +2,20 @@ import { CharityEvent, CharityEventFilters } from '@/types/types'
 
 const getFirestore = () => import('@/firebase/firestore')
 
-const COLLECTION_NAME = 'charity-events'
-
 export interface PaginatedCharityEvents {
   events: CharityEvent[]
   total: number
   hasMore: boolean
   lastDoc: any
 }
+const createCharityEventRepositoryDefaults = {getFirestore};
+export function createCharityEventRepository(overrides: Partial<typeof createCharityEventRepositoryDefaults> = {}) {
+const {getFirestore} = {...createCharityEventRepositoryDefaults,...overrides};
 
-export class CharityEventRepository {
+
+const COLLECTION_NAME = 'charity-events'
+
+class CharityEventRepository {
   /**
    * Récupère tous les évènements avec pagination
    */
@@ -409,4 +413,7 @@ export class CharityEventRepository {
     }
   }
 }
-
+return {CharityEventRepository};
+}
+export const {CharityEventRepository} = createCharityEventRepository();
+export type CharityEventRepository = InstanceType<ReturnType<typeof createCharityEventRepository>['CharityEventRepository']>;

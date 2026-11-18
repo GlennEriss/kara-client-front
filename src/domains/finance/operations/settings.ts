@@ -1,3 +1,4 @@
+import { isCreditModule, creditTypeForModule } from '../credit-module'
 /* eslint-disable no-restricted-imports -- Adaptateur temporaire vers les règles métier et modèles officiels existants. */
 import { z } from 'zod'
 import {
@@ -36,7 +37,7 @@ export function settingsActions(module: FinanceModule): FinanceAction[] {
       run,
       extra,
     )
-  if (module === 'credit-speciale')
+  if (isCreditModule(module))
     return [
       action(
         'simulation.standard',
@@ -48,7 +49,16 @@ export function settingsActions(module: FinanceModule): FinanceAction[] {
             'interestRate',
             'Taux (%)',
             'number',
-            z.number().min(0).max(100),
+            z
+              .number()
+              .min(0)
+              .max(
+                module === 'caisse-aide'
+                  ? 5
+                  : module === 'credit-fixe'
+                    ? 50
+                    : 100,
+              ),
           ),
           moneyField('monthlyPaymentAmount', 'Mensualité (FCFA)'),
           dateField('firstPaymentDate', 'Première échéance'),
@@ -59,7 +69,7 @@ export function settingsActions(module: FinanceModule): FinanceAction[] {
             d.interestRate,
             d.monthlyPaymentAmount,
             asDate(d.firstPaymentDate),
-            'SPECIALE',
+            creditTypeForModule(module),
           ),
         { readonly: true },
       ),
@@ -73,7 +83,16 @@ export function settingsActions(module: FinanceModule): FinanceAction[] {
             'interestRate',
             'Taux (%)',
             'number',
-            z.number().min(0).max(100),
+            z
+              .number()
+              .min(0)
+              .max(
+                module === 'caisse-aide'
+                  ? 5
+                  : module === 'credit-fixe'
+                    ? 50
+                    : 100,
+              ),
           ),
           dateField('firstPaymentDate', 'Première échéance'),
           field(
@@ -102,7 +121,7 @@ export function settingsActions(module: FinanceModule): FinanceAction[] {
             d.interestRate,
             d.monthlyPayments,
             asDate(d.firstPaymentDate),
-            'SPECIALE',
+            creditTypeForModule(module),
           ),
         { readonly: true },
       ),
@@ -116,9 +135,23 @@ export function settingsActions(module: FinanceModule): FinanceAction[] {
             'interestRate',
             'Taux (%)',
             'number',
-            z.number().min(0).max(100),
+            z
+              .number()
+              .min(0)
+              .max(
+                module === 'caisse-aide'
+                  ? 5
+                  : module === 'credit-fixe'
+                    ? 50
+                    : 100,
+              ),
           ),
-          numberField('duration', 'Durée (mois)', 1, 1200),
+          numberField(
+            'duration',
+            'Durée (mois)',
+            1,
+            module === 'caisse-aide' ? 3 : module === 'credit-fixe' ? 14 : 1200,
+          ),
           dateField('firstPaymentDate', 'Première échéance'),
         ],
         async (ctx, d) =>
@@ -127,7 +160,7 @@ export function settingsActions(module: FinanceModule): FinanceAction[] {
             d.duration,
             d.interestRate,
             asDate(d.firstPaymentDate),
-            'SPECIALE',
+            creditTypeForModule(module),
           ),
         { readonly: true },
       ),

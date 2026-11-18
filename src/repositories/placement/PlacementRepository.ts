@@ -5,6 +5,7 @@ import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 const getFirestore = () => import('@/firebase/firestore')
 
 export class PlacementRepository implements IRepository {
+  constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
   readonly name = 'PlacementRepository'
 
   private collectionName = firebaseCollectionNames.placements || 'placements'
@@ -24,7 +25,7 @@ export class PlacementRepository implements IRepository {
   }
 
   async create(data: Omit<Placement, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<Placement> {
-    const { doc, setDoc, db, serverTimestamp, getDoc } = await getFirestore()
+    const { doc, setDoc, db, serverTimestamp, getDoc } = await this.firestore()
     
     // Utiliser l'ID personnalisé fourni, sinon générer un ID automatique
     const placementId = customId || `placement_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -51,7 +52,7 @@ export class PlacementRepository implements IRepository {
   }
 
   async getAll(opts: { statuses?: Placement['status'][]; payoutMode?: Placement['payoutMode'] } = {}): Promise<Placement[]> {
-    const { collection, getDocs, db, orderBy, query, where } = await getFirestore()
+    const { collection, getDocs, db, orderBy, query, where } = await this.firestore()
     const colRef = collection(db, this.collectionName)
     // Filtre serveur : on ne charge que le sous-ensemble utile (onglet actif,
     // remises à venir…) au lieu de toute la collection.
@@ -85,7 +86,7 @@ export class PlacementRepository implements IRepository {
   }
 
   async getById(id: string): Promise<Placement | null> {
-    const { doc, getDoc, db } = await getFirestore()
+    const { doc, getDoc, db } = await this.firestore()
     const ref = doc(db, this.collectionName, id)
     const snap = await getDoc(ref)
     if (!snap.exists()) return null
@@ -111,7 +112,7 @@ export class PlacementRepository implements IRepository {
   }
 
   async update(id: string, data: Partial<Omit<Placement, 'id' | 'createdAt'>>): Promise<Placement> {
-    const { doc, updateDoc, db, serverTimestamp } = await getFirestore()
+    const { doc, updateDoc, db, serverTimestamp } = await this.firestore()
     const ref = doc(db, this.collectionName, id)
     await updateDoc(ref, { ...this.stripUndefined(data as Record<string, unknown>), updatedAt: serverTimestamp() })
     const updated = await this.getById(id)
@@ -128,7 +129,7 @@ export class PlacementRepository implements IRepository {
    * sous-collection d'abord.
    */
   async delete(id: string): Promise<void> {
-    const { collection, doc, deleteDoc, getDocs, db } = await getFirestore()
+    const { collection, doc, deleteDoc, getDocs, db } = await this.firestore()
 
     const commissionsRef = collection(db, `${this.collectionName}/${id}/commissions`)
     const commissions = await getDocs(commissionsRef)
@@ -139,7 +140,7 @@ export class PlacementRepository implements IRepository {
 
   // Commissions
   async createCommission(placementId: string, data: Omit<CommissionPaymentPlacement, 'id' | 'createdAt' | 'updatedAt'>): Promise<CommissionPaymentPlacement> {
-    const { collection, addDoc, db, serverTimestamp, getDoc } = await getFirestore()
+    const { collection, addDoc, db, serverTimestamp, getDoc } = await this.firestore()
     const colRef = collection(db, `${this.collectionName}/${placementId}/commissions`)
     const docRef = await addDoc(colRef, {
       ...this.stripUndefined(data as Record<string, unknown>),
@@ -165,7 +166,7 @@ export class PlacementRepository implements IRepository {
   }
 
   async listCommissions(placementId: string): Promise<CommissionPaymentPlacement[]> {
-    const { collection, query, getDocs, db, orderBy } = await getFirestore()
+    const { collection, query, getDocs, db, orderBy } = await this.firestore()
     const colRef = collection(db, `${this.collectionName}/${placementId}/commissions`)
     const q = query(colRef, orderBy('dueDate', 'asc'))
     const snaps = await getDocs(q)
@@ -184,7 +185,7 @@ export class PlacementRepository implements IRepository {
   }
 
   async updateCommission(placementId: string, commissionId: string, data: Partial<CommissionPaymentPlacement>): Promise<CommissionPaymentPlacement> {
-    const { doc, updateDoc, db, serverTimestamp, getDoc } = await getFirestore()
+    const { doc, updateDoc, db, serverTimestamp, getDoc } = await this.firestore()
     const ref = doc(db, `${this.collectionName}/${placementId}/commissions`, commissionId)
     await updateDoc(ref, { ...this.stripUndefined(data as Record<string, unknown>), updatedAt: serverTimestamp() })
     const snap = await getDoc(ref)
@@ -203,7 +204,7 @@ export class PlacementRepository implements IRepository {
 
   // Retrait anticipé
   async getEarlyExit(placementId: string): Promise<EarlyExitPlacement | null> {
-    const { doc, getDoc, db } = await getFirestore()
+    const { doc, getDoc, db } = await this.firestore()
     const ref = doc(db, `${this.collectionName}/${placementId}/earlyExit`, 'current')
     const snap = await getDoc(ref)
     if (!snap.exists()) return null
@@ -220,7 +221,7 @@ export class PlacementRepository implements IRepository {
   }
 
   async saveEarlyExit(placementId: string, data: Omit<EarlyExitPlacement, 'id' | 'createdAt' | 'updatedAt'>): Promise<EarlyExitPlacement> {
-    const { doc, setDoc, db, serverTimestamp, getDoc } = await getFirestore()
+    const { doc, setDoc, db, serverTimestamp, getDoc } = await this.firestore()
     const ref = doc(db, `${this.collectionName}/${placementId}/earlyExit`, 'current')
     await setDoc(ref, {
       ...this.stripUndefined(data as Record<string, unknown>),
