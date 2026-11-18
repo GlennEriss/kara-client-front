@@ -75,6 +75,39 @@ describe('lecture financière pour les cartes natives', () => {
       penalties: 50,
     })
   })
+  it('conserve le nominal du forfait CI même si les cotisations historiques divergent', async () => {
+    const result = await projectFinanceContract(
+      {} as FinanceServices,
+      'caisse-imprevue',
+      {
+        id: 'ci',
+        status: 'ACTIVE',
+        paymentFrequency: 'MONTHLY',
+        firstPaymentDate: '2026-05-20',
+        subscriptionCIAmountPerMonth: 10000,
+        subscriptionCIDuration: 5,
+        subscriptionCINominal: 120000,
+      },
+      new Date('2026-11-18T12:00:00Z'),
+      {
+        payments: [
+          {
+            monthIndex: 0,
+            accumulatedAmount: 10000,
+            targetAmount: 10000,
+            status: 'PAID',
+          },
+        ],
+        refunds: [],
+      },
+    )
+    expect(result.financeView).toMatchObject({
+      total: 120000,
+      paid: 10000,
+      remaining: 110000,
+      paidPeriods: 1,
+    })
+  })
   it('calcule les indicateurs sur tous les dossiers, au-delà de la première page', () => {
     const rows = Array.from({ length: 37 }, (_, i) => row(String(i)))
     expect(summarizePresentedRows(rows, 'caisse-speciale')).toMatchObject({

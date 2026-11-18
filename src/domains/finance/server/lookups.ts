@@ -102,51 +102,64 @@ export async function getFinanceLookups(
               ? await services.csRefunds.listDeclaredVersementsCS(contractId)
               : await services.csRefunds.listDeclaredVersementsCI(contractId)
             : detail[source] || []
-        rows = items.map((row: any) => ({
-          value: row.id,
-          label: [
-            row.month
-              ? `Mois ${row.month}`
-              : row.dueMonthIndex != null
-                ? `Mois ${row.dueMonthIndex + 1}`
-                : row.monthIndex != null
-                  ? `Mois ${row.monthIndex + 1}`
-                  : row.id,
-            row.date || row.paymentDate || '',
-            row.amount != null ? `${row.amount} FCFA` : '',
-            row.status || '',
-          ]
-            .filter(Boolean)
-            .join(' · '),
-          meta: {
-            month:
-              row.month ||
-              (row.monthIndex != null
-                ? row.monthIndex + 1
+        rows = items
+          .filter(
+            (row: any) =>
+              source !== 'payments' ||
+              module.data !== 'caisse-speciale' ||
+              Number(row.accumulatedAmount ?? row.amount) > 0 ||
+              row.contribs?.length ||
+              row.groupContributions?.length,
+          )
+          .map((row: any) => ({
+            value: row.id,
+            label: [
+              row.month
+                ? `Mois ${row.month}`
                 : row.dueMonthIndex != null
-                  ? row.dueMonthIndex + 1
-                  : undefined),
-            paymentId: row.paymentId,
-            values: {
-              ...(row.amount != null ? { amount: row.amount } : {}),
-              ...(row.mode ? { mode: row.mode } : {}),
-              ...(row.time || row.paymentTime
-                ? { time: row.time || row.paymentTime }
-                : {}),
-              ...(row.date || row.paymentDate || row.paidAt
-                ? {
-                    date: String(
-                      row.date ||
-                        (row.paymentDate || row.paidAt)?.toISOString?.() ||
-                        row.paymentDate ||
-                        row.paidAt,
-                    ).slice(0, 10),
-                  }
-                : {}),
-              ...(row.withFees != null ? { withFees: row.withFees } : {}),
+                  ? `Mois ${row.dueMonthIndex + 1}`
+                  : row.monthIndex != null
+                    ? `Mois ${row.monthIndex + 1}`
+                    : row.id,
+              row.date || row.paymentDate || '',
+              row.amount != null ? `${row.amount} FCFA` : '',
+              row.status || '',
+            ]
+              .filter(Boolean)
+              .join(' · '),
+            meta: {
+              month:
+                row.month ||
+                (row.monthIndex != null
+                  ? row.monthIndex + 1
+                  : row.dueMonthIndex != null
+                    ? row.dueMonthIndex + 1
+                    : undefined),
+              paymentId: row.paymentId,
+              values: {
+                ...(source === 'contributions'
+                  ? { contributionId: row.id }
+                  : {}),
+                ...(source === 'versements' ? { versementId: row.id } : {}),
+                ...(row.amount != null ? { amount: row.amount } : {}),
+                ...(row.mode ? { mode: row.mode } : {}),
+                ...(row.time || row.paymentTime
+                  ? { time: row.time || row.paymentTime }
+                  : {}),
+                ...(row.date || row.paymentDate || row.paidAt
+                  ? {
+                      date: String(
+                        row.date ||
+                          (row.paymentDate || row.paidAt)?.toISOString?.() ||
+                          row.paymentDate ||
+                          row.paidAt,
+                      ).slice(0, 10),
+                    }
+                  : {}),
+                ...(row.withFees != null ? { withFees: row.withFees } : {}),
+              },
             },
-          },
-        }))
+          }))
       }
     }
     const normalized = search.toLocaleLowerCase('fr')

@@ -1,4 +1,5 @@
 'use client'
+import { useCreditCardSummaries } from '@/hooks/credit-speciale/useCreditCardSummaries'
 import { isCreditContractLocked } from '@/utils/contract-lock'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { ENDED_CREDIT_STATUSES } from '@/utils/credit-write-off'
@@ -13,7 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ListPagination } from '@/components/ui/list-pagination'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import {
     DropdownMenu,
@@ -863,7 +864,7 @@ const ListContrats = ({
     orderByDirection: 'desc',
   }
 
-  const { data: contrats = [], isLoading: isLoadingContracts, error } = useCreditContracts(queryFilters)
+  const { data: contrats = [], isLoading: isLoadingContracts, error, refetch: refetchContracts } = useCreditContracts(queryFilters)
 
   // Onglet « En perte » : contrats terminés avec des pénalités impayées ou un
   // manque à gagner, et ceux clôturés en perte. Les pertes se calculent à
@@ -968,7 +969,7 @@ const ListContrats = ({
   }
 
   const handleRefresh = async () => {
-    // Le refetch est géré automatiquement par React Query
+    await Promise.all([refetchContracts(), cardSummaries.refetch()])
   }
 
   const exportToExcel = async () => {
@@ -1438,7 +1439,11 @@ const ListContrats = ({
   const totalPages = Math.ceil(filteredContrats.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentContrats = filteredContrats.slice(startIndex, endIndex)
+  const visibleContrats = filteredContrats.slice(startIndex, endIndex)
+  const cardSummaries = useCreditCardSummaries(visibleContrats)
+  const currentContrats = visibleContrats
+  const cardAmounts = (contract: CreditContract) => cardSummaries.data?.get(contract.id)
+  const cardTotalsLoading = visibleContrats.length > 0 && cardSummaries.isPending
 
   const renderPagination = () => {
     if (totalPages <= 1) return null
@@ -1464,13 +1469,13 @@ const ListContrats = ({
   }
 
   // Gestion des erreurs
-  if (error) {
+  if (error || cardSummaries.error) {
     return (
       <div className="space-y-8 animate-in fade-in-0 duration-500">
         <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50 shadow-lg">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <AlertDescription className="text-red-700 font-medium">
-            Une erreur est survenue lors du chargement des contrats : {error instanceof Error ? error.message : 'Erreur inconnue'}
+            Une erreur est survenue lors du chargement des contrats : {(error || cardSummaries.error) instanceof Error ? (error || cardSummaries.error)?.message : 'Erreur inconnue'}
             <Button
               variant="link"
               className="p-0 h-auto ml-2 text-red-700 underline font-bold hover:text-red-800"
@@ -1679,7 +1684,7 @@ const ListContrats = ({
       </Tabs>
 
       {/* Liste des contrats */}
-      {isLoading ? (
+      {isLoading || cardTotalsLoading ? (
         <div className={
           viewMode === 'grid'
             ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
@@ -1703,8 +1708,8 @@ const ListContrats = ({
               const scoreValue = contract.score
               const { startDate, initialStartDate, hasExtension } = getCreditContractStartDates(contract)
               const remainingMonths = getCreditContractRemainingMonths(contract)
-              const repaymentProgress = contract.totalAmount > 0
-                ? Math.min(100, Math.round(((contract.amountPaid || 0) / contract.totalAmount) * 100))
+              const repaymentProgress = (cardAmounts(contract)?.totalAmount || 0) > 0
+                ? Math.min(100, Math.round(((cardAmounts(contract)?.amountPaid || 0) / cardAmounts(contract)!.totalAmount) * 100))
                 : 0
 
               return (
@@ -1801,7 +1806,7 @@ const ListContrats = ({
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Total versé</p>
                           <p className="font-bold text-gray-900 tabular-nums text-sm">
-                            {(contract.amountPaid || 0).toLocaleString('fr-FR')}{' '}
+                            {(cardAmounts(contract)?.amountPaid || 0).toLocaleString('fr-FR')}{' '}
                             <span className="text-[10px] font-normal text-gray-400">FCFA</span>
                           </p>
                         </div>
@@ -1820,7 +1825,7 @@ const ListContrats = ({
                           />
                         </div>
                         <p className="text-[11px] text-gray-400 tabular-nums">
-                          Reste {Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
+                          Reste {Math.round(cardAmounts(contract)?.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
                           {CREDIT_SCORING_ENABLED && scoreValue !== undefined && <> · Score {scoreValue}/10</>}
                         </p>
                         <ContractLossSummary loss={getContractLoss(contract.id)} />
@@ -2004,9 +2009,9 @@ const ListContrats = ({
                         ) : '—'}
                       </td>
                       <td className="px-4 py-3 text-right font-medium text-green-700">{contract.amount.toLocaleString('fr-FR')} FCFA</td>
-                      <td className="px-4 py-3 text-right">{contract.amountPaid.toLocaleString('fr-FR')} FCFA</td>
+                      <td className="px-4 py-3 text-right">{(cardAmounts(contract)?.amountPaid || 0).toLocaleString('fr-FR')} FCFA</td>
                       <td className="px-4 py-3 text-right font-medium text-orange-600">
-                        {Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA
+                        {Math.round(cardAmounts(contract)?.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
                         <ContractLossSummary loss={getContractLoss(contract.id)} />
                         <ContractFixedPhaseSummary fixedPhase={getContractFixedPhase(contract.id)} />
                       </td>
@@ -2291,11 +2296,11 @@ const ListContrats = ({
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
                               <p className="text-[11px] uppercase tracking-wide text-slate-500">Déjà versé</p>
-                              <p className="text-base font-semibold text-slate-900">{(contract.amountPaid || 0).toLocaleString('fr-FR')} FCFA</p>
+                              <p className="text-base font-semibold text-slate-900">{(cardAmounts(contract)?.amountPaid || 0).toLocaleString('fr-FR')} FCFA</p>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
                               <p className="text-[11px] uppercase tracking-wide text-slate-500">Reste à payer</p>
-                              <p className="text-base font-semibold text-slate-900">{Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA</p>
+                              <p className="text-base font-semibold text-slate-900">{Math.round(cardAmounts(contract)?.amountRemaining || 0).toLocaleString('fr-FR')} FCFA</p>
                             </div>
                           </div>
                         </div>

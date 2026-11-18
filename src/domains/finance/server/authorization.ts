@@ -1,4 +1,5 @@
 import { isCreditModule } from '../credit-module'
+import { contractActionAvailable } from './contract-policy'
 import { canWithAccess } from '@/domains/auth/access-policy'
 import { mobileJson, requireMobileCaller } from '@/domains/mobile/server/access'
 import type { NextRequest } from 'next/server'
@@ -87,6 +88,13 @@ export async function guardFinanceTarget(
       action.scope as FinanceScope,
       id,
     )
+    if (
+      action.scope === 'contract' &&
+      !contractActionAvailable(module, row, action.id)
+    )
+      throw new Error(
+        'Cette opération est indisponible : vérifiez le contrat signé et l’état du dossier.',
+      )
     if (
       action.id === 'demand.delete' &&
       row.contractId &&

@@ -1,4 +1,6 @@
 'use client'
+
+import { creditContractSummary } from '@/utils/credit-contract-summary'
 import { isCreditContractLocked } from '@/utils/contract-lock'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { PunctualityBadge, PunctualityLegend } from './PaymentPunctuality'
@@ -937,30 +939,12 @@ export default function CreditContractDetail({
 
   // Calculer le montant total payé
   // Crédit simple ou à intérêts uniques : tout versement compte, même sur une échéance pas encore soldée.
-  const totalPaidFromSchedule = isSimpleCredit || isFlat
-    ? paymentsForSchedule
-        .filter((p) => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
-        .reduce((sum, p) => sum + p.amount, 0)
-    : actualSchedule
-        .filter((item) => item.status === 'PAID')
-        .reduce((sum, item) => sum + (item.paidAmount || item.payment || 0), 0)
-
-  // Le montant total à rembourser
-  const totalAmountToRepay = isSimpleCredit
-    ? customRound(contract.totalAmount)
-    : flatTotals
-      ? flatTotals.totalAmount
-      : actualSchedule.reduce((sum, item) => sum + item.payment, 0)
-
-  // Calculer le montant restant
-  const realRemainingAmount = isSimpleCredit || isFlat
-    ? Math.max(0, totalAmountToRepay - totalPaidFromSchedule)
-    : totalAmountToRepay - totalPaidFromSchedule
+  const { paid: totalPaidFromSchedule, total: totalAmountToRepay, remaining: realRemainingAmount } = creditContractSummary(contract, payments)
 
   // Barre de progression : montant versé + montant restant, comme les cartes
   // « Montant versé » et « Montant restant » (le total évolue avec les intérêts).
-  const progressTotal = contract.amountPaid + Math.max(0, realRemainingAmount)
-  const progressPercentage = progressTotal > 0 ? (contract.amountPaid / progressTotal) * 100 : 0
+  const progressTotal = totalPaidFromSchedule + Math.max(0, realRemainingAmount)
+  const progressPercentage = progressTotal > 0 ? (totalPaidFromSchedule / progressTotal) * 100 : 0
 
   const lossHistoryRows = React.useMemo(() => {
     const asOfTime = Date.now()

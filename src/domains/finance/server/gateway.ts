@@ -1,4 +1,10 @@
+import { serializeFinanceValue } from './serialization'
+import { decorateFinanceDetail } from './detail-extras'
 import { isCreditModule } from '../credit-module'
+import {
+  contractActionAvailable,
+  contractDocumentGate,
+} from './contract-policy'
 import { z } from 'zod'
 import { financeListSchema } from './list-query'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -59,7 +65,7 @@ const labels = {
   'credit-fixe': 'Crédit fixe',
   'caisse-aide': 'Caisse aide',
 }
-const jsonValue = (value: unknown) => JSON.parse(JSON.stringify(value ?? null))
+const jsonValue = serializeFinanceValue
 function errorResponse(error: unknown) {
   if (error instanceof z.ZodError)
     return mobileJson(
@@ -93,6 +99,12 @@ function permittedActions(
   return financeActions(module)
     .filter((action) => {
       if (action.scope !== scope || !canFinanceAction(caller, action))
+        return false
+      if (
+        scope === 'contract' &&
+        record &&
+        !contractActionAvailable(module, record, action.id)
+      )
         return false
       if (scope === 'demand' && record) {
         if (action.id === 'demand.convert')
@@ -165,6 +177,35 @@ export async function getFinanceWorkspace(
         : await listFinanceRows(services, result.module, input)
     return mobileJson({
       ...jsonValue(data),
+      ...(input.kind === 'contracts'
+        ? {
+            items: data.items.map((row: Record<string, any>) => ({
+              ...jsonValue(row),
+              cardAccess: {
+                actions: permittedActions(
+                  result.caller,
+                  result.module,
+                  'contract',
+                  row,
+                )
+                  .map((item) => item.id)
+                  .filter((id) =>
+                    [
+                      'document.upload',
+                      'document.replace',
+                      'member-document.approve',
+                      'member-document.reject',
+                      'contract.delete',
+                    ].includes(id),
+                  ),
+                canDownload: canWithAccess(
+                  result.caller.access,
+                  'documents.download',
+                ),
+              },
+            })),
+          }
+        : {}),
       module: result.module,
       title: labels[result.module],
       kind: input.kind,
@@ -223,8 +264,12 @@ export async function getFinanceDetail(
         new Date(),
         detail,
       )
+    if (kind === 'contract') await decorateFinanceDetail(services, detail)
     return mobileJson({
       ...jsonValue(detail),
+      ...(kind === 'contract'
+        ? { documentGate: contractDocumentGate(result.module, detail.record) }
+        : {}),
       ...(kind === 'contract' &&
       !isCreditModule(result.module) &&
       'payments' in detail

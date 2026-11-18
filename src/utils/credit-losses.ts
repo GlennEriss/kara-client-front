@@ -176,30 +176,21 @@ export function buildSimpleCreditSchedule(
  * Manque à gagner généré à la date demandée (cycle en cours), en FCFA.
  * Les échéances futures ne constituent pas encore un manque à gagner.
  */
-export function computeCreditLossTotal(
-  contract: CreditContract,
-  payments: CreditPayment[],
-  asOf: Date = new Date(),
-): number {
+export function buildCreditLossHistory(contract: CreditContract, payments: CreditPayment[], asOf = new Date()) {
   const cyclePayments = getCreditPaymentsForCurrentCycle(contract, payments)
   const asOfTime = asOf.getTime()
-
   if (contract.creditType === 'FIXE' || contract.creditType === 'AIDE') {
-    return customRound(
-      buildSimpleCreditSchedule(contract, cyclePayments)
-        .filter((row) => row.month > contract.duration && row.principal > 0 && row.date.getTime() <= asOfTime)
-        .reduce((sum, row) => sum + customRound(row.principal * SIMPLE_CREDIT_LOSS_RATE), 0),
-    )
+    return buildSimpleCreditSchedule(contract, cyclePayments)
+      .filter(row => row.month > contract.duration && row.principal > 0 && row.date.getTime() <= asOfTime)
+      .map(row => ({ month: row.month, date: row.date, lossAmount: customRound(row.principal * SIMPLE_CREDIT_LOSS_RATE) }))
   }
-
-  if (contract.creditType !== 'SPECIALE') return 0
-
-  const monthlyRate = contract.interestRate / 100
-  return customRound(
-    buildCreditSpecialeHistory(contract, cyclePayments, { projectUntilZero: true })
-      .filter((row) => row.phase === 'FIXE' && !row.isRest && row.capitalStart > 0 && row.date.getTime() <= asOfTime)
-      .reduce((sum, row) => sum + customRound(row.capitalStart * monthlyRate), 0),
-  )
+  if (contract.creditType !== 'SPECIALE') return []
+  return buildCreditSpecialeHistory(contract, cyclePayments, { projectUntilZero: true })
+    .filter(row => row.phase === 'FIXE' && !row.isRest && row.capitalStart > 0 && row.date.getTime() <= asOfTime)
+    .map(row => ({ month: row.month, date: row.date, lossAmount: customRound(row.capitalStart * (contract.interestRate / 100)) }))
+}
+export function computeCreditLossTotal(contract: CreditContract, payments: CreditPayment[], asOf = new Date()): number {
+  return customRound(buildCreditLossHistory(contract, payments, asOf).reduce((sum, row) => sum + row.lossAmount, 0))
 }
 
 /** Manque à gagner déjà encaissé après la fin du contrat. */

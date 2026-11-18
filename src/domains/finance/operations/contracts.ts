@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { isCreditModule } from '../credit-module'
 import { addDays } from 'date-fns'
 import {
@@ -17,6 +18,7 @@ import {
 } from '../actions'
 import { caisseTypes, contactField, simulationFields } from './demands'
 import { numberField, selectField } from '../actions'
+import { UNKNOWN_USER_MATRICULE } from '@/domains/financial/caisse-imprevue/import/unknownUser'
 import { EARLY_REFUND_PAYOUT_DAYS } from '@/utils/refund-payout'
 
 export function contractActions(module: FinanceModule): FinanceAction[] {
@@ -439,6 +441,63 @@ export function contractActions(module: FinanceModule): FinanceAction[] {
   return [
     ...workspace,
     ...docs,
+    action(
+      'contact.update',
+      'Modifier le contact d’urgence',
+      'update',
+      [
+        {
+          ...contactField,
+          required: true,
+          schema: z
+            .object({
+              memberId: z.string().max(100).optional(),
+              lastName: z.string().trim().min(1).max(50),
+              firstName: z.string().max(50).default(''),
+              phone1: z.string().max(30).default(''),
+              phone2: z.string().max(30).default(''),
+              relationship: z.string().max(100).default(''),
+              typeId: z.string().max(100).default(''),
+              idNumber: z.string().max(50).default(''),
+              documentPhotoUrl: z
+                .union([z.string().url(), z.literal('')])
+                .default(''),
+            })
+            .strict()
+            .superRefine((contact, ctx) => {
+              // Same edit requirements as EmergencyContact.tsx; do not impose creation requirements on legacy contacts.
+              if (
+                contact.memberId === UNKNOWN_USER_MATRICULE ||
+                contact.lastName.toUpperCase().startsWith('INCONNU')
+              )
+                return
+              if (!contact.phone1.trim() || !contact.relationship.trim())
+                ctx.addIssue({
+                  code: 'custom',
+                  message:
+                    'Nom, téléphone principal et lien sont obligatoires.',
+                })
+            }),
+          fields: [
+            textField('memberId', 'Matricule du contact membre', false),
+            ...(contactField.fields || []).map((f) => ({
+              ...f,
+              required: f.key === 'lastName',
+              keepEmpty: true,
+            })),
+          ],
+        },
+      ],
+      async (ctx, data) =>
+        module === 'caisse-speciale'
+          ? ctx.services.csContracts.updateContract(ctx.id, {
+              emergencyContact: data.emergencyContact,
+            })
+          : ctx.services.ciContracts.updateContract(ctx.id, {
+              emergencyContact: data.emergencyContact,
+            } as any),
+      { superAdminOnly: true },
+    ),
     action(
       'member-document.approve',
       'Valider le contrat soumis par le membre',

@@ -9,9 +9,11 @@ vi.mock('../server/read-model', () => ({
     id: 'contract',
     contractType: 'INDIVIDUAL',
     creditType: 'SPECIALE',
+    signedContractUrl: 'signed',
   }),
 }))
 import { publicAction } from '../actions'
+import { readFinanceTarget } from '../server/read-model'
 import { financeActions } from '../registry'
 const caller = (permissions: string[], isSuperAdmin = false) =>
   ({
@@ -75,6 +77,52 @@ describe('permissions et références des opérations natives', () => {
       ).rejects.toThrow('contrat')
     },
   )
+  it('refuse côté serveur un versement sans contrat signé avant toute écriture métier', async () => {
+    vi.mocked(readFinanceTarget).mockResolvedValueOnce({
+      id: 'unsigned',
+      status: 'ACTIVE',
+      creditType: 'SPECIALE',
+    })
+    const action = financeActions('credit-speciale').find(
+      (a) => a.id === 'payment.create',
+    )!
+    await expect(
+      guardFinanceTarget(
+        {} as any,
+        'credit-speciale',
+        action,
+        'unsigned',
+        {},
+        caller([], true),
+      ),
+    ).rejects.toThrow('contrat signé')
+  })
+  it('réserve le contact CS/CI au superadmin sans imposer les pièces de création à un contact historique', () => {
+    const action = financeActions('caisse-imprevue').find(
+      (a) => a.id === 'contact.update',
+    )!
+    expect(canFinanceAction(caller(['caisseImprevue.update']), action)).toBe(
+      false,
+    )
+    expect(canFinanceAction(caller([], true), action)).toBe(true)
+    expect(
+      action.schema.safeParse({
+        emergencyContact: {
+          lastName: 'Test',
+          phone1: '+24177000000',
+          relationship: 'Ami',
+        },
+      }).success,
+    ).toBe(true)
+    expect(
+      action.schema.safeParse({ emergencyContact: { lastName: 'Test' } })
+        .success,
+    ).toBe(false)
+    expect(
+      action.schema.safeParse({ emergencyContact: { lastName: 'INCONNU' } })
+        .success,
+    ).toBe(true)
+  })
   it('valide les montants et rejette les rôles injectés dans les formulaires', () => {
     const action = financeActions('credit-speciale').find(
       (a) => a.id === 'payment.create',
