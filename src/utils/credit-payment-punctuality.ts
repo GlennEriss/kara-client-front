@@ -6,23 +6,81 @@
 
 export const LATE_TOLERANCE_DAYS = 3
 
-export type PaymentPunctuality = 'ON_TIME' | 'GRACE' | 'LATE' | 'OVERDUE' | 'NO_PAYMENT' | 'UPCOMING' | 'REST'
+export type PaymentPunctuality =
+  | 'ON_TIME'
+  | 'GRACE'
+  | 'LATE'
+  | 'OVERDUE'
+  | 'NO_PAYMENT'
+  | 'UPCOMING'
+  | 'REST'
+  | 'UNKNOWN'
 
 export const PUNCTUALITY_META: Record<
   PaymentPunctuality,
   { label: string; badge: string; border: string; dot: string }
 > = {
-  ON_TIME: { label: 'À temps', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', border: 'border-l-emerald-500', dot: 'bg-emerald-500' },
-  GRACE: { label: 'Retard toléré', badge: 'bg-yellow-50 text-yellow-800 border-yellow-300', border: 'border-l-yellow-400', dot: 'bg-yellow-400' },
-  LATE: { label: 'En retard', badge: 'bg-orange-50 text-orange-700 border-orange-200', border: 'border-l-orange-500', dot: 'bg-orange-500' },
-  OVERDUE: { label: 'Impayé', badge: 'bg-red-50 text-red-700 border-red-200', border: 'border-l-red-500', dot: 'bg-red-500' },
-  NO_PAYMENT: { label: 'Aucun versement', badge: 'bg-slate-100 text-slate-700 border-slate-300', border: 'border-l-slate-500', dot: 'bg-slate-500' },
-  UPCOMING: { label: 'À venir', badge: 'bg-gray-50 text-gray-600 border-gray-200', border: 'border-l-gray-300', dot: 'bg-gray-300' },
-  REST: { label: 'Repos', badge: 'bg-blue-50 text-blue-700 border-blue-200', border: 'border-l-blue-400', dot: 'bg-blue-400' },
+  UNKNOWN: {
+    label: 'Ponctualité indéterminée',
+    badge: 'bg-slate-50 text-slate-600 border-slate-200',
+    border: 'border-l-slate-300',
+    dot: 'bg-slate-400',
+  },
+  ON_TIME: {
+    label: 'À temps',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    border: 'border-l-emerald-500',
+    dot: 'bg-emerald-500',
+  },
+  GRACE: {
+    label: 'Retard toléré',
+    badge: 'bg-yellow-50 text-yellow-800 border-yellow-300',
+    border: 'border-l-yellow-400',
+    dot: 'bg-yellow-400',
+  },
+  LATE: {
+    label: 'En retard',
+    badge: 'bg-orange-50 text-orange-700 border-orange-200',
+    border: 'border-l-orange-500',
+    dot: 'bg-orange-500',
+  },
+  OVERDUE: {
+    label: 'Impayé',
+    badge: 'bg-red-50 text-red-700 border-red-200',
+    border: 'border-l-red-500',
+    dot: 'bg-red-500',
+  },
+  NO_PAYMENT: {
+    label: 'Aucun versement',
+    badge: 'bg-slate-100 text-slate-700 border-slate-300',
+    border: 'border-l-slate-500',
+    dot: 'bg-slate-500',
+  },
+  UPCOMING: {
+    label: 'À venir',
+    badge: 'bg-gray-50 text-gray-600 border-gray-200',
+    border: 'border-l-gray-300',
+    dot: 'bg-gray-300',
+  },
+  REST: {
+    label: 'Repos',
+    badge: 'bg-blue-50 text-blue-700 border-blue-200',
+    border: 'border-l-blue-400',
+    dot: 'bg-blue-400',
+  },
 }
 
 /** Ordre de la légende. */
-export const PUNCTUALITY_LEGEND: PaymentPunctuality[] = ['ON_TIME', 'GRACE', 'LATE', 'OVERDUE', 'NO_PAYMENT', 'UPCOMING', 'REST']
+export const PUNCTUALITY_LEGEND: PaymentPunctuality[] = [
+  'ON_TIME',
+  'GRACE',
+  'LATE',
+  'OVERDUE',
+  'NO_PAYMENT',
+  'UPCOMING',
+  'REST',
+  'UNKNOWN',
+]
 
 const startOfDay = (value: Date | string) => {
   const date = new Date(value)
@@ -31,15 +89,37 @@ const startOfDay = (value: Date | string) => {
 }
 
 /** Jours calendaires de retard (0 si versé le jour de l'échéance ou avant). */
-export function daysLateBetween(dueDate: Date | string, paymentDate: Date | string): number {
-  const diff = Math.round((startOfDay(paymentDate).getTime() - startOfDay(dueDate).getTime()) / 86_400_000)
+export function daysLateBetween(
+  dueDate: Date | string,
+  paymentDate: Date | string,
+): number {
+  const diff = Math.round(
+    (startOfDay(paymentDate).getTime() - startOfDay(dueDate).getTime()) /
+      86_400_000,
+  )
   return Math.max(0, diff)
 }
 
 /** Ponctualité d'un versement effectué. */
-export function getPaymentPunctuality(dueDate: Date | string, paymentDate: Date | string) {
+export function getPaymentPunctuality(
+  dueDate: Date | string,
+  paymentDate: Date | string,
+) {
+  if (
+    !dueDate ||
+    !paymentDate ||
+    [new Date(dueDate), new Date(paymentDate)].some((date) =>
+      Number.isNaN(date.getTime()),
+    )
+  )
+    return { kind: 'UNKNOWN' as const, daysLate: 0 }
   const daysLate = daysLateBetween(dueDate, paymentDate)
-  const kind: PaymentPunctuality = daysLate === 0 ? 'ON_TIME' : daysLate <= LATE_TOLERANCE_DAYS ? 'GRACE' : 'LATE'
+  const kind: PaymentPunctuality =
+    daysLate === 0
+      ? 'ON_TIME'
+      : daysLate <= LATE_TOLERANCE_DAYS
+        ? 'GRACE'
+        : 'LATE'
   return { kind, daysLate }
 }
 
@@ -60,16 +140,28 @@ export function getInstallmentPunctuality(
 ): { kind: PaymentPunctuality; daysLate: number } {
   if (row.isRest || row.status === 'REST') return { kind: 'REST', daysLate: 0 }
   // Mois enregistré avec un versement de 0 FCFA : rien n'a été payé, ni à temps ni en retard.
-  if (row.status === 'PAID' && row.actualPayment === 0) return { kind: 'NO_PAYMENT', daysLate: 0 }
+  if (row.status === 'PAID' && row.actualPayment === 0)
+    return { kind: 'NO_PAYMENT', daysLate: 0 }
   if (row.status === 'PAID') {
-    return row.paymentDate ? getPaymentPunctuality(row.date, row.paymentDate) : { kind: 'ON_TIME', daysLate: 0 }
+    return row.paymentDate
+      ? getPaymentPunctuality(row.date, row.paymentDate)
+      : { kind: 'UNKNOWN', daysLate: 0 }
   }
+  if (!row.date || Number.isNaN(new Date(row.date).getTime()))
+    return { kind: 'UNKNOWN', daysLate: 0 }
   const daysLate = daysLateBetween(row.date, today)
-  return daysLate > 0 ? { kind: 'OVERDUE', daysLate } : { kind: 'UPCOMING', daysLate: 0 }
+  return daysLate > 0
+    ? { kind: 'OVERDUE', daysLate }
+    : { kind: 'UPCOMING', daysLate: 0 }
 }
 
 /** Libellé affiché, avec le nombre de jours quand il y a du retard. */
-export function punctualityLabel(kind: PaymentPunctuality, daysLate: number): string {
+export function punctualityLabel(
+  kind: PaymentPunctuality,
+  daysLate: number,
+): string {
   const base = PUNCTUALITY_META[kind].label
-  return daysLate > 0 && kind !== 'UPCOMING' && kind !== 'REST' ? `${base} (${daysLate} j)` : base
+  return daysLate > 0 && kind !== 'UPCOMING' && kind !== 'REST'
+    ? `${base} (${daysLate} j)`
+    : base
 }

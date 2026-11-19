@@ -1,12 +1,13 @@
 'use client'
 
+import { creditPaymentTimingMap } from '@/utils/credit-payment-timing'
 import { buildCreditTimeline } from '@/utils/credit-timeline'
 
 import { creditContractSummary } from '@/utils/credit-contract-summary'
 import { isCreditContractLocked } from '@/utils/contract-lock'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { PunctualityBadge, PunctualityLegend } from './PaymentPunctuality'
-import { PUNCTUALITY_META, getInstallmentPunctuality, getPaymentPunctuality } from '@/utils/credit-payment-punctuality'
+import { PUNCTUALITY_META, getInstallmentPunctuality } from '@/utils/credit-payment-punctuality'
 import CreditRecoveryModal from './CreditRecoveryModal'
 import MissedEarningsPaymentModal from './MissedEarningsPaymentModal'
 import MissedEarningsReceiptModal from './MissedEarningsReceiptModal'
@@ -513,7 +514,7 @@ export default function CreditContractDetail({
   const formatDateTime = (date: Date, time: string) => {
     const dateObj = new Date(date)
     if (isNaN(dateObj.getTime())) return 'N/A'
-    return `${format(dateObj, 'dd MMMM yyyy', { locale: fr })} à ${time}`
+    return `${format(dateObj, 'dd MMMM yyyy', { locale: fr })}${time ? ` à ${time}` : ''}`
   }
 
   const contractCycles = React.useMemo(
@@ -611,11 +612,7 @@ export default function CreditContractDetail({
     guarantorPaymentsError instanceof Error
       ? guarantorPaymentsError.message
       : 'Impossible de charger l’historique des paiements au garant.'
-  // Échéance de chaque mois (cycle + mois), pour juger la ponctualité d'un versement.
-  const dueDateByCycleMonth = new Map<string, Date>()
-  timelineHistoryRows.forEach((row) => dueDateByCycleMonth.set(`${row.cycleNumber}_${row.cycleMonth}`, new Date(row.date)))
-  const getPaymentDueDate = (payment: CreditPayment): Date | undefined =>
-    dueDateByCycleMonth.get(`${getCreditPaymentCycleNumber(contract, payment)}_${getCreditPaymentMonthNumber(contract, payment)}`)
+  const paymentTimings = creditPaymentTimingMap(contract, payments, timelineHistoryRows)
 
   const remittanceDateByPenaltyId = new Map<string, Date>()
   const penaltiesByTimelineKey = new Map<string, number>()
@@ -2500,6 +2497,7 @@ export default function CreditContractDetail({
               {/* Onglet Historique */}
               <TabsContent value="history" className="p-6 space-y-6 m-0">
                 <div className="space-y-6">
+                  {(payments.length > 0 || timelineHistoryRows.length > 0) && <PunctualityLegend />}
                   {timelineHistoryRows.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-3">
@@ -2510,7 +2508,6 @@ export default function CreditContractDetail({
                           </h3>
                         </div>
                       </div>
-                      <PunctualityLegend />
 
                       {timelineHistoryRows.length === 0 ? (
                         <div className="text-center py-8 text-gray-500 border rounded-lg">
@@ -2576,7 +2573,7 @@ export default function CreditContractDetail({
                                         {formatDate(row.date)}
                                         {row.status === 'PAID' && row.paymentDate && (
                                           <span className="block text-xs text-gray-500">
-                                            {row.actualPayment === 0 ? 'déclaré le' : 'versé le'} {formatDate(row.paymentDate)}
+                                            {row.actualPayment === 0 ? 'déclaré le' : 'versé le'} {formatDateTime(row.paymentDate, row.paymentTime || '')}
                                           </span>
                                         )}
                                       </TableCell>
@@ -2640,14 +2637,9 @@ export default function CreditContractDetail({
                           .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
                           .map((payment) => {
                             const paymentLabel = getCreditPaymentDisplayMonthLabel(contract, payment)
-                            const paymentDueDate = getPaymentDueDate(payment)
-                            // Un versement de pénalités seules n'a pas d'échéance propre : pas de ponctualité.
-                            const isPenaltyOnly = payment.amount === 0 && !!payment.comment?.includes('Paiement de pénalités uniquement')
-                            const punctuality = !paymentDueDate || isPenaltyOnly
-                              ? null
-                              : payment.amount === 0
-                                ? { kind: 'NO_PAYMENT' as const, daysLate: 0 }
-                                : getPaymentPunctuality(paymentDueDate, payment.paymentDate)
+                            const timing = paymentTimings.get(payment.id)
+                            const paymentDueDate = timing?.dueDate
+                            const punctuality = timing?.punctuality
 
                             return (
                               <div
@@ -2658,7 +2650,7 @@ export default function CreditContractDetail({
                                 )}
                               >
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
+                                  <div className="flex flex-wrap items-center gap-2 mb-1">
                                     <Calendar className="h-4 w-4 text-gray-500" />
                                     <span className="font-semibold">
                                       {formatDateTime(payment.paymentDate, payment.paymentTime)}
@@ -2668,10 +2660,10 @@ export default function CreditContractDetail({
                                         {paymentLabel}
                                       </Badge>
                                     )}
-                                    {punctuality && paymentDueDate && (
+                                    {punctuality && (
                                       <>
                                         <PunctualityBadge kind={punctuality.kind} daysLate={punctuality.daysLate} />
-                                        <span className="text-xs text-gray-500">échéance du {formatDate(paymentDueDate)}</span>
+                                        <span className="text-xs text-gray-500">{paymentDueDate ? `échéance du ${formatDate(paymentDueDate)}` : 'Échéance non renseignée'}</span>
                                       </>
                                     )}
                                   </div>

@@ -1,5 +1,5 @@
 import type { CreditContract, CreditPayment } from '@/types/types'
-import { addContractMonths } from '@/utils/contract-months'
+import { getCreditPeriodDueDate } from './credit-periods'
 import {
   buildCreditSpecialeTimelineHistory,
   getCreditContractCycles,
@@ -100,7 +100,17 @@ export function buildCreditTimeline(
     let nextDueAssigned = false
 
     for (let month = 1; month <= lastRecordedMonth; month++) {
-      const date = addContractMonths(cycle.firstPaymentDate, month - 1)
+      const date = getCreditPeriodDueDate(
+        { ...contract, firstPaymentDate: cycle.firstPaymentDate },
+        month,
+      )
+      const monthPayment = cyclePayments
+        .filter((p) => getCreditPaymentMonthNumber(contract, p) === month)
+        .sort(
+          (a, b) =>
+            new Date(a.paymentDate).getTime() -
+            new Date(b.paymentDate).getTime(),
+        )[0]
 
       const amountDue = Math.max(0, customRound(capital))
       const expectedPayment = Math.min(
@@ -147,6 +157,10 @@ export function buildCreditTimeline(
         expectedPayment,
         actualPayment,
         hasPaymentRecord,
+        paymentDate: monthPayment
+          ? new Date(monthPayment.paymentDate)
+          : undefined,
+        paymentTime: monthPayment?.paymentTime,
         nextCapitalActual,
         nextCapitalProjected,
         status,

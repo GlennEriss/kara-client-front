@@ -1,3 +1,5 @@
+import { creditPaymentTimingMap } from '@/utils/credit-payment-timing'
+import { civilDayToTimestamp } from '@/domains/mobile/server/calendar-dates'
 import type {
   CreditContract,
   CreditInstallment,
@@ -21,6 +23,7 @@ export function presentCreditInstallments(
   sourcePayments: CreditPayment[] = payments,
 ) {
   const totals = creditContractSummary(contract, payments)
+  const timings = creditPaymentTimingMap(contract, payments)
   const simple =
     contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
   const simpleRows = simple
@@ -54,8 +57,11 @@ export function presentCreditInstallments(
       paymentIds: recorded.map((p) => p.id),
       recordedPayments: recorded.map((p) => {
         const source = sourcePayments.find((item) => item.id === p.id) || p
+        const timing = timings.get(p.id)
         return {
           id: p.id,
+          dueDate: timing?.dueDate ? civilDayToTimestamp(timing.dueDate) : null,
+          punctuality: timing?.punctuality || null,
           amount: p.amount,
           date: source.paymentDate,
           time: p.paymentTime || null,

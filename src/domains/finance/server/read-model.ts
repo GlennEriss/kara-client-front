@@ -1,3 +1,9 @@
+import {
+  creditPaymentTimingMap,
+  creditPunctuality,
+} from '@/utils/credit-payment-timing'
+import { getInstallmentPunctuality } from '@/utils/credit-payment-punctuality'
+import { civilDayToTimestamp } from '@/domains/mobile/server/calendar-dates'
 /* eslint-disable no-restricted-imports -- Reprend le calcul officiel de bonus des fiches CS existantes. */
 import { buildCreditTimeline } from '@/utils/credit-timeline'
 import { presentCreditInstallments } from './credit-schedule-presentation'
@@ -359,9 +365,17 @@ export async function financeContractDetail(
     businessWallTime(new Date()),
   )
   const history = buildCreditTimeline(credit, paidRows)
+  const paymentTimings = creditPaymentTimingMap(credit, paidRows, history)
   return {
     record: (await enrichFinanceRows(services, module, [record]))[0],
-    payments,
+    payments: payments.map((p) => {
+      const timing = paymentTimings.get(p.id)
+      return {
+        ...p,
+        dueDate: timing?.dueDate ? civilDayToTimestamp(timing.dueDate) : null,
+        punctuality: timing?.punctuality || null,
+      }
+    }),
     penalties,
     ...(module === 'credit-speciale'
       ? {
@@ -402,6 +416,20 @@ export async function financeContractDetail(
     ...creditDetailExtras(record, payments, remunerations, guarantorPayments),
     history: history.map((row) => ({
       ...row,
+      date: civilDayToTimestamp(row.date),
+      dueDate: civilDayToTimestamp(row.date),
+      paymentDate: row.paymentDate
+        ? payments.find(
+            (p, i) =>
+              new Date(paidRows[i]?.paymentDate ?? '').getTime() ===
+                row.paymentDate!.getTime() &&
+              getCreditPaymentCycleNumber(credit, paidRows[i]) ===
+                row.cycleNumber,
+          )?.paymentDate || row.paymentDate
+        : null,
+      punctuality: creditPunctuality(
+        getInstallmentPunctuality(row, businessWallTime(new Date())),
+      ),
       penaltyAmount: penalties
         .filter(
           (p) =>

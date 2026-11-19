@@ -106,3 +106,24 @@ describe('cartes d’échéances des crédits natifs', () => {
     expect(rows[0].paymentIds).toEqual([])
   })
 })
+
+it.each(['SPECIALE', 'FIXE', 'AIDE'] as const)(
+  'transmet date réelle et ponctualité des versements %s sans décaler les instants',
+  (creditType) => {
+    const c = { ...contract, creditType }
+    const civil = { ...payment, paymentDate: new Date('2026-05-06T00:30:00Z') }
+    const source = { ...payment, paymentDate: new Date('2026-05-05T23:30:00Z') }
+    const rows = presentCreditInstallments(
+      c,
+      [civil],
+      computeCreditInstallments(c, [civil]),
+      [source],
+    )
+    expect(rows[0].recordedPayments[0]).toMatchObject({
+      date: source.paymentDate,
+      time: '12:31',
+      punctuality: { kind: 'GRACE', daysLate: 3, label: 'Retard toléré (3 j)' },
+    })
+    expect(rows[0].recordedPayments[0].dueDate?.getUTCDate()).toBe(3)
+  },
+)
