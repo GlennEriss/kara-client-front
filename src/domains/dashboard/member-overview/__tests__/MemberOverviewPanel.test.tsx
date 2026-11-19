@@ -10,7 +10,9 @@ vi.mock('@/components/ui/dialog', () => ({
 }))
 
 vi.mock('@/components/ui/modal', () => ({
-  ModalContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  ModalContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   ModalHeader: ({ title }: { title: ReactNode }) => <h2>{title}</h2>,
   ModalBody: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }))
@@ -25,7 +27,9 @@ vi.mock('@/domains/community/member-form', () => ({
   }) => (
     <section data-testid="member-form-in-overview">
       <span>{memberId}</span>
-      <button type="button" onClick={onNavigate}>Ouvrir un contrat historique</button>
+      <button type="button" onClick={onNavigate}>
+        Ouvrir un contrat historique
+      </button>
     </section>
   ),
 }))
@@ -40,17 +44,34 @@ vi.mock('../services/MemberOverviewAggregationService', () => ({
       getModuleListRoutes: () => ({
         caisseSpeciale: { demandes: '/cs/demandes', contrats: '/cs/contrats' },
         caisseImprevue: { demandes: '/ci/demandes', contrats: '/ci/contrats' },
-        creditSpeciale: { demandes: '/credit-speciale/demandes', contrats: '/credit-speciale/contrats' },
-        creditFixe: { demandes: '/credit-fixe/demandes', contrats: '/credit-fixe/contrats' },
-        creditAide: { demandes: '/credit-aide/demandes', contrats: '/credit-aide/contrats' },
-        placement: { demandes: '/placements/demandes', contrats: '/placements' },
+        creditSpeciale: {
+          demandes: '/credit-speciale/demandes',
+          contrats: '/credit-speciale/contrats',
+        },
+        creditFixe: {
+          demandes: '/credit-fixe/demandes',
+          contrats: '/credit-fixe/contrats',
+        },
+        creditAide: {
+          demandes: '/credit-aide/demandes',
+          contrats: '/credit-aide/contrats',
+        },
+        placement: {
+          demandes: '/placements/demandes',
+          contrats: '/placements',
+        },
         charite: { demandes: '/bienfaiteur', contrats: '/bienfaiteur' },
       }),
     }),
   },
 }))
 
-const emptyModule = { demandes: [], contrats: [] }
+const emptyModule = {
+  demandes: [],
+  contrats: [],
+  closedContracts: [],
+  closedContrats: 0,
+}
 
 describe('MemberOverviewPanel', () => {
   beforeEach(() => {
@@ -83,14 +104,12 @@ describe('MemberOverviewPanel', () => {
 
   it('affiche le même historique dans la modale de recherche navbar', () => {
     render(
-      <MemberOverviewPanel
-        memberId="member-42"
-        open
-        onOpenChange={vi.fn()}
-      />,
+      <MemberOverviewPanel memberId="member-42" open onOpenChange={vi.fn()} />,
     )
 
-    expect(screen.getByTestId('member-form-in-overview')).toHaveTextContent('member-42')
+    expect(screen.getByTestId('member-form-in-overview')).toHaveTextContent(
+      'member-42',
+    )
   })
 
   it('ferme la modale quand un contrat de l’historique est ouvert', () => {
@@ -103,7 +122,52 @@ describe('MemberOverviewPanel', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir un contrat historique' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Ouvrir un contrat historique' }),
+    )
     expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('ouvre les compteurs et propose les vrais identifiants des contrats clôturés', () => {
+    // Le beforeEach fournit la même structure ; seul le module exercé est rempli.
+    const hook = vi.mocked(useMemberOverview)
+    const base = hook.getMockImplementation()!()
+    hook.mockReturnValue({
+      ...base,
+      data: {
+        ...base.data!,
+        modules: {
+          ...base.data!.modules,
+          creditFixe: {
+            demandes: [],
+            contrats: [],
+            closedContrats: 9,
+            closedContracts: Array.from({ length: 9 }, (_, i) => ({
+              id: `FIXE-CLOSED-${i}`,
+              status: 'CLOSED',
+              module: 'creditFixe',
+              kind: 'contrat',
+            })),
+          },
+        },
+      },
+    } as ReturnType<typeof useMemberOverview>)
+    const close = vi.fn()
+    render(
+      <MemberOverviewPanel memberId="member-42" open onOpenChange={close} />,
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Voir clôturés Crédit fixe (9)' }),
+    )
+    expect(
+      screen.getByRole('link', { name: 'Ouvrir le contrat FIXE-CLOSED-0' }),
+    ).toHaveAttribute('href', '/credit-fixe/contrats/FIXE-CLOSED-0')
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Afficher davantage (3)' }),
+    )
+    fireEvent.click(
+      screen.getByRole('link', { name: 'Ouvrir le contrat FIXE-CLOSED-8' }),
+    )
+    expect(close).toHaveBeenCalledWith(false)
   })
 })

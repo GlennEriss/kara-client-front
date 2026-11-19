@@ -1,15 +1,11 @@
-"use client";
+'use client'
 
-import Link from "next/link";
-import routes from "@/constantes/routes";
-import { useMemo } from "react";
+import Link from 'next/link'
+import { useMemo } from 'react'
 import {
   AlertCircle,
-  Archive,
   BriefcaseBusiness,
-  Building2,
   CircleDollarSign,
-  FileSearch,
   FolderOpen,
   HandCoins,
   HeartHandshake,
@@ -17,113 +13,115 @@ import {
   PiggyBank,
   UserRound,
   Wallet,
-} from "lucide-react";
-import { Dialog } from "@/components/ui/dialog";
-import { ModalBody, ModalContent, ModalHeader } from "@/components/ui/modal";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MemberFormCard } from "@/domains/community/member-form";
-import { cn } from "@/lib/utils";
-import { useMemberOverview } from "../hooks/useMemberOverview";
-import { MemberOverviewAggregationService } from "../services/MemberOverviewAggregationService";
+} from 'lucide-react'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalHeader } from '@/components/ui/modal'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { MemberFormCard } from '@/domains/community/member-form'
+import { cn } from '@/lib/utils'
+import { useMemberOverview } from '../hooks/useMemberOverview'
+import { MemberOverviewAggregationService } from '../services/MemberOverviewAggregationService'
 import type {
   MemberOverviewListItem,
   MemberOverviewModuleKey,
-} from "../entities/member-overview.types";
+} from '../entities/member-overview.types'
+import { memberOverviewDetailRoute } from '../entities/member-overview-navigation'
+import { useState } from 'react'
 
 interface MemberOverviewPanelProps {
-  memberId?: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  memberId?: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 const MODULE_META: Record<
   MemberOverviewModuleKey,
   {
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    accent: string;
-    bg: string;
+    label: string
+    icon: React.ComponentType<{ className?: string }>
+    accent: string
+    bg: string
   }
 > = {
   caisseSpeciale: {
-    label: "Caisse spéciale",
+    label: 'Caisse spéciale',
     icon: BriefcaseBusiness,
-    accent: "text-sky-700",
-    bg: "bg-sky-50",
+    accent: 'text-sky-700',
+    bg: 'bg-sky-50',
   },
   caisseImprevue: {
-    label: "Caisse imprévue",
+    label: 'Caisse imprévue',
     icon: Wallet,
-    accent: "text-violet-700",
-    bg: "bg-violet-50",
+    accent: 'text-violet-700',
+    bg: 'bg-violet-50',
   },
   creditSpeciale: {
-    label: "Crédit spéciale",
+    label: 'Crédit spécial',
     icon: CircleDollarSign,
-    accent: "text-emerald-700",
-    bg: "bg-emerald-50",
+    accent: 'text-emerald-700',
+    bg: 'bg-emerald-50',
   },
   creditFixe: {
-    label: "Crédit fixe",
+    label: 'Crédit fixe',
     icon: Landmark,
-    accent: "text-amber-700",
-    bg: "bg-amber-50",
+    accent: 'text-amber-700',
+    bg: 'bg-amber-50',
   },
   creditAide: {
-    label: "Caisse aide",
+    label: 'Caisse aide',
     icon: HandCoins,
-    accent: "text-rose-700",
-    bg: "bg-rose-50",
+    accent: 'text-rose-700',
+    bg: 'bg-rose-50',
   },
   placement: {
-    label: "Placements",
+    label: 'Placements',
     icon: PiggyBank,
-    accent: "text-cyan-700",
-    bg: "bg-cyan-50",
+    accent: 'text-cyan-700',
+    bg: 'bg-cyan-50',
   },
   charite: {
-    label: "Charité",
+    label: 'Charité',
     icon: HeartHandshake,
-    accent: "text-emerald-700",
-    bg: "bg-emerald-50",
+    accent: 'text-emerald-700',
+    bg: 'bg-emerald-50',
   },
-};
+}
 
 function statusTone(status: string) {
-  const normalized = (status || "").toUpperCase();
-  if (["APPROVED", "ACTIVE", "SIMULATED", "DRAFT"].includes(normalized)) {
-    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  const normalized = (status || '').toUpperCase()
+  if (['APPROVED', 'ACTIVE', 'SIMULATED', 'DRAFT'].includes(normalized)) {
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200'
   }
-  if (["PENDING", "DUE", "PARTIAL"].includes(normalized)) {
-    return "bg-amber-50 text-amber-700 border-amber-200";
+  if (['PENDING', 'DUE', 'PARTIAL'].includes(normalized)) {
+    return 'bg-amber-50 text-amber-700 border-amber-200'
   }
   if (
     [
-      "OVERDUE",
-      "BLOCKED",
-      "REJECTED",
-      "CANCELED",
-      "CLOSED",
-      "DISCHARGED",
-      "EARLYEXIT",
+      'OVERDUE',
+      'BLOCKED',
+      'REJECTED',
+      'CANCELED',
+      'CLOSED',
+      'DISCHARGED',
+      'EARLYEXIT',
     ].includes(normalized)
   ) {
-    return "bg-rose-50 text-rose-700 border-rose-200";
+    return 'bg-rose-50 text-rose-700 border-rose-200'
   }
-  return "bg-gray-50 text-gray-700 border-gray-200";
+  return 'bg-gray-50 text-gray-700 border-gray-200'
 }
 
 function formatDate(iso?: string) {
-  if (!iso) return "Date non disponible";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "Date non disponible";
-  return date.toLocaleDateString("fr-FR");
+  if (!iso) return 'Date non disponible'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 'Date non disponible'
+  return date.toLocaleDateString('fr-FR')
 }
 
 function ModuleRecordCard({
@@ -131,20 +129,31 @@ function ModuleRecordCard({
   detailRoute,
   onNavigate,
 }: {
-  item: MemberOverviewListItem;
-  detailRoute: string | null;
+  item: MemberOverviewListItem
+  detailRoute: string | null
   /** Ferme le panneau : sans ça il resterait ouvert par-dessus la page ouverte. */
-  onNavigate: () => void;
+  onNavigate: () => void
 }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
       <div className="space-y-2">
-        <p className="break-all text-sm font-semibold text-gray-900">
-          {item.label ?? item.id}
-        </p>
         {item.label ? (
-          <p className="break-all text-[11px] text-gray-400">{item.id}</p>
+          <p className="text-sm font-semibold text-gray-900">{item.label}</p>
         ) : null}
+        {detailRoute ? (
+          <Link
+            href={detailRoute}
+            onClick={onNavigate}
+            className="block break-all text-sm font-semibold text-[#234D65] underline-offset-4 hover:underline"
+            aria-label={`Ouvrir ${item.kind === 'contrat' ? 'le contrat' : 'la demande'} ${item.id}`}
+          >
+            {item.id}
+          </Link>
+        ) : (
+          <p className="break-all text-sm font-semibold text-gray-900">
+            {item.id}
+          </p>
+        )}
 
         {detailRoute ? (
           <div>
@@ -164,7 +173,7 @@ function ModuleRecordCard({
 
         <Badge
           className={cn(
-            "border text-[11px] font-semibold",
+            'border text-[11px] font-semibold',
             statusTone(item.status),
           )}
         >
@@ -174,27 +183,68 @@ function ModuleRecordCard({
 
       <div className="mt-3 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
         <p>
-          <span className="font-medium text-gray-700">Créé le:</span>{" "}
+          <span className="font-medium text-gray-700">Créé le:</span>{' '}
           {formatDate(item.createdAt)}
         </p>
         <p>
-          <span className="font-medium text-gray-700">Montant:</span>{" "}
+          <span className="font-medium text-gray-700">Montant:</span>{' '}
           {item.amount !== undefined
-            ? `${item.amount.toLocaleString("fr-FR")} FCFA`
-            : "N/A"}
+            ? `${item.amount.toLocaleString('fr-FR')} FCFA`
+            : 'N/A'}
         </p>
       </div>
     </div>
-  );
+  )
 }
 
 function EmptyModuleState({ title }: { title: string }) {
   return (
     <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5 text-sm text-gray-500">
-      Aucun élément trouvé dans{" "}
+      Aucun élément trouvé dans{' '}
       <span className="font-medium text-gray-700">{title}</span>.
     </div>
-  );
+  )
+}
+
+function OverviewRecords({
+  title,
+  items,
+  onNavigate,
+}: {
+  title: string
+  items: MemberOverviewListItem[]
+  onNavigate: () => void
+}) {
+  const [limit, setLimit] = useState(6)
+  return (
+    <div className="space-y-3">
+      <h4 className="text-sm font-semibold text-[#234D65]">
+        {title} ({items.length})
+      </h4>
+      {!items.length ? (
+        <EmptyModuleState title={title} />
+      ) : (
+        items
+          .slice(0, limit)
+          .map((item) => (
+            <ModuleRecordCard
+              key={item.id}
+              item={item}
+              detailRoute={memberOverviewDetailRoute(item)}
+              onNavigate={onNavigate}
+            />
+          ))
+      )}
+      {limit < items.length && (
+        <Button
+          variant="outline"
+          onClick={() => setLimit((value) => value + 10)}
+        >
+          Afficher davantage ({items.length - limit})
+        </Button>
+      )}
+    </div>
+  )
 }
 
 export function MemberOverviewPanel({
@@ -202,54 +252,23 @@ export function MemberOverviewPanel({
   open,
   onOpenChange,
 }: MemberOverviewPanelProps) {
-  const { data, isLoading, isError, error } = useMemberOverview(memberId, open);
+  const { data, isLoading, isError, error } = useMemberOverview(memberId, open)
+  const [expanded, setExpanded] = useState<string | null>(null)
   const moduleRoutes =
-    MemberOverviewAggregationService.getInstance().getModuleListRoutes();
+    MemberOverviewAggregationService.getInstance().getModuleListRoutes()
 
   const defaultTab = useMemo(() => {
-    if (!data) return "caisseSpeciale";
+    if (!data) return 'caisseSpeciale'
     const firstNonEmpty = (
       Object.keys(data.modules) as MemberOverviewModuleKey[]
     ).find((key) => {
-      const module = data.modules[key];
-      return module.demandes.length > 0 || module.contrats.length > 0;
-    });
-    return firstNonEmpty || "caisseSpeciale";
-  }, [data]);
+      const module = data.modules[key]
+      return module.demandes.length > 0 || module.contrats.length > 0
+    })
+    return firstNonEmpty || 'caisseSpeciale'
+  }, [data])
 
-  const getDetailRoute = (item: MemberOverviewListItem): string | null => {
-    if (item.module === "caisseSpeciale") {
-      return item.kind === "demande"
-        ? routes.admin.caisseSpecialeDemandDetails(item.id)
-        : routes.admin.caisseSpecialeContractDetails(item.id);
-    }
-    if (item.module === "caisseImprevue") {
-      return item.kind === "demande"
-        ? routes.admin.caisseImprevueDemandDetails(item.id)
-        : routes.admin.caisseImprevueContractDetails(item.id);
-    }
-    if (item.module === "creditSpeciale") {
-      return item.kind === "demande"
-        ? `/credit-speciale/demandes/${item.id}`
-        : `/credit-speciale/contrats/${item.id}`;
-    }
-    if (item.module === "creditFixe") {
-      return item.kind === "demande"
-        ? `/credit-fixe/demandes/${item.id}`
-        : `/credit-fixe/contrats/${item.id}`;
-    }
-    if (item.module === "creditAide") {
-      return item.kind === "demande"
-        ? `/credit-aide/demandes/${item.id}`
-        : `/credit-aide/contrats/${item.id}`;
-    }
-    if (item.module === "placement") {
-      return item.kind === "demande"
-        ? `/placements/demandes/${item.id}`
-        : `/placements/${item.id}`;
-    }
-    return null;
-  };
+  const getDetailRoute = memberOverviewDetailRoute
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -267,8 +286,8 @@ export function MemberOverviewPanel({
             {data.member.matricule ? (
               <Badge variant="outline">{data.member.matricule}</Badge>
             ) : null}
-            <Badge variant={data.member.isActive ? "default" : "secondary"}>
-              {data.member.isActive ? "Actif" : "Inactif"}
+            <Badge variant={data.member.isActive ? 'default' : 'secondary'}>
+              {data.member.isActive ? 'Actif' : 'Inactif'}
             </Badge>
           </div>
         ) : null}
@@ -284,8 +303,8 @@ export function MemberOverviewPanel({
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Impossible de charger la vue consolidée.{" "}
-                  {error instanceof Error ? error.message : ""}
+                  Impossible de charger la vue consolidée.{' '}
+                  {error instanceof Error ? error.message : ''}
                 </AlertDescription>
               </Alert>
             ) : !data ? (
@@ -306,18 +325,18 @@ export function MemberOverviewPanel({
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {(Object.keys(data.modules) as MemberOverviewModuleKey[]).map(
                     (key) => {
-                      const meta = MODULE_META[key];
-                      const Icon = meta.icon;
-                      const module = data.modules[key];
+                      const meta = MODULE_META[key]
+                      const Icon = meta.icon
+                      const module = data.modules[key]
                       const total =
-                        module.demandes.length + module.contrats.length;
+                        module.demandes.length + module.contrats.length
 
                       return (
                         <Card key={key} className="border-gray-100 shadow-sm">
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between gap-3">
-                              <div className={cn("rounded-lg p-2", meta.bg)}>
-                                <Icon className={cn("h-5 w-5", meta.accent)} />
+                              <div className={cn('rounded-lg p-2', meta.bg)}>
+                                <Icon className={cn('h-5 w-5', meta.accent)} />
                               </div>
                               {module.hasError ? (
                                 <Badge
@@ -338,34 +357,79 @@ export function MemberOverviewPanel({
                               {meta.label}
                             </p>
                             <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                              <Badge
-                                variant="secondary"
-                                className="font-medium"
-                              >
-                                <FileSearch className="mr-1 h-3.5 w-3.5" />
-                                Demandes: {module.demandes.length}
-                              </Badge>
-                              <Badge
-                                variant="secondary"
-                                className="font-medium"
-                              >
-                                <Building2 className="mr-1 h-3.5 w-3.5" />
-                                Contrats: {module.contrats.length}
-                              </Badge>
-                              {module.closedContrats !== undefined && (
-                                <Badge
-                                  variant="secondary"
-                                  className="font-medium"
-                                  title="Contrats clôturés du membre dans ce module"
+                              {[
+                                {
+                                  key: 'demandes',
+                                  label: 'Demandes',
+                                  count: module.demandes.length,
+                                },
+                                {
+                                  key: 'contrats',
+                                  label:
+                                    key === 'charite'
+                                      ? 'Contributions'
+                                      : 'Contrats en suivi',
+                                  count: module.contrats.length,
+                                },
+                                ...(module.closedContrats !== undefined
+                                  ? [
+                                      {
+                                        key: 'closed',
+                                        label: 'Clôturés',
+                                        count: module.closedContrats,
+                                      },
+                                    ]
+                                  : []),
+                              ].map((group) => (
+                                <Button
+                                  key={group.key}
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-lg text-xs"
+                                  disabled={group.count == null}
+                                  aria-expanded={
+                                    expanded === `${key}:${group.key}`
+                                  }
+                                  aria-label={`Voir ${group.label.toLocaleLowerCase('fr')} ${meta.label} (${group.count ?? 'indisponible'})`}
+                                  onClick={() =>
+                                    setExpanded((current) =>
+                                      current === `${key}:${group.key}`
+                                        ? null
+                                        : `${key}:${group.key}`,
+                                    )
+                                  }
                                 >
-                                  <Archive className="mr-1 h-3.5 w-3.5" />
-                                  Clôturés: {module.closedContrats ?? "—"}
-                                </Badge>
-                              )}
+                                  {group.label}: {group.count ?? '—'}
+                                </Button>
+                              ))}
                             </div>
+                            {expanded?.startsWith(`${key}:`) && (
+                              <div className="mt-4 border-t pt-4">
+                                <OverviewRecords
+                                  key={`${memberId}:${expanded}`}
+                                  title={
+                                    expanded.endsWith(':closed')
+                                      ? 'Contrats clôturés'
+                                      : expanded.endsWith(':demandes')
+                                        ? 'Demandes'
+                                        : key === 'charite'
+                                          ? 'Contributions'
+                                          : 'Contrats en suivi'
+                                  }
+                                  items={
+                                    expanded.endsWith(':closed')
+                                      ? module.closedContracts || []
+                                      : expanded.endsWith(':demandes')
+                                        ? module.demandes
+                                        : module.contrats
+                                  }
+                                  onNavigate={() => onOpenChange(false)}
+                                />
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
-                      );
+                      )
                     },
                   )}
                 </div>
@@ -386,9 +450,9 @@ export function MemberOverviewPanel({
                         {(
                           Object.keys(data.modules) as MemberOverviewModuleKey[]
                         ).map((key) => {
-                          const module = data.modules[key];
+                          const module = data.modules[key]
                           const total =
-                            module.demandes.length + module.contrats.length;
+                            module.demandes.length + module.contrats.length
                           return (
                             <TabsTrigger
                               key={key}
@@ -403,15 +467,15 @@ export function MemberOverviewPanel({
                                 {total}
                               </Badge>
                             </TabsTrigger>
-                          );
+                          )
                         })}
                       </TabsList>
 
                       {(
                         Object.keys(data.modules) as MemberOverviewModuleKey[]
                       ).map((key) => {
-                        const module = data.modules[key];
-                        const moduleLinks = moduleRoutes[key];
+                        const module = data.modules[key]
+                        const moduleLinks = moduleRoutes[key]
                         return (
                           <TabsContent key={key} value={key} className="mt-0">
                             <div className="grid gap-4 lg:grid-cols-2">
@@ -427,7 +491,10 @@ export function MemberOverviewPanel({
                                       size="sm"
                                       className="h-8 rounded-lg text-xs"
                                     >
-                                      <Link href={moduleLinks.demandes} onClick={() => onOpenChange(false)}>
+                                      <Link
+                                        href={moduleLinks.demandes}
+                                        onClick={() => onOpenChange(false)}
+                                      >
                                         Voir toutes
                                       </Link>
                                     </Button>
@@ -437,22 +504,18 @@ export function MemberOverviewPanel({
                                   {module.demandes.length === 0 ? (
                                     <EmptyModuleState title="Demandes" />
                                   ) : (
-                                    module.demandes
-                                      .slice(0, 6)
-                                      .map((item, index) => (
-                                        <div key={item.id}>
-                                          <ModuleRecordCard
-                                            item={item}
-                                            detailRoute={getDetailRoute(item)}
-                                            onNavigate={() => onOpenChange(false)}
-                                          />
-                                          {index <
-                                          module.demandes.slice(0, 6).length -
-                                            1 ? (
-                                            <Separator className="my-3" />
-                                          ) : null}
-                                        </div>
-                                      ))
+                                    module.demandes.map((item, index) => (
+                                      <div key={item.id}>
+                                        <ModuleRecordCard
+                                          item={item}
+                                          detailRoute={getDetailRoute(item)}
+                                          onNavigate={() => onOpenChange(false)}
+                                        />
+                                        {index < module.demandes.length - 1 ? (
+                                          <Separator className="my-3" />
+                                        ) : null}
+                                      </div>
+                                    ))
                                   )}
                                 </CardContent>
                               </Card>
@@ -469,7 +532,10 @@ export function MemberOverviewPanel({
                                       size="sm"
                                       className="h-8 rounded-lg text-xs"
                                     >
-                                      <Link href={moduleLinks.contrats} onClick={() => onOpenChange(false)}>
+                                      <Link
+                                        href={moduleLinks.contrats}
+                                        onClick={() => onOpenChange(false)}
+                                      >
                                         Voir tous
                                       </Link>
                                     </Button>
@@ -479,28 +545,24 @@ export function MemberOverviewPanel({
                                   {module.contrats.length === 0 ? (
                                     <EmptyModuleState title="Contrats" />
                                   ) : (
-                                    module.contrats
-                                      .slice(0, 6)
-                                      .map((item, index) => (
-                                        <div key={item.id}>
-                                          <ModuleRecordCard
-                                            item={item}
-                                            detailRoute={getDetailRoute(item)}
-                                            onNavigate={() => onOpenChange(false)}
-                                          />
-                                          {index <
-                                          module.contrats.slice(0, 6).length -
-                                            1 ? (
-                                            <Separator className="my-3" />
-                                          ) : null}
-                                        </div>
-                                      ))
+                                    module.contrats.map((item, index) => (
+                                      <div key={item.id}>
+                                        <ModuleRecordCard
+                                          item={item}
+                                          detailRoute={getDetailRoute(item)}
+                                          onNavigate={() => onOpenChange(false)}
+                                        />
+                                        {index < module.contrats.length - 1 ? (
+                                          <Separator className="my-3" />
+                                        ) : null}
+                                      </div>
+                                    ))
                                   )}
                                 </CardContent>
                               </Card>
                             </div>
                           </TabsContent>
-                        );
+                        )
                       })}
                     </Tabs>
                   </CardContent>
@@ -511,5 +573,5 @@ export function MemberOverviewPanel({
         </ModalBody>
       </ModalContent>
     </Dialog>
-  );
+  )
 }
