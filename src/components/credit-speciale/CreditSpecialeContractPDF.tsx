@@ -2,6 +2,7 @@
 
 import { getNationalityName } from '@/constantes/nationality'
 import { CreditContract } from '@/types/types'
+import { getCreditContractDocumentDate } from '@/services/credit-speciale/creditContractDates'
 import { calculateSchedule } from '@/utils/credit-speciale-calculations'
 import {
   buildCreditSpecialeHistory,
@@ -323,9 +324,8 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
     schedule.length > 0
       ? new Date(schedule[schedule.length - 1].date)
       : new Date(contract.firstPaymentDate)
-  const disbursementDate = contract.disbursementDate
-    ? formatDate(contract.disbursementDate)
-    : '....................'
+  const documentDate = getCreditContractDocumentDate(contract)
+  const disbursementDate = documentDate ? formatDate(documentDate) : '....................'
 
   // Données du membre
   const member = {

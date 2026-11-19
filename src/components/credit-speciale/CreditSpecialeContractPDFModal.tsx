@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useMember } from '@/hooks/useMembers'
 import { CreditContract } from '@/types/types'
+import { getCreditContractDocumentDate } from '@/services/credit-speciale/creditContractDates'
 import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
 import { Download, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
@@ -172,7 +173,9 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
   const [isExporting, setIsExporting] = useState(false)
   const [fillData, setFillData] = useState<AdhesionCreditSpecialeFillData>(EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA)
   const [previewFillData, setPreviewFillData] = useState<AdhesionCreditSpecialeFillData>(EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA)
-  const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, contract.id)
+  const documentDate = getCreditContractDocumentDate(contract)
+  const documentKey = `${contract.id}:${contract.rajoutEffectue ? 'rajout' : 'initial'}:${documentDate?.toISOString() ?? ''}`
+  const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, documentKey)
   const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
   const skipDebouncePreviewRef = useRef(false)
 
@@ -191,7 +194,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
     setFillData(EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA)
     setPreviewFillData(EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA)
     setIsPreviewRefreshing(false)
-  }, [isOpen, contract.id])
+  }, [isOpen, documentKey])
 
   useEffect(() => {
     if (!isOpen) return

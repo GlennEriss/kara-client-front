@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getCreditContractEndDate, getCreditContractRemainingMonths, getCreditContractStartDates } from '../creditContractDates'
+import { getCreditContractDocumentDate, getCreditContractEndDate, getCreditContractRemainingMonths, getCreditContractStartDates } from '../creditContractDates'
 import type { CreditContractCycle } from '@/types/types'
 
 /**
@@ -72,6 +72,40 @@ describe('dates de départ après rajout', () => {
     expect(getCreditContractStartDates({ createdAt: initialDate, extendedAt: extensionDate })).toEqual({
       startDate: extensionDate, initialStartDate: initialDate, hasExtension: true,
     })
+  })
+})
+
+describe('date du nouveau contrat à signer', () => {
+  const initialDate = new Date('2025-11-20T12:00:00')
+  const recordedAt = new Date('2026-11-10T12:00:00')
+  const firstPaymentDate = new Date('2026-05-25T12:00:00')
+  const extension = {
+    createdAt: new Date('2026-10-12T09:34:00'),
+    disbursementDate: initialDate,
+    rajoutEffectue: true,
+    extendedAt: recordedAt,
+    firstPaymentDate,
+    creditCycles: [
+      { cycleNumber: 2, type: 'AUGMENTATION', firstPaymentDate, startedAt: recordedAt, recordedAt },
+      { cycleNumber: 1, type: 'INITIAL', startedAt: initialDate },
+    ] as CreditContractCycle[],
+  }
+  it('aligne les actes sur le départ effectif du rajout, distinct de la saisie et de la remise initiale', () => {
+    expect(localDate(getCreditContractDocumentDate(extension))).toBe('2026-04-25')
+    expect(extension.disbursementDate).toBe(initialDate)
+    expect(extension.extendedAt).toBe(recordedAt)
+    expect(extension.creditCycles[0].startedAt).toBe(recordedAt)
+  })
+  it('gère les anciens rajouts sans tableau de cycles', () => {
+    expect(localDate(getCreditContractDocumentDate({ ...extension, creditCycles: [] }))).toBe('2026-04-25')
+    expect(getCreditContractDocumentDate({ disbursementDate: initialDate, extendedAt: recordedAt })).toEqual(recordedAt)
+  })
+  it('garde la remise réelle pour le contrat initial, même si le calendrier commence un autre jour', () => {
+    expect(getCreditContractDocumentDate({ disbursementDate: initialDate, initialStartAt: recordedAt })).toEqual(initialDate)
+    expect(getCreditContractDocumentDate({ createdAt: recordedAt })).toBeNull()
+  })
+  it('laisse à compléter un rajout sans date exploitable au lieu de reprendre la date initiale', () => {
+    expect(getCreditContractDocumentDate({ disbursementDate: initialDate, rajoutEffectue: true })).toBeNull()
   })
 })
 

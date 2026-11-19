@@ -3,11 +3,17 @@ import path from 'path'
 import React from 'react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import AdhesionCreditSpecialeV3, { EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA } from '../AdhesionCreditSpecialeV3'
+import AdhesionCreditSpecialeV3, { buildCreditContractFields, EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA } from '../AdhesionCreditSpecialeV3'
 import QuittanceCreditSpecialePDF from '../QuittanceCreditSpecialePDF'
 
 const countPages = (buffer: Buffer): number =>
   Number(buffer.toString('latin1').match(/\/Count (\d+)/)?.[1] ?? 0)
+
+const documentText = (node: React.ReactNode): string => {
+  if (Array.isArray(node)) return node.map(documentText).join('')
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) return documentText(node.props.children)
+  return typeof node === 'string' || typeof node === 'number' ? String(node) : ''
+}
 
 const member = {
   matricule: '7425.MK.210426',
@@ -46,6 +52,35 @@ describe('documents de crédit', () => {
       value: { origin: path.resolve(process.cwd(), 'public') },
       writable: true,
     })
+  })
+
+  it('remplace la date initiale par celle du rajout dans les trois actes et dans les champs de l’aperçu', () => {
+    const extended = {
+      ...contract,
+      rajoutEffectue: true,
+      extendedAt: new Date('2026-11-10T12:00:00'),
+      firstPaymentDate: new Date('2026-05-25T12:00:00'),
+      creditCycles: [{
+        cycleNumber: 2,
+        type: 'AUGMENTATION',
+        startedAt: new Date('2026-11-10T12:00:00'),
+        firstPaymentDate: new Date('2026-05-25T12:00:00'),
+      }],
+    }
+    expect(buildCreditContractFields({ contract: extended }).disbursementDate.value).toBe('25/04/2026')
+    const text = documentText(AdhesionCreditSpecialeV3({ contract: extended, memberData: member }))
+    // Reconnaissance, protocole et les deux mentions de l'acte de cautionnement.
+    expect(text.match(/25\/04\/2026/g)).toHaveLength(4)
+    expect(text).not.toContain('02/01/2026')
+    expect(text).not.toContain('10/11/2026')
+    expect(extended.disbursementDate).toBe(contract.disbursementDate)
+  })
+
+  it('conserve la remise initiale sans rajout et propose une saisie si le rajout ne possède aucune date', () => {
+    expect(buildCreditContractFields({ contract }).disbursementDate.value).toBe('02/01/2026')
+    const field = buildCreditContractFields({ contract: { ...contract, rajoutEffectue: true, firstPaymentDate: undefined } }).disbursementDate
+    expect(field.value).toBe('')
+    expect(field.type).toBe('date')
   })
 
   it('produit la reconnaissance de dette, le protocole et l’acte de cautionnement', async () => {

@@ -42,6 +42,21 @@ export function getCreditContractStartDates(
   }
 }
 
+/**
+ * Date des actes à signer : remise initiale avant rajout, départ effectif du
+ * nouveau cycle après rajout (la saisie peut avoir été faite plus tard).
+ * Une date de rajout manquante reste à compléter, sans réutiliser l'ancienne remise.
+ */
+export function getCreditContractDocumentDate(
+  contract: Parameters<typeof getCreditContractStartDates>[0]
+): Date | null {
+  const dates = getCreditContractStartDates(contract)
+  const hasExtension = dates.hasExtension || contract.rajoutEffectue === true ||
+    (contract.creditCycles ?? []).some((cycle) => cycle.type === 'AUGMENTATION')
+  if (hasExtension) return dates.hasExtension ? dates.startDate : null
+  return validCreditDate(contract.disbursementDate)
+}
+
 /** Date de la dernière mensualité, ou `null` si l'échéancier est inconnu. */
 export function getCreditContractEndDate(contract: CreditContractDatesInput): Date | null {
   const duration = Number(contract?.duration ?? 0)
