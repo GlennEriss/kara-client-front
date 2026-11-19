@@ -1,4 +1,6 @@
+import { messageActions } from './messages'
 import { invitationActions } from './invitations'
+import { directoryActions } from './directories'
 import { placementDocumentActions } from './placement-documents'
 import { documentActions } from './documents'
 import { administrationActions } from './administration'
@@ -11,6 +13,8 @@ import { placementActions } from './placements'
 import { communityActions } from './community'
 export const adminActions = (module: AdminModule, dataset: Dataset) => [
   ...baseActions(module, dataset),
+  ...messageActions(module),
+  ...directoryActions(module, dataset),
   ...groupActions(module),
   ...placementActions(module, dataset),
   ...communityActions(module, dataset),

@@ -13,6 +13,7 @@ export type FinanceModule = (typeof financeModules)[number]
 export type FinanceScope = 'workspace' | 'demand' | 'contract' | 'settings'
 export type InputKind =
   | 'text'
+  | 'hidden'
   | 'multiline'
   | 'number'
   | 'money'

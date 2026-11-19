@@ -1,3 +1,4 @@
+import { settingsExportRow, settingsRow } from './settings-presentation'
 /* eslint-disable no-restricted-imports -- Adaptateur temporaire vers les règles métier et modèles officiels existants. */
 import { financeAttachmentPath } from './attachment-path'
 import { readFile } from 'node:fs/promises'
@@ -141,17 +142,21 @@ export async function getFinanceFile(
           },
           400,
         )
-      const rows = result.items.map((row) => ({
-        Référence: row.id,
-        Membre: row.memberName,
-        Statut: row.status || '',
-        Montant:
-          row.monthlyAmount ||
-          row.amount ||
-          row.subscriptionCIAmountPerMonth ||
-          row.amountPerMonth ||
-          0,
-      }))
+      const rows = result.items.map((row) =>
+        kind === 'settings'
+          ? settingsExportRow(module.data, settingsRow(module.data, row))
+          : {
+              Référence: row.id,
+              Membre: row.memberName,
+              Statut: row.status || '',
+              Montant:
+                row.monthlyAmount ||
+                row.amount ||
+                row.subscriptionCIAmountPerMonth ||
+                row.amountPerMonth ||
+                0,
+            },
+      )
       if (query.data.format === 'excel') {
         const { Workbook } = await import('exceljs')
         const workbook = new Workbook(),

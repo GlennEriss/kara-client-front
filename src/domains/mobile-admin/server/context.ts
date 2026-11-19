@@ -32,6 +32,7 @@ import { QuarterRepository } from '@/domains/infrastructure/geography/repositori
 import { CompanyService } from '@/domains/infrastructure/references/services/CompanyService'
 import { ProfessionService } from '@/domains/infrastructure/references/services/ProfessionService'
 import { GeographieService } from '@/domains/infrastructure/geography/services/GeographieService'
+import { geographySearchText } from '@/domains/infrastructure/geography/utils/search-text'
 import { createServerFirestorePort } from '@/domains/finance/server/firestore-port'
 import { createGroupService } from '@/domains/groups/group-service'
 import { createAgreementService } from '@/domains/groups/agreements/agreement-service'
@@ -92,12 +93,26 @@ export function createAdminServices(caller: MobileCaller) {
   const profession = new ProfessionService(
     new ProfessionRepository(finance.firestore, true),
   )
+  const indexedGeographyFirestore = async () => {
+    const firestore = await finance.firestore()
+    const indexed = (data: Record<string, any>) =>
+      typeof data.name === 'string'
+        ? { ...data, searchableText: geographySearchText(data.name, data.code) }
+        : data
+    return {
+      ...firestore,
+      addDoc: ((ref: any, data: any) =>
+        firestore.addDoc(ref, indexed(data))) as typeof firestore.addDoc,
+      updateDoc: ((ref: any, data: any) =>
+        firestore.updateDoc(ref, indexed(data))) as typeof firestore.updateDoc,
+    }
+  }
   const geography = new GeographieService(
-    new ProvinceRepository(finance.firestore, true),
-    new DepartmentRepository(finance.firestore, true),
-    new CommuneRepository(finance.firestore, true),
-    new DistrictRepository(finance.firestore, true),
-    new QuarterRepository(finance.firestore, true),
+    new ProvinceRepository(indexedGeographyFirestore, true),
+    new DepartmentRepository(indexedGeographyFirestore, true),
+    new CommuneRepository(indexedGeographyFirestore, true),
+    new DistrictRepository(indexedGeographyFirestore, true),
+    new QuarterRepository(indexedGeographyFirestore, true),
   )
   const agreements = createAgreementService(port)
   const contributions = createContributionService(port)

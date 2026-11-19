@@ -25,7 +25,10 @@ export interface AdminModule {
   datasets: Dataset[]
 }
 export const options = (values: string[]) =>
-  values.map((value) => ({ value, label: value }))
+  values.map((value) => ({
+    value,
+    label: value === 'true' ? 'Oui' : value === 'false' ? 'Non' : value,
+  }))
 export const nested = (
   key: string,
   label: string,
@@ -195,7 +198,7 @@ export const adminModules: AdminModule[] = [
   },
   {
     key: 'bienfaiteur',
-    label: 'Bienfaiteur',
+    label: 'Charité',
     icon: 'hand-heart-outline',
     permission: 'bienfaiteur',
     datasets: [
@@ -297,8 +300,8 @@ export const adminModules: AdminModule[] = [
         textField('name', 'Nom'),
         textField('industry', 'Secteur d’activité', false),
         nested('address', 'Adresse', [
-          textField('province', 'Province'),
-          textField('city', 'Ville'),
+          textField('province', 'Province', false),
+          textField('city', 'Ville', false),
           textField('district', 'Quartier', false),
         ]),
       ]),
@@ -372,12 +375,6 @@ export const adminModules: AdminModule[] = [
         key: 'payments',
         label: 'Paiements',
         collection: 'payments',
-        fields: [],
-      },
-      {
-        key: 'credit',
-        label: 'Crédits',
-        collection: 'creditPayments',
         fields: [],
       },
     ],

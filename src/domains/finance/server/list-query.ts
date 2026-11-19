@@ -7,9 +7,11 @@ export const financeListSchema = z
     search: z.string().trim().max(120).default(''),
     status: z.string().max(50).optional(),
     type: z.string().max(60).optional(),
+    settingsSort: z.enum(['recent', 'effective', 'nameAsc']).optional(),
     presentation: z.literal('cards').optional(),
     profile: z.enum(['INDIVIDUAL', 'GROUP']).optional(),
     category: identifier.optional(),
+    memberId: identifier.optional(),
     tab: z
       .enum([
         'active',

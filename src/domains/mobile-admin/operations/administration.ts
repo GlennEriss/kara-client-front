@@ -7,6 +7,7 @@ import { IdentifiantsMembrePDF } from '@/domains/memberships/components/Identifi
 import { POST as createAccount } from '@/app/api/auth/create-admin/by-email/route'
 import { POST as updateAccount } from '@/app/api/auth/update-admin/route'
 import { POST as resetAccount } from '@/app/api/auth/admin/reset-admin-password/route'
+import { POST as deleteAccount } from '@/app/api/firebase/auth/delete-user/route'
 import { adminCreateSchema } from '@/schemas/schemas'
 import {
   PERMISSIONS_VERSION,
@@ -73,6 +74,7 @@ const adminFields = [
     true,
   ),
   fileField('photo', 'Photo de profil', false),
+  boolField('removePhoto', 'Retirer la photo enregistrée'),
 ]
 async function accountRequest(
   ctx: AdminContext,
@@ -141,6 +143,57 @@ export function administrationActions(
   })
   if (module.key === 'admins')
     return [
+      action(
+        'admin.public-contact.update',
+        'Modifier les coordonnées publiques',
+        'settings.manage',
+        [
+          textField('memberWhatsappNumber', 'WhatsApp des membres'),
+          textField('guestWhatsappNumber', 'WhatsApp des invités'),
+        ],
+        async (ctx, d) => {
+          const normalize = (v: string) => '+' + v.replace(/\D/g, '')
+          const memberWhatsappNumber = normalize(d.memberWhatsappNumber),
+            guestWhatsappNumber = normalize(d.guestWhatsappNumber)
+          if (
+            [memberWhatsappNumber, guestWhatsappNumber].some(
+              (v) => v.replace(/\D/g, '').length < 8 || v.length > 16,
+            )
+          )
+            throw Error(
+              'Vérifiez les deux numéros WhatsApp au format international.',
+            )
+          await ctx.services.db
+            .collection('settings')
+            .doc('publicContact')
+            .set(
+              {
+                memberWhatsappNumber,
+                guestWhatsappNumber,
+                updatedAt: new Date(),
+                updatedBy: actor(ctx).id,
+              },
+              { merge: true },
+            )
+          return { message: 'Coordonnées publiques enregistrées.' }
+        },
+        { scope: 'workspace' },
+      ),
+      action(
+        'admin.delete',
+        'Supprimer cet administrateur',
+        'admins.manage',
+        [reasonField()],
+        async (ctx) => {
+          if (ctx.id === actor(ctx).id)
+            throw Error('Vous ne pouvez pas supprimer votre propre compte.')
+          await accountRequest(ctx, deleteAccount, { uid: ctx.id })
+          if (!(await ctx.services.adminAccounts.deleteAdmin(ctx.id)))
+            throw Error('Suppression impossible.')
+          return { deleted: true }
+        },
+        { destructive: true, superAdminOnly: true },
+      ),
       ...[true, false].map((create) =>
         action(
           create ? 'admin.create' : 'admin.update',
@@ -148,6 +201,13 @@ export function administrationActions(
           'admins.manage',
           adminFields,
           async (ctx, d) => {
+            if (
+              ctx.files.photo &&
+              !['image/jpeg', 'image/png', 'image/webp'].includes(
+                ctx.files.photo.type,
+              )
+            )
+              throw Error('La photo doit être une image JPEG, PNG ou WebP.')
             const photo = ctx.files.photo
               ? await ctx.services.documents.uploadDocumentFile(
                   ctx.files.photo,
@@ -155,11 +215,15 @@ export function administrationActions(
                   'ADMIN_PHOTO',
                 )
               : undefined
+            const roles =
+              !create && d.role === ctx.row.roles?.[0]
+                ? ctx.row.roles
+                : [d.role]
             const values = adminCreateSchema.parse({
               ...d,
               contacts: [d.phone],
-              roles: [d.role],
-              permissions: d.role.toLowerCase().includes('superadmin')
+              roles,
+              permissions: roles.includes('SuperAdmin')
                 ? []
                 : (d.permissions || []).map((r: any) => r.permission),
             })
@@ -172,15 +236,19 @@ export function administrationActions(
               {
                 ...values,
                 uid: id,
-                role: d.role,
+                role: roles.includes('SuperAdmin') ? 'SuperAdmin' : d.role,
                 phoneNumber: d.phone,
-                photoURL: photo?.url || ctx.row.photoURL,
+                photoURL:
+                  photo?.url || (d.removePhoto ? undefined : ctx.row.photoURL),
               },
             )
             const payload = {
               ...values,
               permissionsVersion: PERMISSIONS_VERSION,
               ...(photo ? { photoURL: photo.url, photoPath: photo.path } : {}),
+              ...(d.removePhoto && !photo
+                ? { photoURL: null, photoPath: null }
+                : {}),
               ...(create
                 ? {
                     isActive: true,
@@ -253,14 +321,48 @@ export function administrationActions(
     ]
   if (module.key !== 'calls') return []
   const contactFields = [
-    select('channel', 'Canal', Object.keys(CONTACT_CHANNEL_LABELS)),
-    select('outcome', 'Résultat', Object.keys(CALL_OUTCOME_LABELS)),
-    textArea('summary', 'Compte rendu'),
-    field('promiseDate', 'Date promise', 'date', z.string().optional()),
+    {
+      ...select('channel', 'Canal', Object.keys(CONTACT_CHANNEL_LABELS)),
+      options: Object.entries(CONTACT_CHANNEL_LABELS).map(([value, label]) => ({
+        value,
+        label,
+      })),
+    },
+    {
+      ...select('outcome', 'Résultat', Object.keys(CALL_OUTCOME_LABELS)),
+      options: Object.entries(CALL_OUTCOME_LABELS).map(([value, label]) => ({
+        value,
+        label,
+      })),
+    },
+    {
+      ...textArea('summary', 'Compte rendu'),
+      schema: z
+        .string()
+        .trim()
+        .min(5, 'Le compte rendu doit contenir au moins 5 caractères.'),
+    },
+    {
+      ...field(
+        'promiseDate',
+        'Date promise / rappel',
+        'date',
+        z.string().optional(),
+      ),
+      initial: '',
+    },
     moneyField('promiseAmount', 'Montant promis (FCFA)', false),
+    boolField(
+      'schedulePromise',
+      'Planifier la relance à la date promise (Super Admin)',
+    ),
   ]
-  const record = async (ctx: AdminContext, d: any) =>
-    ctx.services.callLogs.createCallLog({
+  const record = async (ctx: AdminContext, d: any) => {
+    if (d.outcome === 'promesse_paiement' && !d.promiseDate)
+      throw Error('Renseignez la date promise.')
+    if (d.schedulePromise && !ctx.caller.access.isSuperAdmin)
+      throw Error('Seul un Super Administrateur peut planifier une relance.')
+    const logId = await ctx.services.callLogs.createCallLog({
       personKey:
         ctx.row.personKey || ctx.row.memberId || ctx.row.matricule || ctx.id,
       memberId: ctx.row.memberId,
@@ -275,11 +377,37 @@ export function administrationActions(
       totalOverdue: ctx.row.totalOverdue || 0,
       overdueCount: ctx.row.overdueCount || 0,
       maxDaysOverdue: ctx.row.maxDaysOverdue || 0,
-      promiseToPayAt: d.promiseDate ? asDate(d.promiseDate) : undefined,
-      promiseAmount: d.promiseAmount,
+      promiseToPayAt:
+        d.outcome === 'promesse_paiement' && d.promiseDate
+          ? asDate(d.promiseDate)
+          : undefined,
+      promiseAmount:
+        d.outcome === 'promesse_paiement' ? d.promiseAmount : undefined,
       adminId: actor(ctx).id,
       adminName: actor(ctx).name,
     })
+    if (d.outcome === 'promesse_paiement' && d.schedulePromise)
+      await ctx.services.callPlans.createCallPlanBatch({
+        scheduledDate: d.promiseDate,
+        targets: [
+          {
+            ...ctx.row,
+            isGroup: !!ctx.row.isGroup,
+            product: ctx.row.product || '',
+            totalOverdue: ctx.row.totalOverdue || 0,
+            overdueCount: ctx.row.overdueCount || 0,
+            maxDaysOverdue: ctx.row.maxDaysOverdue || 0,
+            name: ctx.row.name || ctx.row.memberName || ctx.id,
+            personKey: ctx.row.personKey || ctx.row.memberId || ctx.id,
+          },
+        ],
+        createdById: actor(ctx).id,
+        createdByName: actor(ctx).name,
+        createdByEmail: ctx.caller.claims.email,
+        sourceCallLogId: logId,
+      })
+    return logId
+  }
   const resolveAssignee = async (ctx: AdminContext, id?: string) => {
     if (!id) return undefined
     const admin = await ctx.services.adminAccounts.getAdminById(id)

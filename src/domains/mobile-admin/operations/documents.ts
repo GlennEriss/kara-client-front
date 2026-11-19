@@ -39,8 +39,8 @@ const signatureField = (key: string, label: string) =>
   )
 async function fill(ctx: AdminContext, data: any) {
   const result = {
-    lieu: data.lieu,
-    date: data.date,
+    lieu: data.lieu || '',
+    date: data.date || '',
     secretaireNom: data.secretaireNom || '',
     conseillerNom: data.conseillerNom || '',
     secretaireSignature: ctx.row.secretaireSignature || null,
@@ -81,29 +81,41 @@ async function fill(ctx: AdminContext, data: any) {
 export function documentActions(module: AdminModule): AdminAction[] {
   if (module.key !== 'documents') return []
   const fields = [
-    textField('lieu', 'Lieu d’adoption'),
-    dateField('date', 'Date d’adoption'),
+    textField('lieu', 'Lieu d’adoption', false),
+    {
+      ...dateField('date', 'Date d’adoption'),
+      required: false,
+      schema: dateField('date', 'Date d’adoption').schema.optional(),
+    },
     textField('secretaireNom', 'Secrétaire exécutif', false),
     textField('conseillerNom', 'Conseiller juridique', false),
     signatureField(
       'secretaireSignatureDrawing',
       'Tracer la signature du secrétaire',
     ),
-    fileField(
-      'secretaireSignature',
-      'Importer la signature du secrétaire exécutif',
-      false,
-    ),
+    {
+      ...fileField(
+        'secretaireSignature',
+        'Importer la signature du secrétaire exécutif',
+        false,
+      ),
+      accept: ['image/png', 'image/jpeg', 'image/webp'],
+      maxBytes: 1024 * 1024,
+    },
     boolField('clearsecretaireSignature', 'Effacer la signature du secrétaire'),
     signatureField(
       'conseillerSignatureDrawing',
       'Tracer la signature du conseiller',
     ),
-    fileField(
-      'conseillerSignature',
-      'Importer la signature du conseiller juridique',
-      false,
-    ),
+    {
+      ...fileField(
+        'conseillerSignature',
+        'Importer la signature du conseiller juridique',
+        false,
+      ),
+      accept: ['image/png', 'image/jpeg', 'image/webp'],
+      maxBytes: 1024 * 1024,
+    },
     boolField('clearconseillerSignature', 'Effacer la signature du conseiller'),
   ]
   return [

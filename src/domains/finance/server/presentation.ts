@@ -15,11 +15,13 @@ import {
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 import {
   computeDueAt,
+  addContractMonths,
   resolveContractEndAt,
 } from '@/services/caisse/contractDates'
 import {
   getPaymentDueDate,
   getContractEndDate,
+  getMonthPeriod,
 } from '@/utils/caisse-imprevue-utils'
 import {
   findOverdueMonths,
@@ -43,6 +45,7 @@ import { enrichFinanceRows, financeCollection } from './read-model'
 
 type Row = Record<string, any>
 export interface PresentationFilters {
+  memberId?: string
   search?: string
   status?: string
   type?: string
@@ -105,6 +108,11 @@ export function filterPresentedRows(
   return rows.filter((row) => {
     const v = row.financeView
     if (!v) return false
+    if (
+      input.memberId &&
+      ![row.memberId, row.clientId].includes(input.memberId)
+    )
+      return false
     if (
       input.search &&
       !normalize(
@@ -234,6 +242,29 @@ export function financeTimeline(
       ? computeDueAt(row.contractStartAt, index, row.caisseType)
       : getMobileCIDueDate(row, index)
     const isPaid = payment?.status === 'PAID' || (target > 0 && paid >= target)
+    // Same monthly bounds as StandardContract; daily savings use 30-day periods.
+    const start = row.contractStartAt || row.firstPaymentDate
+    const monthlyStart = start ? addContractMonths(start, index) : null
+    const monthlyEnd = start ? addContractMonths(start, index + 1) : null
+    if (monthlyEnd) monthlyEnd.setDate(monthlyEnd.getDate() - 1)
+    const daily =
+      (cs && String(row.caisseType).startsWith('JOURNALIERE')) ||
+      (!cs && row.paymentFrequency === 'DAILY')
+    const period =
+      daily && start
+        ? getMonthPeriod(index, String(start))
+        : cs && monthlyStart && monthlyEnd
+          ? { startDate: monthlyStart, endDate: monthlyEnd }
+          : null
+    const recorded = cs
+      ? payment?.contribs?.length
+        ? payment.contribs
+        : payment?.groupContributions?.length
+          ? payment.groupContributions
+          : payment?.paidAt
+            ? [payment]
+            : []
+      : payment?.versements || []
     return {
       id: payment?.id || `month-${index}`,
       paymentId: payment?.id,
@@ -242,6 +273,17 @@ export function financeTimeline(
       totalAmount: target,
       paidAmount: paid,
       remainingAmount: Math.max(0, target - paid),
+      period: period
+        ? { startDate: date(period.startDate), endDate: date(period.endDate) }
+        : null,
+      recordedPayments: recorded.map((entry: Row) => ({
+        id: entry.id || payment?.id,
+        amount: entry.amount ?? entry.accumulatedAmount,
+        date: date(entry.paidAt || entry.date || entry.paymentDate),
+        time: entry.time || entry.paymentTime || null,
+        mode: entry.mode || entry.paymentMode || null,
+        withFees: entry.withFees ?? null,
+      })),
       status: isPaid
         ? 'PAID'
         : !ended.has(row.status) && due && day(due) < day(now)

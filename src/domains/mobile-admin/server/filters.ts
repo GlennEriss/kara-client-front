@@ -1,9 +1,11 @@
 import {
   dateField,
+  moneyField,
   idField,
   type FieldDefinition,
 } from '@/domains/finance/actions'
 import { select, type AdminModule, type Dataset } from '../catalog'
+import { communityMetrics } from './community-presentation'
 export function sectionFilters(
   module: AdminModule,
   dataset: Dataset,
@@ -63,7 +65,42 @@ export function sectionFilters(
     ['placements', 'payment-history', 'contract-history'].includes(module.key)
   )
     list.push(idField('memberId', 'Membre', 'members', false))
+  if (module.key === 'placements') {
+    list.push(
+      select(
+        'payoutMode',
+        'Règlement',
+        ['MonthlyCommission_CapitalEnd', 'CapitalPlusCommission_End'],
+        true,
+      ),
+      select('durationRange', 'Durée', ['short', 'long'], true),
+      select('contractState', 'Contrat signé', ['present', 'missing'], true),
+      select(
+        'sort',
+        'Tri',
+        ['recent', 'amountDesc', 'amountAsc', 'nextDate'],
+        true,
+      ),
+      {
+        ...moneyField('minAmount', 'Montant minimum (FCFA)', false),
+        required: false,
+      },
+      {
+        ...moneyField('maxAmount', 'Montant maximum (FCFA)', false),
+        required: false,
+      },
+      {
+        ...dateField('nextFrom', 'Prochaine échéance depuis'),
+        required: false,
+      },
+      {
+        ...dateField('nextTo', 'Prochaine échéance jusqu’au'),
+        required: false,
+      },
+    )
+  }
   if (module.key === 'vehicles') {
+    list.push(select('sort', 'Tri alphabétique', ['nameAsc', 'nameDesc'], true))
     pick('insuranceCompany', 'Assureur')
     pick('vehicleType', 'Bien assuré')
     pick('holderType', 'Type de titulaire')
@@ -77,7 +114,16 @@ export function sectionFilters(
     if (dataset.key === 'articles')
       list.push(idField('parentId', 'Boutique', 'shops', false))
   }
-  if (module.key === 'events') pick('category', 'Type d’évènement')
+  if (module.key === 'events')
+    list.push(
+      select(
+        'type',
+        'Type d’événement',
+        ['assembly', 'celebration', 'training', 'charity', 'other'],
+        true,
+      ),
+      select('sort', 'Tri par date', ['dateDesc', 'dateAsc'], true),
+    )
   if (module.key === 'calls') {
     pick('channel', 'Canal')
     pick('outcome', 'Résultat')
@@ -126,6 +172,8 @@ export function sectionMetrics(
   rows: Record<string, any>[],
   selected: Record<string, any>[],
 ) {
+  const community = communityMetrics(module.key, dataset.key, rows)
+  if (community) return community
   const metric = (label: string, value: number) => ({ label, value })
   const count = (key: string, states: string[]) =>
     rows.filter((r) => states.includes(String(r[key]))).length
@@ -151,45 +199,127 @@ export function sectionMetrics(
     ]
   if (module.key === 'groups')
     return [
-      ...base,
+      metric('Groupes', rows.length),
       metric(
-        'Projets',
-        rows.reduce((s, r) => s + (r.projects?.length || 0), 0),
-      ),
-      metric(
-        'Projets actifs',
+        'Projets ouverts',
         rows.reduce(
           (s, r) =>
             s +
-            (r.projects || []).filter((p: any) => p.status === 'ACTIVE').length,
+            (r.projects || []).filter((p: any) =>
+              ['ACTIVE', 'PLANNED'].includes(p.status),
+            ).length,
+          0,
+        ),
+      ),
+      metric(
+        'Projets terminés',
+        rows.reduce(
+          (s, r) =>
+            s +
+            (r.projects || []).filter((p: any) => p.status === 'COMPLETED')
+              .length,
           0,
         ),
       ),
     ]
   if (module.key === 'placements')
-    return [
-      ...base,
-      metric(
-        dataset.key === 'demands' ? 'Demandes acceptées' : 'Placements actifs',
-        count('status', dataset.key === 'demands' ? ['APPROVED'] : ['Active']),
-      ),
-      metric('Capital (FCFA)', total('amount')),
-    ]
+    return dataset.key === 'demands'
+      ? [
+          metric('Demandes', rows.length),
+          metric('En attente', count('status', ['PENDING'])),
+          metric('Acceptées', count('status', ['APPROVED'])),
+          metric('Refusées', count('status', ['REJECTED'])),
+          metric('Converties', rows.filter((r) => !!r.placementId).length),
+          metric('Montant demandé (FCFA)', total('amount')),
+        ]
+      : [
+          metric('Total', rows.length),
+          metric('Capital (FCFA)', total('amount')),
+          metric('Actifs', count('status', ['Active'])),
+          metric(
+            'Commissions dues',
+            rows.reduce(
+              (s, r) => s + Number(r.placementView?.dueCount || 0),
+              0,
+            ),
+          ),
+          metric(
+            'Commissions payées',
+            rows.reduce(
+              (s, r) => s + Number(r.placementView?.paidCount || 0),
+              0,
+            ),
+          ),
+          metric('Retrait anticipé', count('status', ['EarlyExit'])),
+          metric(
+            'Mode mensuel',
+            count('payoutMode', ['MonthlyCommission_CapitalEnd']),
+          ),
+          metric(
+            'Mode final',
+            count('payoutMode', ['CapitalPlusCommission_End']),
+          ),
+        ]
   if (module.key === 'bienfaiteur')
     return [
-      ...base,
-      metric('Total collecté (FCFA)', total('totalCollectedAmount')),
-      metric('Participants', total('totalParticipantsCount')),
-    ]
-  if (module.key === 'vehicles')
-    return [
-      ...base,
-      metric('Actives', count('status', ['active'])),
       metric(
-        'Déclarations en attente',
-        count('declarationStatus', ['pending']),
+        'Évènements (année)',
+        rows.filter((r) =>
+          String(r.startDate || '').startsWith(
+            String(new Date().getFullYear()),
+          ),
+        ).length,
       ),
+      metric('Montant collecté (FCFA)', total('totalCollectedAmount')),
+      metric('Total participants', total('totalParticipantsCount')),
     ]
+  if (module.key === 'vehicles') {
+    if (dataset.key === 'rewards')
+      return [
+        metric(
+          'Commissions à recevoir (FCFA)',
+          rows
+            .filter((r) => r.status === 'AWAITING_PARTNER')
+            .reduce((s, r) => s + Number(r.expectedCommission || 0), 0),
+        ),
+        metric(
+          'À verser aux membres (FCFA)',
+          rows
+            .filter((r) => r.status === 'TO_PAY')
+            .reduce((s, r) => s + Number(r.memberAmount || 0), 0),
+        ),
+        metric(
+          'Versé aux membres (FCFA)',
+          rows
+            .filter((r) => r.status === 'PAID')
+            .reduce((s, r) => s + Number(r.memberAmount || 0), 0),
+        ),
+        metric(
+          'Gardé par LE KARA (FCFA)',
+          rows.reduce(
+            (s, r) =>
+              s +
+              (r.partnerReceipt
+                ? Number(r.partnerReceipt.amount || 0) -
+                  Number(r.memberAmount || 0)
+                : 0),
+            0,
+          ),
+        ),
+      ]
+    if (dataset.key === 'partners') return [metric('Assureurs', rows.length)]
+    rows = rows.filter(
+      (r) => !r.declarationStatus || r.declarationStatus === 'validated',
+    )
+    return [
+      metric('Assurés', rows.length),
+      metric('Actifs', count('status', ['active'])),
+      metric('Expire bientôt', count('status', ['expires_soon'])),
+      metric('Expirées', count('status', ['expired'])),
+      metric('Membres assurés', count('holderType', ['member'])),
+      metric('Non-membres', count('holderType', ['non-member'])),
+    ]
+  }
   if (module.key === 'shops' || module.key === 'events')
     return [
       ...base,

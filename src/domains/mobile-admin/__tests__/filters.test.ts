@@ -64,3 +64,27 @@ describe('filtres des sections natives', () => {
     expect(results.every((r) => r.sections.length > 0)).toBe(true)
   })
 })
+
+describe('groupes et projets', () => {
+  it('recherche le projet et filtre le type sans supprimer les autres projets du groupe', () => {
+    const group = {
+      id: 'G',
+      name: 'Quartier',
+      projects: [
+        { name: 'Réfrigérateur', kind: 'PURCHASE' },
+        { name: 'Épargne', kind: 'TONTINE' },
+      ],
+    }
+    expect(
+      filterRows(
+        [group],
+        listSchema.parse({ search: 'refrigerateur', projectKind: 'PURCHASE' }),
+        'groups',
+      ),
+    ).toHaveLength(1)
+    expect(
+      filterRows([group], { projectKind: 'OTHER' }, 'groups'),
+    ).toHaveLength(0)
+    expect(listSchema.safeParse({ projectKind: 'invalid' }).success).toBe(false)
+  })
+})

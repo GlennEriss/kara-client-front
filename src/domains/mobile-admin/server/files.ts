@@ -1,3 +1,7 @@
+import { validateActivityQuery } from './activity-presentation'
+import { archiveExportRow, isArchive } from './archive-presentation'
+import { staffExportRow } from './staff-presentation'
+import { isDirectory, directoryExportRow } from './directory-presentation'
 /* eslint-disable no-restricted-imports -- Adaptateur natif utilisant les services et modèles métier existants du site. */
 import { buildCharityContributionReceipt } from '@/services/bienfaiteur/charityContributionReceipt'
 import {
@@ -35,6 +39,7 @@ const schema = z
     dataset: identifier.optional(),
     type: z.enum([
       'export',
+      'members',
       'document',
       'contract',
       'quittance',
@@ -87,7 +92,9 @@ export async function getAdminFile(
         access.caller.access,
         input.type === 'export'
           ? `${access.module.permission}.export`
-          : 'documents.download',
+          : input.type === 'members'
+            ? 'groups.manage'
+            : 'documents.download',
       ) &&
       !(
         input.type === 'export' &&
@@ -99,23 +106,99 @@ export async function getAdminFile(
       )
     )
       return mobileJson({ error: 'Téléchargement non autorisé.' }, 403)
+    if (input.type === 'members') {
+      if (key !== 'groups') throw Error('Export réservé aux groupes.')
+      const group = await readTarget(
+        access.services,
+        access.module,
+        dataset,
+        id,
+        access.caller,
+      )
+      const snap = await access.services.db
+        .collection('users')
+        .where('groupIds', 'array-contains', group.id)
+        .get()
+      const members: Record<string, any>[] = snap.docs.map((d) => ({
+        ...d.data(),
+        id: d.id,
+      }))
+      const cell = (v: unknown) => {
+        let value = String(v ?? '')
+        if (/^[=+@-]/.test(value)) value = "'" + value
+        return '"' + value.replace(/"/g, '""') + '"'
+      }
+      const csv =
+        '\uFEFF' +
+        [
+          ['Matricule', 'Nom', 'Prénom', 'Email', 'Téléphones']
+            .map(cell)
+            .join(','),
+          ...members.map((m) =>
+            [
+              m.matricule || m.id,
+              m.lastName,
+              m.firstName,
+              m.email,
+              (m.contacts || []).join(' / '),
+            ]
+              .map(cell)
+              .join(','),
+          ),
+        ].join('\r\n')
+      return mobileJson(
+        payload(
+          Buffer.from(csv, 'utf8'),
+          'text/csv',
+          `LE-KARA-groupe-${id}-membres.csv`,
+        ),
+      )
+    }
     if (input.type === 'export') {
       const filters = listSchema
         .omit({ dataset: true })
         .parse(input.filters ? JSON.parse(input.filters) : {})
+      if (['placements', 'vehicles', 'bienfaiteur'].includes(key))
+        validateActivityQuery(filters)
       const rows = filterRows(
         await readRows(access.services, access.module, dataset, access.caller),
         filters,
         key,
       ).map((r) =>
-        flatten(
-          safePublicRecord(
-            redactAdminAmounts(
-              r,
-              access.caller.access.restrictedRole !== 'AgentRecouvrement',
-            ),
-          ),
-        ),
+        isDirectory(key)
+          ? directoryExportRow(
+              key,
+              dataset.key,
+              redactAdminAmounts(
+                r,
+                access.caller.access.restrictedRole !== 'AgentRecouvrement',
+              ),
+            )
+          : key === 'calls'
+            ? staffExportRow(
+                key,
+                redactAdminAmounts(
+                  r,
+                  access.caller.access.restrictedRole !== 'AgentRecouvrement',
+                ),
+              )
+            : isArchive(key)
+              ? archiveExportRow(
+                  key,
+                  redactAdminAmounts(
+                    r,
+                    access.caller.access.restrictedRole !== 'AgentRecouvrement',
+                  ),
+                )
+              : flatten(
+                  safePublicRecord(
+                    redactAdminAmounts(
+                      r,
+                      access.caller.access.restrictedRole !==
+                        'AgentRecouvrement',
+                    ),
+                  ),
+                ),
       )
       if (rows.length > 2000)
         throw Error(
@@ -316,52 +399,53 @@ export async function getAdminFile(
       throw Error('Référence de pièce jointe invalide.')
     const url = input.key.split('.').reduce((obj, k) => obj?.[k], target)
     if (typeof url !== 'string') throw Error('Pièce jointe introuvable.')
-    const parsed = new URL(url)
-    const bucketName =
-      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-      process.env.FIREBASE_STORAGE_BUCKET
-    if (!bucketName || !adminApp) throw Error('Stockage indisponible.')
-    let path: string
-    if (
-      parsed.protocol === 'https:' &&
-      parsed.hostname === 'firebasestorage.googleapis.com' &&
-      parsed.pathname.startsWith(`/v0/b/${bucketName}/o/`)
-    )
-      path = decodeURIComponent(
-        parsed.pathname.slice(`/v0/b/${bucketName}/o/`.length),
-      )
-    else if (
-      parsed.protocol === 'https:' &&
-      parsed.hostname === 'storage.googleapis.com' &&
-      parsed.pathname.startsWith(`/${bucketName}/`)
-    )
-      path = decodeURIComponent(parsed.pathname.slice(bucketName.length + 2))
-    else
-      throw Error(
-        'Cette pièce jointe n’appartient pas au stockage de l’application.',
-      )
-    const file = getStorage(adminApp).bucket(bucketName).file(path)
-    const [meta] = await file.getMetadata()
-    if (Number(meta.size) > (key === 'bienfaiteur' ? 50 : 20) * 1024 * 1024)
-      throw Error('Le fichier dépasse 20 Mo.')
-    const mime = meta.contentType || 'application/pdf'
-    if (
-      ![
-        'application/pdf',
-        'image/png',
-        'image/jpeg',
-        'image/webp',
-        ...(key === 'bienfaiteur'
-          ? ['video/mp4', 'video/quicktime', 'video/webm']
-          : []),
-      ].includes(mime)
-    )
-      throw Error('Format non pris en charge.')
-    const [buffer] = await file.download()
-    return mobileJson(
-      payload(buffer, mime, path.split('/').pop() || 'document-LE-KARA'),
-    )
+    return mobileJson(await readApplicationFile(url, key === 'bienfaiteur'))
   } catch (e) {
     return errorResponse(e)
   }
+}
+
+/** Read only a file URL already resolved from an authorized business record. */
+export async function readApplicationFile(url: string, video = false) {
+  const parsed = new URL(url)
+  const bucketName =
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    process.env.FIREBASE_STORAGE_BUCKET
+  if (!bucketName || !adminApp) throw Error('Stockage indisponible.')
+  let path: string
+  if (
+    parsed.protocol === 'https:' &&
+    parsed.hostname === 'firebasestorage.googleapis.com' &&
+    parsed.pathname.startsWith(`/v0/b/${bucketName}/o/`)
+  )
+    path = decodeURIComponent(
+      parsed.pathname.slice(`/v0/b/${bucketName}/o/`.length),
+    )
+  else if (
+    parsed.protocol === 'https:' &&
+    parsed.hostname === 'storage.googleapis.com' &&
+    parsed.pathname.startsWith(`/${bucketName}/`)
+  )
+    path = decodeURIComponent(parsed.pathname.slice(bucketName.length + 2))
+  else
+    throw Error(
+      'Cette pièce jointe n’appartient pas au stockage de l’application.',
+    )
+  const file = getStorage(adminApp).bucket(bucketName).file(path)
+  const [meta] = await file.getMetadata()
+  if (Number(meta.size) > (video ? 50 : 20) * 1024 * 1024)
+    throw Error(`Le fichier dépasse ${video ? 50 : 20} Mo.`)
+  const mime = meta.contentType || 'application/pdf'
+  if (
+    ![
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+      ...(video ? ['video/mp4', 'video/quicktime', 'video/webm'] : []),
+    ].includes(mime)
+  )
+    throw Error('Format non pris en charge.')
+  const [buffer] = await file.download()
+  return payload(buffer, mime, path.split('/').pop() || 'document-LE-KARA')
 }

@@ -1,4 +1,10 @@
+import {
+  getInsuranceHolderPhone,
+  getInsuranceHolderName,
+  insuranceReminderTemplate,
+} from '@/utils/vehicule/insuranceReminder'
 import { renderTemplate } from '@/domains/messaging/utils/renderTemplate'
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
   textField,
@@ -20,10 +26,6 @@ import { createEventSchema } from '@/domains/community/events/schemas/event.sche
 import { vehicleInsuranceFormSchema } from '@/schemas/vehicule.schema'
 import { MESSAGE_TEMPLATES } from '@/domains/messaging/constants/message-templates'
 import {
-  normalizeMessageBaseUrl,
-  LINK_TEMPLATE_KEYS,
-} from '@/domains/messaging/utils/message-template-links'
-import {
   nested,
   rows,
   select,
@@ -38,14 +40,23 @@ import {
   type AdminAction,
   type AdminContext,
 } from '../server/registry'
-const asset = async (ctx: AdminContext, key: string) =>
-  ctx.files[key]
-    ? ctx.services.documents.uploadDocumentFile(
-        ctx.files[key],
-        ctx.row.memberId || ctx.row.ownerMemberId || actor(ctx).id,
-        'CONTACT_DOCUMENT',
-      )
-    : undefined
+const imageTypes = ['image/jpeg', 'image/png', 'image/webp']
+const imageField = (key: string, label: string, required = false) => ({
+  ...fileField(key, label, required),
+  accept: imageTypes,
+  maxBytes: 8 * 1024 * 1024,
+})
+const asset = async (ctx: AdminContext, key: string) => {
+  const file = ctx.files[key]
+  if (!file) return undefined
+  if (['image', 'photo'].includes(key) && !imageTypes.includes(file.type))
+    throw Error('Choisissez une image PNG, JPEG ou WebP.')
+  return ctx.services.documents.uploadDocumentFile(
+    file,
+    ctx.row.memberId || ctx.row.ownerMemberId || actor(ctx).id,
+    'CONTACT_DOCUMENT',
+  )
+}
 const dateOptional = (key: string, label: string) =>
   field(key, label, 'date', z.string().optional())
 const rate = (key: string, label: string, max = 100) =>
@@ -81,13 +92,14 @@ const eventFields = [
     'proposedLocations',
     'Options de lieu',
     [
+      { ...textField('id', 'Référence du lieu', false), kind: 'hidden' },
       textField('name', 'Nom'),
       textField('address', 'Adresse', false),
       textArea('description', 'Précisions', true),
     ],
     true,
   ),
-  fileField('image', 'Image de couverture', false),
+  imageField('image', 'Image de couverture'),
 ]
 const agentFields = [
   textField('nom', 'Nom'),
@@ -110,6 +122,7 @@ const agentFields = [
   textField('tel1', 'Téléphone principal'),
   textField('tel2', 'Autre téléphone', false),
   fileField('photo', 'Photo', false),
+  boolField('removePhoto', 'Retirer la photo enregistrée'),
 ]
 const shopFields = [
   textField('name', 'Nom de la boutique'),
@@ -143,7 +156,7 @@ const shopFields = [
     true,
   ),
   boolField('isActive', 'Visible dans l’annuaire'),
-  fileField('photo', 'Photo / logo', false),
+  imageField('photo', 'Photo / logo'),
 ]
 const insuranceFields = [
   select('holderType', 'Titulaire', ['member', 'non-member']),
@@ -223,6 +236,14 @@ export function communityActions(
           async (ctx, d) => {
             const values = { ...d }
             delete values.photo
+            delete values.removePhoto
+            if (
+              ctx.files.photo &&
+              !['image/jpeg', 'image/png', 'image/webp'].includes(
+                ctx.files.photo.type,
+              )
+            )
+              throw Error('La photo doit être une image JPEG, PNG ou WebP.')
             const data = agentRecouvrementFormSchema.parse(
               convertDates(agentFields, values),
             )
@@ -241,6 +262,9 @@ export function communityActions(
                     ...data,
                     ...(photo
                       ? { photoUrl: photo.url, photoPath: photo.path }
+                      : {}),
+                    ...(d.removePhoto && !photo
+                      ? { photoUrl: null, photoPath: null }
                       : {}),
                   },
                   actor(ctx).id,
@@ -280,6 +304,14 @@ export function communityActions(
           'events.manage',
           eventFields,
           async (ctx, d) => {
+            if (
+              !create &&
+              ctx.row.status !== 'draft' &&
+              d.pollEnabled !== ctx.row.pollEnabled
+            )
+              throw Error(
+                'Le type de lieu ne peut plus changer après publication.',
+              )
             const input = {
               ...d,
               startDate: asDate(d.startDate, d.startTime).toISOString(),
@@ -295,10 +327,7 @@ export function communityActions(
               proposedLocations: d.proposedLocations?.map(
                 (p: any, i: number) => ({
                   ...p,
-                  id:
-                    !create && ctx.row.proposedLocations?.[i]?.id
-                      ? ctx.row.proposedLocations[i].id
-                      : p.id || `option-${i + 1}`,
+                  id: p.id || (create ? `option-${i + 1}` : randomUUID()),
                 }),
               ),
             }
@@ -522,7 +551,7 @@ export function communityActions(
         'shop.photo.add',
         'Ajouter une photo à la galerie',
         'boutiques.manage',
-        [fileField('photo', 'Photo')],
+        [imageField('photo', 'Photo', true)],
         async (ctx) => {
           if (!ctx.files.photo.type.startsWith('image/'))
             throw Error('Choisissez une image.')
@@ -683,6 +712,45 @@ export function communityActions(
         )
     }
     return [
+      action(
+        'insurance.reminder',
+        'Préparer un rappel WhatsApp',
+        'vehicules.view',
+        [],
+        async (ctx) => {
+          const insurance = {
+            ...ctx.row,
+            startDate: asDate(ctx.row.startDate),
+            endDate: asDate(ctx.row.endDate),
+          } as any
+          const phone = getInsuranceHolderPhone(insurance)
+          if (!phone)
+            throw Error('Aucun téléphone disponible pour ce titulaire.')
+          const { key, variables } = insuranceReminderTemplate(insurance)
+          const saved =
+            (
+              await ctx.services.db
+                .collection('settings')
+                .doc('messageTemplates')
+                .get()
+            ).data()?.templates || {}
+          return {
+            messages: [
+              {
+                name: getInsuranceHolderName(insurance),
+                phone,
+                text: renderTemplate(
+                  saved[key] ||
+                    MESSAGE_TEMPLATES.find((t) => t.key === key)?.defaultBody ||
+                    '',
+                  variables,
+                ),
+              },
+            ],
+          }
+        },
+        { readonly: true },
+      ),
       ...[true, false].map((create) =>
         action(
           create ? 'insurance.create' : 'insurance.update',
@@ -809,85 +877,5 @@ export function communityActions(
       ),
     ]
   }
-  if (module.key === 'messages')
-    return [
-      action(
-        'message.preview',
-        'Prévisualiser ce modèle',
-        'messageTemplates.view',
-        [
-          rows(
-            'variables',
-            'Valeurs de l’aperçu',
-            [
-              textField('name', 'Variable (sans accolades)'),
-              textField('value', 'Valeur', false),
-            ],
-            true,
-          ),
-        ],
-        async (ctx, d) => ({
-          message: renderTemplate(
-            ctx.row.body || ctx.row.defaultBody,
-            Object.fromEntries(
-              (d.variables || []).map((v: any) => [v.name, v.value || '']),
-            ),
-          ),
-        }),
-        { readonly: true },
-      ),
-      action(
-        'message.update',
-        'Modifier ce modèle',
-        'messageTemplates.manage',
-        [
-          textArea('body', 'Texte du message'),
-          textField('baseUrl', 'Adresse de base des liens', false),
-        ],
-        async (ctx, d) => {
-          const template = MESSAGE_TEMPLATES.find((t) => t.key === ctx.id)
-          if (!template) throw Error('Modèle inconnu.')
-          const urls = LINK_TEMPLATE_KEYS.has(ctx.id)
-            ? { [`urls.${ctx.id}`]: normalizeMessageBaseUrl(d.baseUrl || '') }
-            : {}
-          await ctx.services.db
-            .collection('settings')
-            .doc('messageTemplates')
-            .set({ updatedBy: actor(ctx).id }, { merge: true })
-          await ctx.services.db
-            .collection('settings')
-            .doc('messageTemplates')
-            .update({
-              [`templates.${ctx.id}`]: d.body,
-              ...urls,
-              updatedBy: actor(ctx).id,
-              updatedAt: new Date(),
-            })
-          return { success: true }
-        },
-      ),
-      action(
-        'message.reset',
-        'Revenir au texte par défaut',
-        'messageTemplates.manage',
-        [],
-        async (ctx) => {
-          const t = MESSAGE_TEMPLATES.find((t) => t.key === ctx.id)
-          if (!t) throw Error('Modèle inconnu.')
-          await ctx.services.db
-            .collection('settings')
-            .doc('messageTemplates')
-            .set(
-              {
-                templates: { [ctx.id]: t.defaultBody },
-                updatedAt: new Date(),
-                updatedBy: actor(ctx).id,
-              },
-              { merge: true },
-            )
-          return { success: true }
-        },
-      ),
-    ]
   return []
 }

@@ -1,3 +1,5 @@
+import { findPlannedContribution } from '../server/group-contributions'
+import { contractActions } from '@/domains/finance/operations/contracts'
 import { demandActions } from '@/domains/finance/operations/demands'
 import { remainingContribution } from '@/domains/groups/contribution-model'
 import { NextRequest } from 'next/server'
@@ -59,25 +61,6 @@ const payment = [
   textArea('note', 'Note', true),
 ]
 export function groupActions(module: AdminModule): AdminAction[] {
-  if (module.key === 'geography')
-    return [
-      {
-        id: 'district.bulk',
-        label: 'Créer des arrondissements en masse',
-        scope: 'workspace',
-        permission: 'geography.manage',
-        fields: [
-          idField('communeId', 'Commune', 'communes'),
-          numberField('count', 'Nombre d’arrondissements', 1, 50),
-        ],
-        run: (ctx, d) =>
-          ctx.services.geography.createDistrictsBulk(
-            d.communeId,
-            d.count,
-            actor(ctx).id,
-          ),
-      },
-    ]
   if (module.key !== 'groups') return []
   const action = (
     id: string,
@@ -152,6 +135,22 @@ export function groupActions(module: AdminModule): AdminAction[] {
         return data
       },
       { superAdminOnly: true, destructive: true },
+    ),
+    action(
+      'group.caisse.create',
+      'Créer un contrat de caisse spéciale',
+      contractActions('caisse-speciale')
+        .find((a) => a.id === 'contract.create')!
+        .fields.filter(
+          (f) => !['memberId', 'groupeId', 'emergencyContact'].includes(f.key),
+        ),
+      (ctx, d) =>
+        ctx.services.cs.subscribe({
+          ...d,
+          groupeId: ctx.id,
+          createdBy: ctx.caller.claims.uid,
+        }),
+      { requiredPermissions: ['caisseSpeciale.create'] },
     ),
     action('group.update', 'Modifier le groupe', groupFields, (ctx, d) =>
       ctx.services.groups.updateCollectiveGroup(
@@ -381,7 +380,9 @@ export function groupActions(module: AdminModule): AdminAction[] {
           ctx.id,
           d.projectId,
         )
-        const row = rows.find((r) => r.id === d.contributionId)
+        const row =
+          rows.find((r) => r.id === d.contributionId) ||
+          findPlannedContribution(project, d.contributionId)
         if (!row) throw Error('Cotisation introuvable.')
         const create = demandActions('credit-fixe').find(
           (a) => a.id === 'demand.create',
@@ -543,7 +544,17 @@ export function groupActions(module: AdminModule): AdminAction[] {
       'Enregistrer le règlement d’un accord',
       [
         agreementId(),
-        ...payment,
+        ...payment.map((f) =>
+          f.key === 'source'
+            ? select('source', 'Moyen de paiement', [
+                'CASH',
+                'AIRTEL_MONEY',
+                'MOBICASH',
+                'BANK_TRANSFER',
+                'OTHER',
+              ])
+            : f,
+        ),
         select('receivedBy', 'Fonds reçus par', ['CREDITOR', 'KARA']),
         fileField('proof', 'Preuve', false),
       ],
@@ -569,7 +580,21 @@ export function groupActions(module: AdminModule): AdminAction[] {
     action(
       'agreement.remittance',
       'Remettre les fonds au bénéficiaire',
-      [agreementId(), ...payment, fileField('proof', 'Preuve', false)],
+      [
+        agreementId(),
+        ...payment.map((f) =>
+          f.key === 'source'
+            ? select('source', 'Moyen de paiement', [
+                'CASH',
+                'AIRTEL_MONEY',
+                'MOBICASH',
+                'BANK_TRANSFER',
+                'OTHER',
+              ])
+            : f,
+        ),
+        fileField('proof', 'Preuve', false),
+      ],
       async (ctx, d) => {
         const proof = await upload(ctx, 'proof')
         return ctx.services.agreements.recordAgreementRemittance(

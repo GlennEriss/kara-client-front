@@ -1,4 +1,13 @@
 /* eslint-disable no-restricted-imports -- Reprend le calcul officiel de bonus des fiches CS existantes. */
+import { buildCreditTimeline } from '@/utils/credit-timeline'
+import { presentCreditInstallments } from './credit-schedule-presentation'
+import { getCreditSpecialeInterestCollected } from '@/utils/credit-speciale-history'
+import { isFlatCredit } from '@/utils/credit-weekly'
+import {
+  settingsRow,
+  selectSettings,
+  settingsOverview,
+} from './settings-presentation'
 import { normalizeFinanceDates } from './serialization'
 import { findCreditPenaltyHistoryRow } from '@/utils/credit-penalty-history'
 import { getCreditPaymentCycleNumber } from '@/utils/credit-speciale-history'
@@ -8,7 +17,6 @@ import { firebaseCollectionNames as names } from '@/constantes/firebase-collecti
 import { fromFirestore } from '@/domains/mobile/server/calendar-service'
 import { creditContractSummary } from '@/utils/credit-contract-summary'
 import {
-  buildCreditSpecialeTimelineHistory,
   getCreditContractCycles,
   getCreditPaymentMonthNumber,
 } from '@/utils/credit-speciale-history'
@@ -91,6 +99,8 @@ export async function enrichFinanceRows(
       memberName: name || row.label || row.code || 'Dossier KARA',
       memberContacts:
         row.memberContacts || row.clientContacts || member?.contacts || [],
+      memberEmail: row.memberEmail || row.clientEmail || member?.email || null,
+      memberWhatsapp: row.memberWhatsapp || member?.whatsappNumber || null,
       memberPhotoUrl: row.memberPhotoUrl || member?.photoURL || null,
       module,
     }
@@ -104,6 +114,7 @@ export interface FinanceListInput {
   limit: number
   page: number
   type?: string
+  settingsSort?: 'recent' | 'effective' | 'nameAsc'
 }
 export async function listFinanceRows(
   services: FinanceServices,
@@ -196,6 +207,18 @@ export async function listFinanceRows(
       },
       { throwOnError: true },
     )
+  const settings =
+    scope === 'settings'
+      ? settingsOverview(
+          module,
+          rows.map((row) => settingsRow(module, row)),
+        )
+      : undefined
+  if (scope === 'settings')
+    rows = selectSettings(
+      rows.map((row) => settingsRow(module, row)),
+      input,
+    )
   const total = rows.length
   const start = input.cursor
     ? rows.findIndex((row) => row.id === input.cursor) + 1
@@ -206,6 +229,7 @@ export async function listFinanceRows(
   return {
     items: await enrichFinanceRows(services, module, page),
     total,
+    ...(settings ? { settings } : {}),
     nextCursor: start + input.limit < total ? String(page.at(-1)?.id) : null,
   }
 }
@@ -334,10 +358,7 @@ export async function financeContractDetail(
     withBusinessDates(payments) as CreditPayment[],
     businessWallTime(new Date()),
   )
-  const history =
-    module === 'credit-speciale'
-      ? buildCreditSpecialeTimelineHistory(credit, paidRows)
-      : []
+  const history = buildCreditTimeline(credit, paidRows)
   return {
     record: (await enrichFinanceRows(services, module, [record]))[0],
     payments,
@@ -357,49 +378,48 @@ export async function financeContractDetail(
         }
       : {}),
     documents,
-    installments: installments.map((row) => ({
+    installments: presentCreditInstallments(
+      credit,
+      paidRows,
+      installments,
+      payments as CreditPayment[],
+    ),
+    creditSummary: {
+      interestAmount:
+        credit.creditType === 'SPECIALE'
+          ? getCreditSpecialeInterestCollected(history, isFlatCredit(credit))
+          : Math.max(0, Math.round(credit.totalAmount - credit.amount)),
+      interestGenerated: history.reduce((sum, row) => sum + row.interest, 0),
+      unpaidPenalties: penalties
+        .filter((p) => !p.paid)
+        .reduce((sum, p) => sum + p.amount, 0),
+      unpaidPenaltiesCount: penalties.filter((p) => !p.paid).length,
+      paidPeriods: installments.filter(
+        (p) => p.status === 'PAID' && p.paidAmount > 0,
+      ).length,
+      scheduledPeriods: installments.length,
+    },
+    ...creditDetailExtras(record, payments, remunerations, guarantorPayments),
+    history: history.map((row) => ({
       ...row,
-      paymentIds: totals.currentPayments
+      penaltyAmount: penalties
         .filter(
           (p) =>
-            getCreditPaymentMonthNumber(credit, p) === row.installmentNumber &&
+            findCreditPenaltyHistoryRow(withBusinessDates(p) as any, history)
+              ?.key === row.key,
+        )
+        .reduce((sum, p) => sum + p.amount, 0),
+      paymentIds: paidRows
+        .filter(
+          (p) =>
+            getCreditPaymentCycleNumber(credit, p) === row.cycleNumber &&
+            getCreditPaymentMonthNumber(credit, p) === row.month &&
             (p.amount > 0 ||
               !p.comment?.includes('Paiement de pénalités uniquement')),
         )
         .map((p) => p.id),
     })),
-    ...(module === 'credit-speciale'
-      ? {
-          ...creditDetailExtras(
-            record,
-            payments,
-            remunerations,
-            guarantorPayments,
-          ),
-          history: history.map((row) => ({
-            ...row,
-            penaltyAmount: penalties
-              .filter(
-                (p) =>
-                  findCreditPenaltyHistoryRow(
-                    withBusinessDates(p) as any,
-                    history,
-                  )?.key === row.key,
-              )
-              .reduce((sum, p) => sum + p.amount, 0),
-            paymentIds: paidRows
-              .filter(
-                (p) =>
-                  getCreditPaymentCycleNumber(credit, p) === row.cycleNumber &&
-                  getCreditPaymentMonthNumber(credit, p) === row.month &&
-                  (p.amount > 0 ||
-                    !p.comment?.includes('Paiement de pénalités uniquement')),
-              )
-              .map((p) => p.id),
-          })),
-          cycles: getCreditContractCycles(credit),
-          restMonths: totals.history.filter((row) => row.isRest),
-        }
-      : {}),
+    cycles: getCreditContractCycles(credit),
+    restMonths: totals.history.filter((row) => row.isRest),
   }
 }

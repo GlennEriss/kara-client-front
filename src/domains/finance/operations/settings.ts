@@ -1,17 +1,15 @@
+import { caisseSettingsActions } from './caisse-settings'
 import { isCreditModule, creditTypeForModule } from '../credit-module'
 /* eslint-disable no-restricted-imports -- Adaptateur temporaire vers les règles métier et modèles officiels existants. */
 import { z } from 'zod'
 import {
   asDate,
-  boolField,
   dateField,
   defineAction,
   field,
   moneyField,
   numberField,
-  reasonField,
   selectField,
-  textField,
   type FinanceAction,
   type FinanceModule,
 } from '../actions'
@@ -165,159 +163,8 @@ export function settingsActions(module: FinanceModule): FinanceAction[] {
         { readonly: true },
       ),
     ]
-  const fields =
-    module === 'caisse-imprevue'
-      ? [
-          textField('code', 'Code du forfait'),
-          textField('label', 'Libellé', false),
-          moneyField('amountPerMonth', 'Mensualité (FCFA)'),
-          moneyField('nominal', 'Objectif nominal (FCFA)'),
-          numberField('durationInMonths', 'Durée (mois)', 1, 12),
-          field(
-            'penaltyRate',
-            'Pénalité (%)',
-            'number',
-            z.number().min(0).max(100),
-          ),
-          numberField(
-            'penaltyDelayDays',
-            'Délai sans pénalité (jours)',
-            0,
-            365,
-          ),
-          moneyField('supportMin', 'Aide minimum (FCFA)', false),
-          moneyField('supportMax', 'Aide maximum (FCFA)', false),
-          selectField('status', 'Statut', [
-            { value: 'ACTIVE', label: 'Actif' },
-            { value: 'INACTIVE', label: 'Inactif' },
-          ]),
-        ]
-      : [
-          selectField('caisseType', 'Type de caisse', caisseTypes),
-          dateField('effectiveAt', 'Date de prise d’effet'),
-          boolField('isActive', 'Version active'),
-          field(
-            'bonus',
-            'Taux de bonus par mois',
-            'rows',
-            z
-              .array(
-                z
-                  .object({
-                    month: z.number().int().min(4).max(1200),
-                    rate: z.number().min(0).max(100),
-                  })
-                  .strict(),
-              )
-              .max(1200),
-            {
-              fields: [
-                numberField('month', 'Mois', 4, 1200),
-                field('rate', 'Taux (%)', 'number', z.number().min(0).max(100)),
-              ],
-            },
-          ),
-          field(
-            'penaltyPerDay',
-            'Pénalité journalière (%)',
-            'number',
-            z.number().min(0).max(100),
-          ),
-        ]
-  const toData = (d: any) =>
-    module === 'caisse-imprevue'
-      ? { ...d, supportMin: d.supportMin || 0, supportMax: d.supportMax || 0 }
-      : {
-          caisseType: d.caisseType,
-          effectiveAt: asDate(d.effectiveAt),
-          isActive: !!d.isActive,
-          bonusTable: Object.fromEntries(
-            d.bonus.map((row: any) => [`M${row.month}`, row.rate]),
-          ),
-          penaltyRules: { day4To12: { perDay: d.penaltyPerDay } },
-        }
   return [
-    action(
-      'settings.create',
-      module === 'caisse-imprevue'
-        ? 'Nouveau forfait'
-        : 'Nouvelle version de paramètres',
-      'workspace',
-      fields,
-      async (ctx, d) => {
-        if (module === 'caisse-imprevue')
-          return ctx.services.caisseImprevue.createSubscription({
-            ...toData(d),
-            id: crypto.randomUUID(),
-            createdBy: ctx.caller.claims.uid,
-          })
-        return ctx.services.csSettings.createSettings({
-          ...toData(d),
-          createdBy: ctx.caller.claims.uid,
-        })
-      },
-    ),
-    action(
-      'settings.update',
-      'Modifier les paramètres',
-      'settings',
-      fields,
-      async (ctx, d) =>
-        module === 'caisse-imprevue'
-          ? ctx.services.caisseImprevue.updateSubscription(ctx.id, {
-              ...toData(d),
-              updatedBy: ctx.caller.claims.uid,
-            })
-          : ctx.services.csSettings.updateSettings(ctx.id, {
-              ...toData(d),
-              updatedBy: ctx.caller.claims.uid,
-            }),
-    ),
-    ...(module === 'caisse-imprevue'
-      ? [
-          action(
-            'simulation.standard',
-            'Simulation de caisse',
-            'workspace',
-            [
-              moneyField('subscriptionCIAmountPerMonth', 'Mensualité (FCFA)'),
-              numberField('subscriptionCIDuration', 'Durée (mois)', 1, 1200),
-              dateField('desiredStartDate', 'Début'),
-              selectField('paymentFrequency', 'Fréquence', [
-                { value: 'MONTHLY', label: 'Mensuelle' },
-                { value: 'DAILY', label: 'Journalière' },
-              ]),
-            ],
-            async (_ctx, d) =>
-              DemandSimulationService.getInstance().calculatePaymentSchedule(
-                d as any,
-              ),
-            { readonly: true },
-          ),
-        ]
-      : []),
-    ...(module === 'caisse-speciale'
-      ? [
-          action(
-            'settings.activate',
-            'Activer cette version',
-            'settings',
-            [],
-            async (ctx) => ctx.services.csSettings.activateSettings(ctx.id),
-          ),
-        ]
-      : []),
-    action(
-      'settings.delete',
-      'Supprimer les paramètres',
-      'settings',
-      [reasonField()],
-      async (ctx) =>
-        module === 'caisse-imprevue'
-          ? ctx.services.caisseImprevue.deleteSubscription(ctx.id)
-          : ctx.services.csSettings.deleteSettings(ctx.id),
-      { destructive: true, superAdminOnly: true },
-    ),
+    ...caisseSettingsActions(module),
     ...(module === 'caisse-imprevue'
       ? [
           action(

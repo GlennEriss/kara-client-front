@@ -1,3 +1,21 @@
+import { helpOverview } from './help-presentation'
+import {
+  activityRows,
+  activityInsights,
+  validateActivityQuery,
+} from './activity-presentation'
+import {
+  archiveOverview,
+  archiveRows,
+  isArchive,
+  validateArchiveFilters,
+} from './archive-presentation'
+import { isStaff, staffRow, staffOverview } from './staff-presentation'
+import {
+  isDirectory,
+  directoryRows,
+  directoryOverview,
+} from './directory-presentation'
 import {
   membershipOverview,
   membershipCardRows,
@@ -30,6 +48,7 @@ import {
   FinanceRequestConflict,
 } from '@/domains/finance/server/operations'
 import { getAdminModule, type AdminModule, type Dataset } from '../catalog'
+import { communityRows, communityInsights } from './community-presentation'
 import { createAdminServices, type AdminServices } from './context'
 import { adminActions } from '../operations'
 import {
@@ -50,11 +69,80 @@ import {
 } from './read-model'
 export const listSchema = z
   .object({
+    directorySort: z.enum(['nameAsc', 'nameDesc', 'recent']).optional(),
+    provinceId: identifier.optional(),
+    departmentId: identifier.optional(),
+    communeId: identifier.optional(),
+    districtId: identifier.optional(),
+    staffRole: z
+      .enum([
+        'SuperAdmin',
+        'Admin',
+        'Secretary',
+        'AgentRecouvrement',
+        'GestionnaireVehicules',
+      ])
+      .optional(),
+    agentTab: z.enum(['birthdays']).optional(),
+    staffSort: z
+      .enum(['nameAsc', 'nameDesc', 'firstAsc', 'firstDesc', 'recent'])
+      .optional(),
     dataset: identifier.optional(),
     search: z.string().max(180).default(''),
     status: z.string().max(80).default(''),
     page: z.coerce.number().int().min(1).max(10000).default(1),
     limit: z.coerce.number().int().min(1).max(200).default(25),
+    declarationView: z.enum(['approved', 'pending']).optional(),
+    payoutMode: z
+      .enum(['MonthlyCommission_CapitalEnd', 'CapitalPlusCommission_End'])
+      .optional(),
+    contractState: z.enum(['present', 'missing']).optional(),
+    durationRange: z.enum(['short', 'long']).optional(),
+    overdue: z.enum(['true']).optional(),
+    commissionMonth: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/)
+      .optional(),
+    nextFrom: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    nextTo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    minAmount: z.coerce.number().nonnegative().optional(),
+    maxAmount: z.coerce.number().nonnegative().optional(),
+    fileFormat: z.enum(['pdf', 'word', 'excel', 'image', 'text']).optional(),
+    ...Object.fromEntries(
+      ['createdFrom', 'createdTo', 'updatedFrom', 'updatedTo'].map((k) => [
+        k,
+        z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+      ]),
+    ),
+    sort: z
+      .enum([
+        'recent',
+        'amountAsc',
+        'amountDesc',
+        'nextDate',
+        'nameAsc',
+        'nameDesc',
+        'dateAsc',
+        'dateDesc',
+      ])
+      .optional(),
+    projectKind: z.enum(['TONTINE', 'PURCHASE', 'OTHER']).optional(),
+    projectStatus: z
+      .enum(['PLANNED', 'ACTIVE', 'COMPLETED', 'CANCELLED'])
+      .optional(),
+    shopTab: z.enum(['pending', 'published', 'hidden']).optional(),
+    eventTab: z
+      .enum(['upcoming', 'poll_open', 'draft', 'past', 'cancelled'])
+      .optional(),
     memberId: identifier.optional(),
     parentId: identifier.optional(),
     ...Object.fromEntries(
@@ -173,6 +261,9 @@ export async function getAdminWorkspace(request: NextRequest, key: string) {
     const input = listSchema.parse(
       Object.fromEntries(request.nextUrl.searchParams),
     )
+    if (isStaff(key)) validateArchiveFilters(input)
+    if (['placements', 'vehicles', 'bienfaiteur'].includes(key))
+      validateActivityQuery(input)
     const dataset = datasetOf(access.module, input.dataset)
     const all = await readRows(
       access.services,
@@ -215,6 +306,17 @@ export async function getAdminWorkspace(request: NextRequest, key: string) {
             (input.page - 1) * input.limit,
             input.page * input.limit,
           )
+    if (key === 'groups')
+      await Promise.all(
+        cardRows.map(async (row) => {
+          const count = await access.services.db
+            .collection('users')
+            .where('groupIds', 'array-contains', row.id)
+            .count()
+            .get()
+          row.memberCount = count.data().count
+        }),
+      )
     const duplicateCount =
       key === 'member-requests' && dataset.key !== 'duplicates'
         ? (await access.services.duplicates.getUnresolvedGroups()).length
@@ -229,12 +331,54 @@ export async function getAdminWorkspace(request: NextRequest, key: string) {
           label: d.label,
         })),
         overview,
+        help: key === 'help' ? helpOverview(all) : undefined,
+        directory: isDirectory(key)
+          ? await directoryOverview(access.services, key, all)
+          : undefined,
+        staff: isStaff(key)
+          ? redactAdminAmounts(
+              await staffOverview(
+                access.services,
+                access.caller,
+                key,
+                dataset.key,
+                all,
+                selected,
+              ),
+              access.caller.access.restrictedRole !== 'AgentRecouvrement',
+            )
+          : undefined,
+        archive: isArchive(key)
+          ? redactAdminAmounts(
+              archiveOverview(key, all, selected, input),
+              access.caller.access.restrictedRole !== 'AgentRecouvrement',
+            )
+          : undefined,
+        insights: ['shops', 'events'].includes(key)
+          ? communityInsights(key, all)
+          : ['placements', 'vehicles', 'bienfaiteur'].includes(key)
+            ? activityInsights(key, dataset.key, all)
+            : undefined,
         duplicateCount,
+        canDownload: canWithAccess(access.caller.access, 'documents.download'),
         items: cardRows.map((r) =>
           redactAdminAmounts(
             {
               ...r,
-              displayName: title(r),
+              displayName:
+                isArchive(key) || isStaff(key) || isDirectory(key)
+                  ? r.displayName
+                  : title(r),
+              ...(isStaff(key) || isDirectory(key)
+                ? {
+                    availableActions: visibleActions(
+                      access.caller,
+                      access.module,
+                      dataset,
+                      r,
+                    ).map((a) => a.id),
+                  }
+                : {}),
               ...(batchMembership
                 ? {
                     availableActions: visibleActions(
@@ -339,6 +483,13 @@ export function visibleActions(
         return !['completed', 'cancelled'].includes(row.status)
       if (a.id === 'agent.deactivate') return row.actif !== false
       if (a.id === 'agent.reactivate') return row.actif === false
+      if (a.id === 'admin.delete') return row.id !== caller.claims.uid
+      if (
+        a.id === 'plan.complete' ||
+        a.id === 'plan.reschedule' ||
+        a.id === 'plan.batch.reschedule'
+      )
+        return row.status === 'planned'
       if (a.id === 'demand.approve' || a.id === 'demand.reject')
         return row.status === 'PENDING'
       if (a.id === 'demand.reopen') return row.status === 'REJECTED'
@@ -358,6 +509,11 @@ export function visibleActions(
       if (a.id.startsWith('shop.changes.')) return !!row.pendingChanges
       return true
     })
+    .map((a) =>
+      caller.access.isSuperAdmin
+        ? a
+        : { ...a, fields: a.fields.filter((f) => f.key !== 'schedulePromise') },
+    )
 }
 export async function getAdminDetail(
   request: NextRequest,
@@ -378,6 +534,22 @@ export async function getAdminDetail(
       dataset,
       id,
       access.caller,
+    )
+    if (isArchive(key))
+      Object.assign(row, (await archiveRows(access.services, key, [row]))[0])
+    if (isStaff(key)) Object.assign(row, staffRow(key, row))
+    if (isDirectory(key))
+      Object.assign(
+        row,
+        (await directoryRows(access.services, key, dataset.key, [row]))[0],
+      )
+    Object.assign(
+      row,
+      (await activityRows(access.services, key, dataset.key, [row]))[0],
+    )
+    Object.assign(
+      row,
+      plain((await communityRows(access.services, key, dataset.key, [row]))[0]),
     )
     if (key === 'members' && row.dossier) {
       const dossier = await access.services
@@ -416,9 +588,37 @@ export async function getAdminDetail(
         module: key,
         dataset: dataset.key,
         record: redactAdminAmounts(
-          { ...row, displayName: title(row) },
+          {
+            ...row,
+            displayName:
+              isStaff(key) || isDirectory(key) ? row.displayName : title(row),
+            ...(key === 'admins'
+              ? {
+                  effectivePermissions: editedAccess?.permissionsDefined
+                    ? editedAccess.permissions
+                    : PERMISSION_MODULES.flatMap((m) =>
+                        m.actions.map((a) => a.key),
+                      ),
+                }
+              : {}),
+          },
           access.caller.access.restrictedRole !== 'AgentRecouvrement',
         ),
+        directory:
+          key === 'geography'
+            ? await directoryOverview(access.services, key, [row])
+            : undefined,
+        staff:
+          key === 'admins'
+            ? await staffOverview(
+                access.services,
+                access.caller,
+                key,
+                dataset.key,
+                [row],
+                [row],
+              )
+            : undefined,
         actions: visibleActions(access.caller, access.module, dataset, row).map(
           (a) =>
             publicAdminAction(a, {
@@ -468,6 +668,9 @@ export async function getAdminDetail(
           await relatedRows(access.services, access.module, row, access.caller),
           access.caller.access.restrictedRole !== 'AgentRecouvrement',
         ),
+        canExport:
+          key === 'groups' &&
+          canWithAccess(access.caller.access, 'groups.manage'),
         canDownload: canWithAccess(access.caller.access, 'documents.download'),
       }),
     )

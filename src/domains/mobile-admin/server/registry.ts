@@ -8,6 +8,15 @@ import {
 import { fromFirestore } from '@/domains/mobile/server/calendar-service'
 import type { AdminModule, Dataset } from '../catalog'
 import type { AdminServices } from './context'
+import { companyCrudSchema } from '@/schemas/company.schema'
+import { jobSchema } from '@/schemas/schemas'
+import {
+  provinceSchema,
+  departmentSchema,
+  communeSchema,
+  districtSchema,
+  quarterSchema,
+} from '@/domains/infrastructure/geography/schemas/geographie.schema'
 import type { MobileCaller } from '@/domains/mobile/server/access'
 export interface AdminAction {
   id: string
@@ -124,6 +133,20 @@ export function baseActions(
   dataset: Dataset,
 ): AdminAction[] {
   const list: AdminAction[] = []
+  const modelSchema =
+    module.key === 'references'
+      ? (dataset.key === 'companies' ? companyCrudSchema : jobSchema).strict()
+      : module.key === 'geography'
+        ? (
+            {
+              provinces: provinceSchema,
+              departments: departmentSchema,
+              communes: communeSchema,
+              districts: districtSchema,
+              quarters: quarterSchema,
+            } as const
+          )[dataset.key as 'provinces']?.strict()
+        : undefined
   const save = async (
     ctx: AdminContext,
     data: Record<string, any>,
@@ -159,6 +182,7 @@ export function baseActions(
       scope: 'workspace',
       permission: `${module.permission}.${dataset.create}`,
       fields: dataset.fields,
+      schema: modelSchema,
       run: (ctx, d) => save(ctx, d, true),
     })
   if (dataset.edit)
@@ -168,6 +192,7 @@ export function baseActions(
       scope: 'contract',
       permission: `${module.permission}.${dataset.edit}`,
       fields: dataset.fields,
+      schema: modelSchema,
       run: (ctx, d) => save(ctx, d),
     })
   if (dataset.delete)

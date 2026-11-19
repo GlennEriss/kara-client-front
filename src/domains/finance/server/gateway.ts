@@ -6,6 +6,7 @@ import {
   contractDocumentGate,
 } from './contract-policy'
 import { z } from 'zod'
+import { settingsRow, enrichSettingsAuthors } from './settings-presentation'
 import { financeListSchema } from './list-query'
 import { NextResponse, type NextRequest } from 'next/server'
 import { mobileJson, type MobileCaller } from '@/domains/mobile/server/access'
@@ -99,6 +100,12 @@ function permittedActions(
   return financeActions(module)
     .filter((action) => {
       if (action.scope !== scope || !canFinanceAction(caller, action))
+        return false
+      if (
+        scope === 'settings' &&
+        action.id === 'settings.activate' &&
+        record?.isActive
+      )
         return false
       if (
         scope === 'contract' &&
@@ -256,6 +263,11 @@ export async function getFinanceDetail(
               ])
             )[0],
           }
+    if (kind === 'settings')
+      detail.record = await enrichSettingsAuthors(
+        services,
+        settingsRow(result.module, detail.record),
+      )
     if (kind === 'contract')
       detail.record = await projectFinanceContract(
         services,

@@ -1,12 +1,27 @@
-import { memberRecentForm } from './membership-presentation'
-import { searchHelp } from '@/domains/help/utils/help-search'
-import { BirthdaysService } from '@/domains/memberships/services/BirthdaysService'
+import { messageRows } from './message-presentation'
 import {
-  canWithAccess,
-  adminAccessRedirect,
-} from '@/domains/auth/access-policy'
-import { MESSAGE_TEMPLATES } from '@/domains/messaging/constants/message-templates'
-import { HELP_TOPICS } from '@/domains/help/content'
+  activityRows,
+  activityMatches,
+  sortActivities,
+} from './activity-presentation'
+import {
+  archiveRows,
+  filterArchiveRows,
+  isArchive,
+} from './archive-presentation'
+import { officialDocument } from './official-documents'
+import { isStaff, staffRow, filterStaffRows } from './staff-presentation'
+import {
+  isDirectory,
+  directoryRows,
+  filterDirectoryRows,
+} from './directory-presentation'
+import { communityRows, communityMatches } from './community-presentation'
+import { agreementBalance } from '@/domains/groups/agreements/agreement-model'
+import { memberRecentForm } from './membership-presentation'
+import { mobileHelpRows, filterHelpRows } from './help-presentation'
+import { BirthdaysService } from '@/domains/memberships/services/BirthdaysService'
+import { canWithAccess } from '@/domains/auth/access-policy'
 import { fromFirestore } from '@/domains/mobile/server/calendar-service'
 import type { AdminModule, Dataset } from '../catalog'
 import type { AdminServices } from './context'
@@ -60,28 +75,30 @@ export async function readRows(
     const saved = (
       await services.db.collection('settings').doc('messageTemplates').get()
     ).data()
-    return MESSAGE_TEMPLATES.map((t) => ({
-      ...t,
-      id: t.key,
-      body: saved?.templates?.[t.key] || t.defaultBody,
-      baseUrl: saved?.urls?.[t.key] || '',
-      status: t.category,
-    }))
+    return messageRows(saved)
   }
-  if (module.key === 'help')
-    return HELP_TOPICS.filter(
-      (t) =>
-        (!t.superAdminOnly || caller.access.isSuperAdmin) &&
-        t.pages.some((p) => !adminAccessRedirect(p.path, caller.access)),
-    ).map((t) => ({ ...t, id: t.key, title: t.title, status: t.category }))
+  if (module.key === 'help') return mobileHelpRows(caller.access)
   if (module.key === 'documents') {
     const snap = await services.db.collection(dataset.collection).get()
-    return ['statuts', 'reglement-interieur'].map((id) => ({
-      id,
-      title:
-        id === 'statuts' ? 'Statuts de l’association' : 'Règlement intérieur',
-      ...plain(snap.docs.find((d) => d.id === id)?.data() || {}),
-    }))
+    return ['statuts', 'reglement-interieur'].map((id) =>
+      officialDocument(
+        id,
+        plain(snap.docs.find((d) => d.id === id)?.data() || {}),
+      ),
+    )
+  }
+  if (module.key === 'journal') {
+    const snapshot = await services.db
+      .collection(dataset.collection)
+      .orderBy('createdAt', 'desc')
+      .limit(500)
+      .get()
+    return directoryRows(
+      services,
+      module.key,
+      dataset.key,
+      snapshot.docs.map((d) => ({ ...plain(d.data()), id: d.id })),
+    )
   }
   const snap = await services.db
     .collection(dataset.collection)
@@ -92,6 +109,9 @@ export async function readRows(
       'Le volume de cette section nécessite une recherche plus précise.',
     )
   let data = snap.docs.map((d) => ({ ...plain(d.data()), id: d.id }))
+  if (isDirectory(module.key))
+    return directoryRows(services, module.key, dataset.key, data)
+  if (isArchive(module.key)) return archiveRows(services, module.key, data)
   if (module.key === 'members' || module.key === 'birthdays')
     data = data.filter(
       (r) =>
@@ -113,6 +133,7 @@ export async function readRows(
     )
   if (module.key === 'vehicles' && dataset.key === 'insurance')
     data = data.filter((r) => r.declarationStatus !== 'draft')
+  if (isStaff(module.key)) return data.map((row) => staffRow(module.key, row))
   if (module.key === 'members')
     data = plain(
       await services.memberDatabase.enrichWithSubscriptionsBatch(data as any),
@@ -156,6 +177,8 @@ export async function readRows(
     })
     return data.sort((a, b) => a.daysUntil - b.daysUntil)
   }
+  data = await activityRows(services, module.key, dataset.key, data)
+  data = plain(await communityRows(services, module.key, dataset.key, data))
   return data.sort(
     (a, b) =>
       String(b.createdAt || b.updatedAt || '').localeCompare(
@@ -168,11 +191,29 @@ export function filterRows(
   input: Record<string, any>,
   moduleKey?: string,
 ) {
-  if (moduleKey === 'help' && input.search) {
-    rows = searchHelp(rows as any, input.search).map((r) => r.topic as any)
-    input = { ...input, search: '' }
-  }
-  return rows.filter((row) => {
+  if (isDirectory(moduleKey || ''))
+    return filterDirectoryRows(rows, input, moduleKey!)
+  if (isStaff(moduleKey || '')) return filterStaffRows(rows, input, moduleKey!)
+  if (isArchive(moduleKey || ''))
+    return filterArchiveRows(rows, input, moduleKey!)
+  if (moduleKey === 'help') return filterHelpRows(rows, input)
+  const result = rows.filter((row) => {
+    if (!communityMatches(row, input, moduleKey || '')) return false
+    if (
+      ['placements', 'vehicles', 'bienfaiteur'].includes(moduleKey || '') &&
+      !activityMatches(row, input, moduleKey!)
+    )
+      return false
+    if (
+      moduleKey === 'groups' &&
+      (input.projectKind || input.projectStatus) &&
+      !(row.projects || []).some(
+        (p: any) =>
+          (!input.projectKind || p.kind === input.projectKind) &&
+          (!input.projectStatus || p.status === input.projectStatus),
+      )
+    )
+      return false
     if (
       input.search &&
       !normalized(
@@ -186,12 +227,19 @@ export function filterRows(
           row.memberId,
           row.clientId,
           row.description,
+          ...(moduleKey === 'groups' ? [row.projects] : []),
           ...(moduleKey === 'help'
             ? [row.summary, row.steps, row.faq, row.rules, row.pages]
             : []),
           row.phone,
           row.tel1,
           row.plateNumber,
+          row.policyNumber,
+          row.benefactorName,
+          row.memberFirstName,
+          row.memberLastName,
+          row.nonMemberFirstName,
+          row.nonMemberLastName,
           row.insuranceCompany,
           row.category,
           row.address,
@@ -325,6 +373,15 @@ export function filterRows(
       return false
     return true
   })
+  if (moduleKey === 'events')
+    return result.sort(
+      (a, b) =>
+        (new Date(a.startDate).getTime() - new Date(b.startDate).getTime()) *
+        (input.sort === 'dateAsc' ? 1 : -1),
+    )
+  return ['placements', 'vehicles', 'bienfaiteur'].includes(moduleKey || '')
+    ? sortActivities(result, input.sort || '')
+    : result
 }
 export async function relatedRows(
   services: AdminServices,
@@ -405,6 +462,12 @@ export async function relatedRows(
       'Accords entre membres',
       `groups/${row.id}/agreements`,
     )
+    const agreements = groups.find((g) => g.key === 'agreements')
+    if (agreements)
+      agreements.items = agreements.items.map((a) => ({
+        ...a,
+        balance: agreementBalance(a),
+      }))
     await read('payouts', 'Remises', 'groupPayouts', 'groupId', row.id)
     const allowedCreditTypes = (['FIXE', 'SPECIALE'] as const).filter((type) =>
       canWithAccess(
@@ -419,6 +482,11 @@ export async function relatedRows(
           project.id,
           allowedCreditTypes,
         )
+        groups.push({
+          key: 'financing-summary-' + project.id,
+          label: 'Bilan du financement',
+          items: [{ id: project.id, ...plain(financing.totals) }],
+        })
         groups.push({
           key: 'financing-' + project.id,
           label: `Financement · ${project.name}`,
@@ -462,6 +530,50 @@ export async function relatedRows(
       'Déclarations',
       'charityContributions',
       'eventId',
+      row.id,
+    )
+    const participants = groups.find((g) => g.key === 'participants')!
+    participants.items = await Promise.all(
+      participants.items.map(async (p) => {
+        const member = p.memberId
+          ? await services.members.getMemberById(p.memberId)
+          : null
+        const group = p.groupId
+          ? (await services.db.collection('groups').doc(p.groupId).get()).data()
+          : null
+        return {
+          ...p,
+          displayName:
+            group?.name ||
+            [member?.firstName, member?.lastName].filter(Boolean).join(' ') ||
+            p.name ||
+            p.id,
+          contacts: member?.contacts || [],
+          email: member?.email || null,
+        }
+      }),
+    )
+    groups.push({
+      key: 'groups',
+      label: 'Groupes participants',
+      items: participants.items.filter((p) => p.participantType === 'group'),
+    })
+    const contributions = groups.find((g) => g.key === 'contributions')!
+    contributions.items = contributions.items.map((c) => ({
+      ...c,
+      displayName:
+        participants.items.find((p) => p.id === c.participantId)?.displayName ||
+        c.memberName ||
+        c.groupName ||
+        c.id,
+    }))
+  }
+  if (module.key === 'vehicles' && row.plateNumber) {
+    await read(
+      'rewards',
+      'Reversements',
+      'vehicleInsuranceRewards',
+      'insuranceId',
       row.id,
     )
   }
@@ -597,8 +709,16 @@ export async function relatedRows(
       groups.push({
         key: 'partners',
         label: 'Achat à crédit',
-        items: [plain(p)],
+        items: [{ ...plain(p), id: row.id }],
       })
+    const sales = await services.creditSpeciale.getContractsWithFilters({
+      creditType: 'SPECIALE',
+    })
+    groups.push({
+      key: 'credit-sales',
+      label: 'Achats à crédit',
+      items: plain(sales.filter((c: any) => c.shopPurchase?.shopId === row.id)),
+    })
   }
   return groups
 }
