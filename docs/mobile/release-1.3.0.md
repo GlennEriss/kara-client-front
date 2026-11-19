@@ -17,3 +17,11 @@ Le backend cible est `kara-admin`, projet `kara-gabon`, région `us-east4`. Le d
 TypeScript et ESLint des fichiers concernés : aucune erreur (avertissements legacy conservés). 192 tests serveur distincts réussis et trois tests d’intégration déjà désactivés ; l’assertion de capacités a été actualisée pour les sections supplémentaires et un cas de présentation des adhésions a été rejoué après dépassement du délai pendant la compilation Android. Le déclencheur de notifications compile avec Node.js 22. Les écritures métier des tests utilisent des services simulés.
 
 La compilation App Hosting doit réussir avant bascule du trafic. Après publication : contrôler les réponses authentifiées de consultation depuis l’APK ; ne soumettre aucun paiement ni autre modification réelle pour cette vérification.
+
+## Résultat du déploiement
+
+- Commit publié : `86087a78d7095558e6d42561e915ffc75bcc01b2`.
+- App Hosting : `build-2026-11-19-001`, build `READY`, rollout `SUCCEEDED`, trafic à 100 % sur cette version.
+- `sendPushOnNotification` : région `europe-west1`, runtime `nodejs22`, état `ACTIVE`. Le CLI a signalé après succès une politique de nettoyage d’images Artifact Registry non définie ; aucune purge d’images ni modification de cette politique n’a été lancée.
+- Vérifications de consultation : API de notifications protégée (401 JSON sans jeton), tableau de bord et calendrier natifs chargés avec une session de production conservée ; fiche d’aide Groupes proposant la démonstration des nouvelles métadonnées.
+- Aucun paiement, suppression, modification contractuelle ni notification de test soumis sur les données de production.
