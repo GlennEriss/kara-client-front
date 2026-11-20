@@ -29,7 +29,7 @@ describe('autorisations des API mobiles', () => {
   it('retire le dashboard et les montants à un agent tout en conservant son calendrier', async () => {
     const agent = { ...access, isAgent: true, restrictedRole: 'AgentRecouvrement' }
     mock.loadAccess.mockResolvedValue(agent)
-    expect(mobileCapabilities(agent)).toEqual({ dashboard: false, calendar: true, amounts: false })
+    expect(mobileCapabilities(agent)).toEqual({ dashboard: false, calendar: true, amounts: false, finance: { 'caisse-speciale': false, 'caisse-imprevue': false, 'credit-speciale': false } })
     expect((await requireMobileCaller(request(), 'dashboard') as NextResponse).status).toBe(403)
     expect(await requireMobileCaller(request(), 'calendar')).not.toBeInstanceOf(NextResponse)
   })

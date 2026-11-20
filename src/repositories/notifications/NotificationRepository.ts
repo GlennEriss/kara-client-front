@@ -19,6 +19,8 @@ type FirestoreNotification = Omit<
 }
 
 export class NotificationRepository implements INotificationRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
   readonly name = 'NotificationRepository'
 
   /**
@@ -41,7 +43,7 @@ export class NotificationRepository implements INotificationRepository {
    */
   async create(notification: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification> {
     try {
-      const { collection, addDoc, db, Timestamp } = await getFirestore()
+      const { collection, addDoc, db, Timestamp } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
 
       const now = new Date()
@@ -71,6 +73,8 @@ export class NotificationRepository implements INotificationRepository {
         createdAt: now,
       }
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la création de la notification:', error)
       throw error
     }
@@ -81,7 +85,7 @@ export class NotificationRepository implements INotificationRepository {
    */
   async getById(id: string): Promise<Notification | null> {
     try {
-      const { doc, getDoc, db } = await getFirestore()
+      const { doc, getDoc, db } = await this.firestore()
       const docRef = doc(db, firebaseCollectionNames.notifications, id)
       const docSnap = await getDoc(docRef)
 
@@ -91,6 +95,8 @@ export class NotificationRepository implements INotificationRepository {
 
       return this.mapDocToEntity(docSnap.id, docSnap.data() as FirestoreNotification)
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la récupération de la notification:', error)
       return null
     }
@@ -101,7 +107,7 @@ export class NotificationRepository implements INotificationRepository {
    */
   async update(id: string, updates: Partial<Notification>): Promise<Notification | null> {
     try {
-      const { doc, updateDoc, db, Timestamp } = await getFirestore()
+      const { doc, updateDoc, db, Timestamp } = await this.firestore()
       const docRef = doc(db, firebaseCollectionNames.notifications, id)
 
       const updateData: any = { ...updates }
@@ -122,6 +128,8 @@ export class NotificationRepository implements INotificationRepository {
 
       return this.getById(id)
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la mise à jour de la notification:', error)
       return null
     }
@@ -132,10 +140,12 @@ export class NotificationRepository implements INotificationRepository {
    */
   async delete(id: string): Promise<void> {
     try {
-      const { doc, deleteDoc, db } = await getFirestore()
+      const { doc, deleteDoc, db } = await this.firestore()
       const docRef = doc(db, firebaseCollectionNames.notifications, id)
       await deleteDoc(docRef)
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la suppression de la notification:', error)
       throw error
     }
@@ -156,7 +166,7 @@ export class NotificationRepository implements INotificationRepository {
    */
   async getUnreadCount(): Promise<number> {
     try {
-      const { collection, query, where, getDocs, db } = await getFirestore()
+      const { collection, query, where, getDocs, db } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
       const q = query(collectionRef, where('isRead', '==', false))
 
@@ -165,6 +175,8 @@ export class NotificationRepository implements INotificationRepository {
       const snapshot = await getDocs(q)
       return snapshot.docs.filter((d) => !this.isMemberNotification(d.data() as { recipientId?: unknown })).length
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la récupération du nombre de notifications non lues:', error)
       return 0
     }
@@ -178,7 +190,7 @@ export class NotificationRepository implements INotificationRepository {
       // Même requête que le compteur, triée ici : sans index composite, la liste
       // restait vide là où l'index manquait, et une notification sans `createdAt`
       // était comptée mais jamais listée. Les plus récentes d'abord.
-      const { collection, query, where, getDocs, db } = await getFirestore()
+      const { collection, query, where, getDocs, db } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
       const snapshot = await getDocs(query(collectionRef, where('isRead', '==', false)))
       return snapshot.docs
@@ -187,6 +199,8 @@ export class NotificationRepository implements INotificationRepository {
         .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
         .slice(0, limit)
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la récupération des notifications non lues:', error)
       return []
     }
@@ -200,7 +214,7 @@ export class NotificationRepository implements INotificationRepository {
     filters?: NotificationFilters
   ): Promise<Notification[]> {
     try {
-      const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
+      const { collection, query, where, orderBy, getDocs, db } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
       const constraints: any[] = [where('module', '==', module)]
 
@@ -213,12 +227,12 @@ export class NotificationRepository implements INotificationRepository {
       }
 
       if (filters?.dateFrom) {
-        const { Timestamp } = await getFirestore()
+        const { Timestamp } = await this.firestore()
         constraints.push(where('createdAt', '>=', Timestamp.fromDate(filters.dateFrom)))
       }
 
       if (filters?.dateTo) {
-        const { Timestamp } = await getFirestore()
+        const { Timestamp } = await this.firestore()
         constraints.push(where('createdAt', '<=', Timestamp.fromDate(filters.dateTo)))
       }
 
@@ -231,6 +245,8 @@ export class NotificationRepository implements INotificationRepository {
         .filter((doc) => !this.isMemberNotification(doc.data() as { recipientId?: unknown }))
         .map((doc) => this.mapDocToEntity(doc.id, doc.data() as FirestoreNotification))
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la récupération des notifications par module:', error)
       return []
     }
@@ -246,7 +262,7 @@ export class NotificationRepository implements INotificationRepository {
   ): Promise<PaginatedNotifications> {
     try {
       const { collection, query, where, orderBy, getDocs, db } =
-        await getFirestore()
+        await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
       const constraints: any[] = []
 
@@ -263,12 +279,12 @@ export class NotificationRepository implements INotificationRepository {
       }
 
       if (filters?.dateFrom) {
-        const { Timestamp } = await getFirestore()
+        const { Timestamp } = await this.firestore()
         constraints.push(where('createdAt', '>=', Timestamp.fromDate(filters.dateFrom)))
       }
 
       if (filters?.dateTo) {
-        const { Timestamp } = await getFirestore()
+        const { Timestamp } = await this.firestore()
         constraints.push(where('createdAt', '<=', Timestamp.fromDate(filters.dateTo)))
       }
 
@@ -299,6 +315,8 @@ export class NotificationRepository implements INotificationRepository {
         },
       }
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la récupération paginée des notifications:', error)
       return {
         data: [],
@@ -321,6 +339,8 @@ export class NotificationRepository implements INotificationRepository {
     try {
       await this.update(id, { isRead: true })
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors du marquage de la notification comme lue:', error)
       throw error
     }
@@ -331,7 +351,7 @@ export class NotificationRepository implements INotificationRepository {
    */
   async markAllAsRead(): Promise<void> {
     try {
-      const { collection, query, where, getDocs, writeBatch, db } = await getFirestore()
+      const { collection, query, where, getDocs, writeBatch, db } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
       const q = query(collectionRef, where('isRead', '==', false))
 
@@ -346,6 +366,8 @@ export class NotificationRepository implements INotificationRepository {
 
       await batch.commit()
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors du marquage de toutes les notifications comme lues:', error)
       throw error
     }
@@ -356,7 +378,7 @@ export class NotificationRepository implements INotificationRepository {
    */
   async markAsReadByModule(module: NotificationModule): Promise<void> {
     try {
-      const { collection, query, where, getDocs, writeBatch, db } = await getFirestore()
+      const { collection, query, where, getDocs, writeBatch, db } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
       const q = query(
         collectionRef,
@@ -375,6 +397,8 @@ export class NotificationRepository implements INotificationRepository {
 
       await batch.commit()
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors du marquage des notifications du module comme lues:', error)
       throw error
     }
@@ -385,7 +409,7 @@ export class NotificationRepository implements INotificationRepository {
    */
   async getScheduledNotifications(beforeDate: Date): Promise<Notification[]> {
     try {
-      const { collection, query, where, orderBy, getDocs, db, Timestamp } = await getFirestore()
+      const { collection, query, where, orderBy, getDocs, db, Timestamp } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
       const q = query(
         collectionRef,
@@ -399,6 +423,8 @@ export class NotificationRepository implements INotificationRepository {
         this.mapDocToEntity(doc.id, doc.data() as FirestoreNotification)
       )
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors de la récupération des notifications programmées:', error)
       return []
     }
@@ -411,6 +437,8 @@ export class NotificationRepository implements INotificationRepository {
     try {
       await this.update(id, { sentAt: new Date() })
     } catch (error) {
+      if (this.strict) throw error
+
       console.error('Erreur lors du marquage de la notification comme envoyée:', error)
       throw error
     }

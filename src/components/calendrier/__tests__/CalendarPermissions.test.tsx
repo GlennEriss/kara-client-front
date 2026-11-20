@@ -8,12 +8,13 @@ import type { CalendarPaymentItem } from '@/hooks/useCalendarCaisseSpeciale'
 const access = vi.hoisted(() => ({
   permissions: new Set<string>(),
   canRecordPayments: false,
+  canSeeAmounts: true,
+  canDownloadDocuments: false,
   isLoading: false,
 }))
 vi.mock('@/hooks/useMyAccess', () => ({
   useMyAccess: () => ({
     ...access,
-    canSeeAmounts: true,
     can: (key: string) => access.permissions.has(key),
   }),
 }))
@@ -24,6 +25,8 @@ describe('permissions des actions du calendrier', () => {
   beforeEach(() => {
     access.permissions = new Set(['calendar.view'])
     access.canRecordPayments = false
+    access.canSeeAmounts = true
+    access.canDownloadDocuments = false
     access.isLoading = false
   })
 
@@ -57,6 +60,21 @@ describe('permissions des actions du calendrier', () => {
     render(<PaymentSidebarActions payment={duePayment} onRecordPayment={onRecordPayment} onViewReceipt={vi.fn()} onDownloadReceipt={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Faire un versement/ }))
     expect(onRecordPayment).toHaveBeenCalledOnce()
+  })
+
+  it('masque les reçus financiers au rôle sans montants et respecte le droit de téléchargement', () => {
+    access.canSeeAmounts = false
+    const props = { payment: { ...duePayment, status: 'PAID' } as CalendarPaymentItem,
+      onRecordPayment: vi.fn(), onViewReceipt: vi.fn(), onDownloadReceipt: vi.fn() }
+    const { rerender } = render(<PaymentSidebarActions {...props} />)
+    expect(screen.queryByRole('button', { name: 'Voir le reçu' })).not.toBeInTheDocument()
+    access.canSeeAmounts = true
+    rerender(<PaymentSidebarActions {...props} />)
+    expect(screen.getByRole('button', { name: 'Voir le reçu' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Télécharger le reçu PDF' })).not.toBeInTheDocument()
+    access.canDownloadDocuments = true
+    rerender(<PaymentSidebarActions {...props} />)
+    expect(screen.getByRole('button', { name: 'Télécharger le reçu PDF' })).toBeInTheDocument()
   })
 
   it('permet d’accorder les liens sans accorder l’encaissement dans la fiche admin', () => {

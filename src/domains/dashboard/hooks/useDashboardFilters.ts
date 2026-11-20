@@ -38,9 +38,9 @@ export function useDashboardFilters() {
 
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY)
-      if (!raw) return
-
-      const parsed = JSON.parse(raw) as Partial<DashboardFilters>
+      const parsed = raw ? JSON.parse(raw) as Partial<DashboardFilters> : {}
+      const queryPeriod = new URLSearchParams(window.location.search).get('period')
+      if (queryPeriod && ALLOWED_PERIODS.has(queryPeriod as DashboardFilters['period'])) parsed.period = queryPeriod as DashboardFilters['period']
       setFiltersState(sanitizeFilters(parsed))
     } catch {
       setFiltersState(DEFAULT_DASHBOARD_FILTERS)

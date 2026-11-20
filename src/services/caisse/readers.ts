@@ -1,7 +1,14 @@
 import { getContract, updateContract } from '@/db/caisse/contracts.db'
+
 import { listPayments } from '@/db/caisse/payments.db'
+
 import { listRefunds } from '@/db/caisse/refunds.db'
+
 import { computeDueWindow, computeNextDueAt } from './engine'
+const browserReadPorts = { getContract, updateContract, listPayments, listRefunds }
+export function createCaisseReaders(overrides: Partial<typeof browserReadPorts> = {}) {
+const { getContract, updateContract, listPayments, listRefunds } = { ...browserReadPorts, ...overrides }
+
 
 function toDateSafe(v: any): Date | null {
   try {
@@ -13,7 +20,8 @@ function toDateSafe(v: any): Date | null {
   } catch { return null }
 }
 
-export async function getContractWithComputedState(contractId: string) {
+
+async function getContractWithComputedState(contractId: string) {
   const c = await getContract(contractId)
   if (!c) return null
   const payments = await listPayments(contractId)
@@ -38,7 +46,7 @@ export async function getContractWithComputedState(contractId: string) {
         const dueDate = toDateSafe(nextDue.dueAt)
         if (dueDate) {
           const now = new Date()
-          
+
           // Si l'échéance est dans le futur, pas de retard
           if (dueDate > now) {
             status = 'ACTIVE'
@@ -90,7 +98,10 @@ export async function getContractWithComputedState(contractId: string) {
   return { ...c, payments, refunds, status, nextDueAt, nominalPaid }
 }
 
-export async function recomputeNow(contractId: string) {
+
+async function recomputeNow(contractId: string) {
   return getContractWithComputedState(contractId)
 }
-
+return { getContractWithComputedState, recomputeNow }
+}
+export const { getContractWithComputedState, recomputeNow } = createCaisseReaders()

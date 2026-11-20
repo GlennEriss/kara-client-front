@@ -5,7 +5,9 @@ import { ServiceFactory } from "@/factories/ServiceFactory"
 import { useAuth } from "@/hooks/useAuth"
 import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
-import { usePaymentReceiptCI } from "@/hooks/usePaymentReceiptCI"
+import PaymentReceiptCIModal from '@/components/caisse-imprevue/PaymentReceiptCIModal'
+import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
+import { getUserById } from '@/db/user.db'
 import { useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { X } from "lucide-react"
@@ -24,11 +26,10 @@ interface PaymentSidebarCIProps {
 export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
   const [showReceipt, setShowReceipt] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const { receiptUrl, isGenerating, generateReceipt, downloadReceipt } =
-    usePaymentReceiptCI(payment)
+  const [isGenerating, setGenerating] = useState(false)
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const { canRecordPayments } = useMyAccess()
+  const { canRecordPayments, canDownloadDocuments, canSeeAmounts } = useMyAccess()
 
   const handleRecordPayment = () => {
     if (!canRecordPayments) return
@@ -82,33 +83,30 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
   }
 
   const handleViewReceipt = async () => {
-    try {
-      await generateReceipt()
-      setShowReceipt(true)
-    } catch {
-      toast.error("Impossible d'afficher le reçu")
-    }
+    if (canSeeAmounts) setShowReceipt(true)
   }
-
   const handleDownloadReceiptClick = async () => {
+    if (!canSeeAmounts || !canDownloadDocuments || isGenerating) return
+    setGenerating(true)
     try {
-      await downloadReceipt()
-    } catch {
-      toast.error("Impossible de télécharger le reçu")
-    }
+      const member = payment.contract.memberId ? await getUserById(payment.contract.memberId) : null
+      await generateSingleVersementCIPDF(payment.contract, payment, { contractId: payment.contract.id, member: member ?? undefined,
+        getAdminDisplayName: id => user && id === user.uid ? user.displayName || user.uid : id || '-' })
+    } catch { toast.error('Impossible de générer le reçu PDF. Réessayez.') }
+    finally { setGenerating(false) }
   }
 
   return (
     <>
       {/* Sidebar avec animation */}
-      <div 
+      <div
         className="fixed right-0 top-0 h-full w-full sm:w-[500px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300"
         style={{
           boxShadow: '-10px 0 50px -12px rgba(0, 0, 0, 0.25)'
         }}
       >
         {/* Bouton fermer mobile */}
-        <button 
+        <button
           onClick={onClose}
           className="absolute top-4 left-4 sm:hidden z-10 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
         >
@@ -124,8 +122,8 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
         <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50/50 to-white">
           <PaymentSidebarContentCI
             payment={payment}
-            showReceipt={showReceipt}
-            receiptUrl={receiptUrl}
+            showReceipt={false}
+            receiptUrl={null}
           />
         </div>
 
@@ -151,6 +149,9 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
       />
 
       {/* Modal de paiement */}
+      {showReceipt && canSeeAmounts && <PaymentReceiptCIModal isOpen onClose={() => setShowReceipt(false)}
+        contract={payment.contract} payment={payment} isMonthly={payment.contract.paymentFrequency === 'MONTHLY'}
+        allowDownload={canDownloadDocuments} />}
       <PaymentCIModal
         isOpen={showPaymentModal && canRecordPayments}
         onClose={() => setShowPaymentModal(false)}

@@ -5,11 +5,13 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class CreditDemandRepository implements ICreditDemandRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false, private readonly createLinked: typeof import('@/domains/groups/project-credit-service').createLinkedCreditRecord = async (...args) => (await import('@/domains/groups/project-credit-service')).createLinkedCreditRecord(...args)) {}
+
     readonly name = "CreditDemandRepository";
 
     async createDemand(data: Omit<CreditDemand, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CreditDemand> {
         try {
-            const { collection, doc, setDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, doc, setDoc, db, serverTimestamp } = await this.firestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -23,7 +25,7 @@ export class CreditDemandRepository implements ICreditDemandRepository {
             const demandRef = doc(db, firebaseCollectionNames.creditDemands || "creditDemands", demandId);
 
             if (cleanData.groupProject) {
-                const { createLinkedCreditRecord } = await import('@/domains/groups/project-credit-service');
+                const createLinkedCreditRecord = this.createLinked;
                 await createLinkedCreditRecord('creditDemands', demandId, cleanData);
             } else await setDoc(demandRef, {
                 ...cleanData,
@@ -38,6 +40,8 @@ export class CreditDemandRepository implements ICreditDemandRepository {
 
             return created;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création de la demande:", error);
             throw error;
         }
@@ -45,15 +49,15 @@ export class CreditDemandRepository implements ICreditDemandRepository {
 
     async getDemandById(id: string): Promise<CreditDemand | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const demandRef = doc(db, firebaseCollectionNames.creditDemands || "creditDemands", id);
             const docSnap = await getDoc(demandRef);
-            
+
             if (!docSnap.exists()) {
                 return null;
             }
-            
+
             const data = docSnap.data();
             return {
                 id: docSnap.id,
@@ -62,6 +66,8 @@ export class CreditDemandRepository implements ICreditDemandRepository {
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             } as CreditDemand;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération de la demande:", error);
             return null;
         }
@@ -69,7 +75,7 @@ export class CreditDemandRepository implements ICreditDemandRepository {
 
     async getAllDemands(): Promise<CreditDemand[]> {
         try {
-            const { collection, db, getDocs, query, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, orderBy } = await this.firestore();
 
             const q = query(
                 collection(db, firebaseCollectionNames.creditDemands || "creditDemands"),
@@ -91,6 +97,8 @@ export class CreditDemandRepository implements ICreditDemandRepository {
 
             return demands;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des demandes:", error);
             return [];
         }
@@ -98,10 +106,10 @@ export class CreditDemandRepository implements ICreditDemandRepository {
 
     async getDemandsWithFilters(filters?: CreditDemandFilters): Promise<CreditDemand[]> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
 
             const constraints: any[] = [];
-            
+
             if (filters?.status && filters.status !== 'all') {
                 constraints.push(where("status", "==", filters.status));
             }
@@ -168,6 +176,8 @@ export class CreditDemandRepository implements ICreditDemandRepository {
 
             return demands;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des demandes filtrées:", error);
             return [];
         }
@@ -191,6 +201,8 @@ export class CreditDemandRepository implements ICreditDemandRepository {
 
             return stats;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors du calcul des statistiques:", error);
             return {
                 total: 0,
@@ -212,7 +224,7 @@ export class CreditDemandRepository implements ICreditDemandRepository {
 
     async updateDemand(id: string, data: Partial<Omit<CreditDemand, 'id' | 'createdAt'>>): Promise<CreditDemand | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const demandRef = doc(db, firebaseCollectionNames.creditDemands || "creditDemands", id);
 
@@ -233,6 +245,8 @@ export class CreditDemandRepository implements ICreditDemandRepository {
 
             return await this.getDemandById(id);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour de la demande:", error);
             throw error;
         }
@@ -240,11 +254,13 @@ export class CreditDemandRepository implements ICreditDemandRepository {
 
     async deleteDemand(id: string): Promise<void> {
         try {
-            const { doc, deleteDoc, db } = await getFirestore();
+            const { doc, deleteDoc, db } = await this.firestore();
 
             const demandRef = doc(db, firebaseCollectionNames.creditDemands || "creditDemands", id);
             await deleteDoc(demandRef);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression de la demande:", error);
             throw error;
         }

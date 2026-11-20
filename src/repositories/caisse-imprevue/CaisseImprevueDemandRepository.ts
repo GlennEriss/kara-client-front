@@ -5,11 +5,13 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "CaisseImprevueDemandRepository";
 
     async createDemand(data: Omit<CaisseImprevueDemand, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CaisseImprevueDemand> {
         try {
-            const { collection, doc, setDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, doc, setDoc, db, serverTimestamp } = await this.firestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -35,6 +37,8 @@ export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepo
 
             return created;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création de la demande:", error);
             throw error;
         }
@@ -42,15 +46,15 @@ export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepo
 
     async getDemandById(id: string): Promise<CaisseImprevueDemand | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const demandRef = doc(db, firebaseCollectionNames.caisseImprevueDemands || "caisseImprevueDemands", id);
             const docSnap = await getDoc(demandRef);
-            
+
             if (!docSnap.exists()) {
                 return null;
             }
-            
+
             const data = docSnap.data();
             return {
                 id: docSnap.id,
@@ -61,6 +65,8 @@ export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepo
                 reopenedAt: (data.reopenedAt as any)?.toDate ? (data.reopenedAt as any).toDate() : undefined,
             } as CaisseImprevueDemand;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération de la demande:", error);
             return null;
         }
@@ -68,10 +74,10 @@ export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepo
 
     async getDemandsWithFilters(filters?: CaisseImprevueDemandFilters): Promise<CaisseImprevueDemand[]> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
 
             const constraints: any[] = [];
-            
+
             if (filters?.status && filters.status !== 'all') {
                 constraints.push(where("status", "==", filters.status));
             }
@@ -149,6 +155,8 @@ export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepo
 
             return demands;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des demandes filtrées:", error);
             return [];
         }
@@ -173,6 +181,8 @@ export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepo
 
             return stats;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors du calcul des statistiques:", error);
             return {
                 total: 0,
@@ -196,7 +206,7 @@ export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepo
         reopenInfo?: { adminId: string; adminName: string; reason: string; reopenedAt: Date }
     ): Promise<CaisseImprevueDemand | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp, Timestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp, Timestamp } = await this.firestore();
 
             const demandRef = doc(db, firebaseCollectionNames.caisseImprevueDemands || "caisseImprevueDemands", id);
 
@@ -225,6 +235,8 @@ export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepo
 
             return await this.getDemandById(id);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour du statut de la demande:", error);
             throw error;
         }
@@ -232,7 +244,7 @@ export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepo
 
     async updateDemand(id: string, data: Partial<CaisseImprevueDemand>): Promise<CaisseImprevueDemand | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const demandRef = doc(db, firebaseCollectionNames.caisseImprevueDemands || "caisseImprevueDemands", id);
 
@@ -250,6 +262,8 @@ export class CaisseImprevueDemandRepository implements ICaisseImprevueDemandRepo
 
             return await this.getDemandById(id);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour de la demande:", error);
             throw error;
         }

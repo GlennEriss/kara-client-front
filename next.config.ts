@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    '/api/mobile/finance/**': ['./public/Logo-Kara.jpg', './public/assets/caisse-speciale/caissesp-logo.png'],
+  },
   images: {
     remotePatterns: [
       // Firebase Storage production
@@ -72,5 +75,17 @@ export default function getNextConfig(phase: string): NextConfig {
     ...nextConfig,
     // Un build de vérification ne doit pas écraser les fichiers du serveur local.
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
+    // L’aperçu Expo local utilise son ID token, sans cookie de session web.
+    // Ces en-têtes ne sont jamais ajoutés au build de production.
+    ...(phase === PHASE_DEVELOPMENT_SERVER ? {
+      headers: async () => [{
+        source: '/api/mobile/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: 'http://localhost:8081' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Authorization,Content-Type' },
+        ],
+      }],
+    } : {}),
   };
 }

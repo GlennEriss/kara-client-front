@@ -43,6 +43,7 @@ const formatAmount = (amount: number): string => {
 }
 
 interface PaymentReceiptCIModalProps {
+  allowDownload?: boolean
   isOpen: boolean
   onClose: () => void
   contract: ContractCI
@@ -76,6 +77,7 @@ const getPaymentModeLabel = (versement: VersementCI, defaultLabel: string): stri
 
 export default function PaymentReceiptCIModal({
   isOpen,
+  allowDownload = true,
   onClose,
   contract,
   payment,
@@ -433,6 +435,7 @@ export default function PaymentReceiptCIModal({
               Supprimer le versement
             </Button>
           )}
+          {allowDownload && (
           <Button
             variant="outline"
             onClick={handleDownloadPDF}
@@ -451,6 +454,7 @@ export default function PaymentReceiptCIModal({
               </>
             )}
           </Button>
+          )}
           <Button
             onClick={onClose}
             disabled={isGeneratingPDF}

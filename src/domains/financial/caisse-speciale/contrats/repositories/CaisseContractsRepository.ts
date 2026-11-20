@@ -55,11 +55,15 @@ const ONGOING_STATUSES = [
  */
 const RUNNING_STATUSES = ONGOING_STATUSES.filter((status) => status !== 'DRAFT')
 
+const CaisseContractsRepositoryFirestore = { db, collection, query, where, orderBy, fbLimit, startAfter, getDocs, getDoc, doc, deleteDoc, getCountFromServer, Timestamp }
+
+const browserCaisseContractOperations = { subscribe, listPayments, deleteAllPayments, deletePaymentDoc, deleteAllRefunds, updateContractPdf, createFile, getEarlyWithdrawalContractIds }
+
 export class CaisseContractsRepository implements ICaisseContractsRepository {
   private static instance: CaisseContractsRepository
   private readonly collectionName = firebaseCollectionNames.caisseContracts
 
-  private constructor() {}
+  constructor(private readonly firestore = CaisseContractsRepositoryFirestore, private readonly operations = browserCaisseContractOperations, private readonly strict = false) {}
 
   static getInstance(): CaisseContractsRepository {
     if (!CaisseContractsRepository.instance) {
@@ -77,6 +81,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
   }
 
   private toTimestamp(date?: Date): any {
+    const { Timestamp } = this.firestore
+
     if (!date) return undefined
     return Timestamp.fromDate(date)
   }
@@ -105,6 +111,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     filters?: ContractFilters,
     options: { excludeCreatedAt?: boolean; excludeNextDueAt?: boolean } = {}
   ) {
+    const { where } = this.firestore
+
     const constraints: any[] = []
     if (!filters) return constraints
 
@@ -207,6 +215,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     contracts: CaisseContract[],
     filters?: ContractFilters,
   ): Promise<CaisseContract[]> {
+    const { getEarlyWithdrawalContractIds } = this.operations
+
     const withdrawalFilter = filters?.earlyWithdrawal || 'all'
     if (withdrawalFilter === 'all') return contracts
     const contractIds = await getEarlyWithdrawalContractIds(
@@ -279,6 +289,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     contracts: CaisseContract[],
     filters?: ContractFilters
   ): Promise<CaisseContract[]> {
+    const { listPayments } = this.operations
+
     if (!this.hasPaymentCountFilters(filters)) return contracts
 
     const inRange = (value: number, min?: number, max?: number) => {
@@ -324,6 +336,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     pagination: PaginationParams,
     normalizedQuery: string
   ): Promise<PaginatedContracts> {
+    const { db, collection, query, where, orderBy, fbLimit, getDocs } = this.firestore
+
     const normalizedFilters = this.normalizeDateRanges(filters)
     const collectionRef = collection(db, this.collectionName)
     const searchFields = [
@@ -428,6 +442,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     filters: ContractFilters = {},
     pagination: PaginationParams = { limit: 12 }
   ): Promise<PaginatedContracts> {
+    const { db, collection, query, orderBy, fbLimit, startAfter, getDocs, getDoc, doc, getCountFromServer } = this.firestore
+
     const search = filters.search?.trim()
     if (search && search.length >= 2) {
       const normalized = this.normalizeSearchQuery(search)
@@ -503,6 +519,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
   }
 
   async getContractsStats(filters: ContractFilters = {}): Promise<ContractStats> {
+    const { db, collection, query, where, getDocs, getCountFromServer } = this.firestore
+
     const collectionRef = collection(db, this.collectionName)
     const base = this.buildBaseConstraints(filters)
 
@@ -562,6 +580,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
           where('status', 'in', ['CLOSED', 'RESCINDED']),
         ])
       } catch (err) {
+      if (this.strict) throw err
+
         console.error('[CaisseContractsRepository] comptage des clos par type:', type, err)
         return 0
       }
@@ -595,6 +615,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
         totalPaidSum += Number(data?.nominalPaid ?? 0)
       })
     } catch (err) {
+      if (this.strict) throw err
+
       console.error('[CaisseContractsRepository] getContractsStats totalPaidSum:', err)
     }
 
@@ -614,6 +636,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
   }
 
   async getContractById(id: string): Promise<CaisseContract | null> {
+    const { db, getDoc, doc } = this.firestore
+
     const ref = doc(db, this.collectionName, id)
     const snap = await getDoc(ref)
     if (!snap.exists()) return null
@@ -621,6 +645,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
   }
 
   async createContract(input: CreateCaisseContractInput): Promise<string> {
+    const { subscribe } = this.operations
+
     return subscribe({
       memberId: input.memberId,
       groupeId: input.groupeId,
@@ -635,6 +661,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
   }
 
   async uploadContractPdf(input: UploadContractPdfInput): Promise<ContractPdfMetadata> {
+    const { updateContractPdf, createFile } = this.operations
+
     const uploadResult = await createFile(input.file, input.contractId, `contracts/${input.contractId}`)
     const contractPdfData: ContractPdfMetadata = {
       fileSize: input.fileSize,
@@ -650,22 +678,32 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
   }
 
   async getContractPayments(contractId: string): Promise<ContractPayment[]> {
+    const { listPayments } = this.operations
+
     return listPayments(contractId)
   }
 
   async deletePayment(contractId: string, paymentId: string): Promise<void> {
+    const { deletePaymentDoc } = this.operations
+
     await deletePaymentDoc(contractId, paymentId)
   }
 
   async deletePayments(contractId: string): Promise<void> {
+    const { deleteAllPayments } = this.operations
+
     await deleteAllPayments(contractId)
   }
 
   async deleteRefunds(contractId: string): Promise<void> {
+    const { deleteAllRefunds } = this.operations
+
     await deleteAllRefunds(contractId)
   }
 
   async deleteContract(contractId: string): Promise<void> {
+    const { db, doc, deleteDoc } = this.firestore
+
     const ref = doc(db, this.collectionName, contractId)
     await deleteDoc(ref)
   }

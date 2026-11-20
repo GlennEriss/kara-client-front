@@ -23,14 +23,17 @@ export interface FinalizeRefundHandoverInput {
  * Un retrait anticipé peut être finalisé avant J+30, mais uniquement par un
  * superadmin. La date saisie représente la remise réelle, pas la validation.
  */
-export async function finalizeRefundHandover(input: FinalizeRefundHandoverInput): Promise<void> {
+const defaultHandoverPorts = { auth, getAdminById, firestore: () => import('@/firebase/firestore') }
+export function createRefundHandover(overrides: Partial<typeof defaultHandoverPorts> = {}) {
+ const { auth, getAdminById, firestore } = { ...defaultHandoverPorts, ...overrides }
+ return async function finalizeRefundHandover(input: FinalizeRefundHandoverInput): Promise<void> {
   if (!auth.currentUser || auth.currentUser.uid !== input.adminId) {
     throw new Error('Session administrateur invalide')
   }
   const admin = await getAdminById(input.adminId)
   if (!admin) throw new Error('Compte administrateur introuvable')
 
-  const { db, doc, getDoc, writeBatch, serverTimestamp } = await import('@/firebase/firestore') as any
+  const { db, doc, getDoc, writeBatch, serverTimestamp } = await firestore() as any
   const refundCollection = input.fund === 'CS'
     ? `${firebaseCollectionNames.caisseContracts}/${input.contractId}/refunds`
     : `${firebaseCollectionNames.contractsCI}/${input.contractId}/earlyRefunds`
@@ -91,3 +94,6 @@ export async function finalizeRefundHandover(input: FinalizeRefundHandoverInput)
   })
   await batch.commit()
 }
+
+}
+export const finalizeRefundHandover = createRefundHandover()

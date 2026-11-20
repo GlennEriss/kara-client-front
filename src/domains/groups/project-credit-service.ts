@@ -12,15 +12,20 @@ import {
   type DocumentData,
   type Transaction,
 } from "firebase/firestore";
+
 import { db } from "@/firebase/firestore";
+
 import type {
   CreditContract,
   CreditDemand,
   GroupCreditProjectLink,
   GroupProject,
 } from "@/types/types";
+
 import type { FinancialReportSources } from "@/domains/financial/reports/entities/financial-report-sources.types";
+
 import { mapWithConcurrency } from "@/utils/mapWithConcurrency";
+
 import {
   isOpenCreditProject,
   isProjectCreditType,
@@ -30,20 +35,43 @@ import {
   projectCreditAmounts,
   sameProject,
 } from "./project-credit-model";
+
 import type { GroupActor } from "./group-service";
+
 import { isGroupGuarantor, isIdentifiedGroupMember, isKaraGroupGuarantor } from "./group-guarantor";
+
 import { UNKNOWN_USER_ID } from "@/domains/financial/caisse-imprevue/import/unknownUser";
+
 import { memberName } from "./group-model";
+
 import {
   validateCollectiveCredit,
   type CollectiveCreditShare,
 } from "./collective-credit-model";
+
 import type { User } from "@/types/types";
+
 import {
   prepareContributionFinancing,
   writeContributionReservation,
   releaseContributionFinancing,
 } from "./contribution-service";
+
+
+export interface CollectiveCreditRequest {
+  requestId: string;
+  groupId: string;
+  projectId: string;
+  expectedGuarantorId: string;
+  totalAmount: number;
+  desiredDate: string;
+  cause: string;
+  shares: CollectiveCreditShare[];
+}
+const createProjectCreditServiceDefaults = { collection, doc, documentId, getDoc, getDocs, query, runTransaction, serverTimestamp, Timestamp, where, db, prepareContributionFinancing, writeContributionReservation, releaseContributionFinancing }
+export function createProjectCreditService(overrides: Partial<typeof createProjectCreditServiceDefaults> = {}) {
+const { collection, doc, documentId, getDoc, getDocs, query, runTransaction, serverTimestamp, Timestamp, where, db, prepareContributionFinancing, writeContributionReservation, releaseContributionFinancing } = { ...createProjectCreditServiceDefaults, ...overrides }
+
 
 const validId = (id: string) =>
   typeof id === "string" &&
@@ -51,10 +79,12 @@ const validId = (id: string) =>
   !id.includes("/") &&
   id !== "." &&
   id !== "..";
+
 const ref = (name: string, id: string) => {
   if (!validId(id)) throw new Error("Identifiant invalide.");
   return doc(db, name, id);
 };
+
 const activity = (description: string, actor: GroupActor) => ({
   id: crypto.randomUUID(),
   description,
@@ -62,10 +92,12 @@ const activity = (description: string, actor: GroupActor) => ({
   byId: actor.id,
   byName: actor.name,
 });
+
 const assertActor = (actor: GroupActor) => {
   if (!actor.id)
     throw new Error("Connectez-vous pour modifier le financement.");
 };
+
 function dates(value: unknown): any {
   if (value instanceof Timestamp) return value.toDate();
   if (value instanceof Date) return value;
@@ -74,10 +106,12 @@ function dates(value: unknown): any {
     ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, dates(v)]))
     : value;
 }
+
 const data = (snapshot: {
   id: string;
   data: () => DocumentData | undefined;
 }) => ({ ...dates(snapshot.data() ?? {}), id: snapshot.id });
+
 
 async function borrowerRef(clientId: string) {
   const direct = await getDoc(ref("users", clientId));
@@ -89,6 +123,7 @@ async function borrowerRef(clientId: string) {
     throw new Error("Le membre emprunteur est introuvable ou ambigu.");
   return aliases.docs[0].ref;
 }
+
 
 async function checkedLink(
   transaction: Transaction,
@@ -147,9 +182,10 @@ async function checkedLink(
   };
 }
 
+
 /** Used by the existing repositories only for project-backed records. Creation
  * and membership checks share a transaction; a contract reserves its demand. */
-export async function createLinkedCreditRecord(
+async function createLinkedCreditRecord(
   kind: "creditDemands" | "creditContracts",
   id: string,
   input: DocumentData,
@@ -246,7 +282,8 @@ export async function createLinkedCreditRecord(
   });
 }
 
-export async function linkProjectCredit(
+
+async function linkProjectCredit(
   groupId: string,
   projectId: string,
   contractId: string,
@@ -332,7 +369,8 @@ export async function linkProjectCredit(
   });
 }
 
-export async function unlinkProjectCredit(
+
+async function unlinkProjectCredit(
   groupId: string,
   projectId: string,
   contractId: string,
@@ -394,7 +432,8 @@ export async function unlinkProjectCredit(
   });
 }
 
-export async function unlinkProjectDemand(
+
+async function unlinkProjectDemand(
   groupId: string,
   projectId: string,
   demandId: string,
@@ -456,7 +495,8 @@ export async function unlinkProjectDemand(
   });
 }
 
-export async function listParticipantCredits(
+
+async function listParticipantCredits(
   clientIds: string[],
 ): Promise<CreditContract[]> {
   const lists = await Promise.all(
@@ -475,6 +515,7 @@ export async function listParticipantCredits(
   ].filter((c) => isProjectCreditType(c.creditType));
 }
 
+
 async function byIds(name: string, field: string, ids: string[]) {
   const chunks: string[][] = [];
   for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));
@@ -489,7 +530,8 @@ async function byIds(name: string, field: string, ids: string[]) {
   return lists.flatMap((list) => list.docs.map(data));
 }
 
-export async function loadProjectCredits(
+
+async function loadProjectCredits(
   groupId: string,
   projectId: string,
   creditTypes: readonly ProjectCreditType[] = PROJECT_CREDIT_TYPES,
@@ -616,20 +658,10 @@ export async function loadProjectCredits(
   };
 }
 
-export interface CollectiveCreditRequest {
-  requestId: string;
-  groupId: string;
-  projectId: string;
-  expectedGuarantorId: string;
-  totalAmount: number;
-  desiredDate: string;
-  cause: string;
-  shares: CollectiveCreditShare[];
-}
 
 /** One atomic operation creates ordinary pending FIXE demands. The group only
  * stores an idempotency marker and count, never participants' debts or amounts. */
-export async function createCollectiveCreditRequest(
+async function createCollectiveCreditRequest(
   input: CollectiveCreditRequest,
   actor: GroupActor,
 ): Promise<string[]> {
@@ -804,3 +836,6 @@ export async function createCollectiveCreditRequest(
     return targetRefs.map((target) => target.id);
   });
 }
+return { createLinkedCreditRecord, linkProjectCredit, unlinkProjectCredit, unlinkProjectDemand, listParticipantCredits, loadProjectCredits, createCollectiveCreditRequest }
+}
+export const { createLinkedCreditRecord, linkProjectCredit, unlinkProjectCredit, unlinkProjectDemand, listParticipantCredits, loadProjectCredits, createCollectiveCreditRequest } = createProjectCreditService()

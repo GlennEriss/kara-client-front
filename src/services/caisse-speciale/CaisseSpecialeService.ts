@@ -11,18 +11,32 @@ import { generateAllDemandSearchableTexts } from "@/utils/demandSearchableText";
 import { getActiveSettings } from "@/db/caisse/settings.db";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 
+export interface CaisseSpecialePorts {
+    notifications: NotificationService;
+    members: IMemberRepository;
+    admins: IAdminRepository;
+    subscribe: typeof subscribe;
+    getActiveSettings: typeof getActiveSettings;
+    firestore: () => Promise<typeof import('@/firebase/firestore')>;
+}
+
 export class CaisseSpecialeService implements ICaisseSpecialeService {
     readonly name = "CaisseSpecialeService";
+    private readonly ports: CaisseSpecialePorts;
     private notificationService: NotificationService;
     private memberRepository: IMemberRepository;
     private adminRepository: IAdminRepository;
 
     constructor(
-        private caisseSpecialeDemandRepository: ICaisseSpecialeDemandRepository
+        private caisseSpecialeDemandRepository: ICaisseSpecialeDemandRepository,
+        ports: Partial<CaisseSpecialePorts> = {}
     ) {
-        this.notificationService = ServiceFactory.getNotificationService();
-        this.memberRepository = RepositoryFactory.getMemberRepository();
-        this.adminRepository = RepositoryFactory.getAdminRepository();
+        this.notificationService = ports.notifications ?? ServiceFactory.getNotificationService();
+        this.memberRepository = ports.members ?? RepositoryFactory.getMemberRepository();
+        this.adminRepository = ports.admins ?? RepositoryFactory.getAdminRepository();
+        this.ports = { notifications: this.notificationService, members: this.memberRepository,
+            admins: this.adminRepository, subscribe, getActiveSettings,
+            firestore: () => import('@/firebase/firestore'), ...ports };
     }
 
     // ==================== DEMANDES ====================
@@ -56,7 +70,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const year = String(now.getFullYear()).slice(-2);
         const dateFormatted = `${day}${month}${year}`;
-        
+
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const timeFormatted = `${hours}${minutes}`;
@@ -76,7 +90,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         };
 
         const demand = await this.caisseSpecialeDemandRepository.createDemand(demandData, customId);
-        
+
         // Notification pour tous les admins
         try {
             await this.notificationService.createNotification({
@@ -98,7 +112,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         } catch {
             // Erreur lors de la création de la notification - continue sans
         }
-        
+
         return demand;
     }
 
@@ -144,7 +158,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         }
 
         // 2. Créer le contrat Caisse Spéciale à partir de la demande (attributs de recherche + contact d'urgence)
-        const contractId = await subscribe({
+        const contractId = await this.ports.subscribe({
             memberId: demand.memberId,
             monthlyAmount: demand.monthlyAmount,
             monthsPlanned: demand.monthsPlanned,
@@ -397,13 +411,13 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             throw new Error('La demande doit être associée à un membre');
         }
 
-        const settings = await getActiveSettings(demand.caisseType as any);
+        const settings = await this.ports.getActiveSettings(demand.caisseType as any);
         if (!settings?.id) {
             throw new Error('Paramètres non configurés pour ce type de caisse');
         }
 
         // Créer le contrat Caisse Spéciale à partir de la demande (attributs de recherche + contact d'urgence)
-        const contractId = await subscribe({
+        const contractId = await this.ports.subscribe({
             memberId: demand.memberId,
             monthlyAmount: demand.monthlyAmount,
             monthsPlanned: demand.monthsPlanned,
@@ -487,7 +501,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
 
     /** Supprime tous les docs d'une sous-collection d'un contrat CS, par lots. */
     private async deleteSubcollection(contractId: string, subName: string): Promise<void> {
-        const { db, collection, getDocs, writeBatch, doc } = await import("@/firebase/firestore");
+        const { db, collection, getDocs, writeBatch, doc } = await this.ports.firestore();
         const col = firebaseCollectionNames.caisseContracts || "caisseContracts";
         const snap = await getDocs(collection(db, col, contractId, subName));
         const ids = snap.docs.map((d) => d.id);
@@ -500,7 +514,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
 
     /** Supprime tous les docs d'une collection où `field == value`, par lots. */
     private async deleteAllWhere(colName: string, field: string, value: string): Promise<void> {
-        const { db, collection, query, where, getDocs, writeBatch, doc } = await import("@/firebase/firestore");
+        const { db, collection, query, where, getDocs, writeBatch, doc } = await this.ports.firestore();
         const snap = await getDocs(query(collection(db, colName), where(field, "==", value)));
         const ids = snap.docs.map((d) => d.id);
         for (let i = 0; i < ids.length; i += 400) {
@@ -517,7 +531,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
     private async cascadeDeleteCaisseContract(contractId: string): Promise<void> {
         await this.deleteSubcollection(contractId, "payments");
         await this.deleteSubcollection(contractId, "refunds");
-        const { db, doc, deleteDoc } = await import("@/firebase/firestore");
+        const { db, doc, deleteDoc } = await this.ports.firestore();
         await deleteDoc(doc(db, firebaseCollectionNames.caisseContracts || "caisseContracts", contractId));
     }
 

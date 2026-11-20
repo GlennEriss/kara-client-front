@@ -25,7 +25,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
     private caisseImprevueDemandRepository: ICaisseImprevueDemandRepository
 
     constructor(
-        private memberRepository: IMemberRepository, 
+        private memberRepository: IMemberRepository,
         private subscriptionCIRepository: ISubscriptionCIRepository,
         private contractCIRepository: IContractCIRepository,
         private adminRepository: IAdminRepository,
@@ -33,7 +33,9 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         private paymentCIRepository: IPaymentCIRepository,
         private supportCIRepository: ISupportCIRepository,
         private earlyRefundCIRepository: IEarlyRefundCIRepository,
-        caisseImprevueDemandRepository?: ICaisseImprevueDemandRepository
+        caisseImprevueDemandRepository?: ICaisseImprevueDemandRepository,
+        notificationService?: NotificationService,
+        private readonly newVersementId?: () => string
     ) {
         this.memberRepository = memberRepository
         this.subscriptionCIRepository = subscriptionCIRepository
@@ -44,7 +46,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         this.supportCIRepository = supportCIRepository
         this.earlyRefundCIRepository = earlyRefundCIRepository
         this.caisseImprevueDemandRepository = caisseImprevueDemandRepository || RepositoryFactory.getCaisseImprevueDemandRepository()
-        this.notificationService = ServiceFactory.getNotificationService()
+        this.notificationService = notificationService ?? ServiceFactory.getNotificationService()
     }
 
     async searchMembers(searchQuery: string): Promise<User[]> {
@@ -81,7 +83,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
     async createContractCI(data: Omit<ContractCI, 'createdAt' | 'updatedAt'>): Promise<ContractCI> {
         const contract = await this.contractCIRepository.createContract(data)
-        
+
         // Créer une notification de création de contrat
         try {
             const frequencyLabel = data.paymentFrequency === 'DAILY' ? 'journalier' : 'mensuel'
@@ -102,7 +104,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         } catch {
             // Ne pas faire échouer la création du contrat si la notification échoue
         }
-        
+
         return contract
     }
 
@@ -223,10 +225,10 @@ export class CaisseImprevueService implements ICaisseImprevueService {
     }
 
     async createVersement(
-        contractId: string, 
-        monthIndex: number, 
-        versementData: VersementFormData, 
-        proofFile: File, 
+        contractId: string,
+        monthIndex: number,
+        versementData: VersementFormData,
+        proofFile: File,
         userId: string
     ): Promise<PaymentCI> {
         try {
@@ -236,6 +238,9 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 throw new Error(`Contrat ${contractId} introuvable`)
             }
             assertContractUnlocked(isCaisseImprevueContractLocked(contract.status))
+
+            const idDate = new Date()
+            const versementId = this.newVersementId?.() ?? `v_${String(idDate.getDate()).padStart(2, '0')}${String(idDate.getMonth() + 1).padStart(2, '0')}${String(idDate.getFullYear()).slice(-2)}_${String(idDate.getHours()).padStart(2, '0')}${String(idDate.getMinutes()).padStart(2, '0')}`
 
             // 2. Vérifier s'il y a un support actif
             const activeSupport = await this.getActiveSupport(contractId)
@@ -297,7 +302,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                     date: versementData.date,
                     time: versementData.time,
                     monthIndex,
-                    versementId: `v_${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getFullYear()).slice(-2)}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`,
+                    versementId,
                     createdBy: userId,
                 }
 
@@ -318,12 +323,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
             // 4. Générer l'ID du versement
             const now = new Date()
-            const day = String(now.getDate()).padStart(2, '0')
-            const month = String(now.getMonth() + 1).padStart(2, '0')
-            const year = String(now.getFullYear()).slice(-2)
-            const hours = String(now.getHours()).padStart(2, '0')
-            const minutes = String(now.getMinutes()).padStart(2, '0')
-            const versementId = `v_${day}${month}${year}_${hours}${minutes}`
+
 
             // 5. Écrire une tranche par mois concerné. Un versement qui tient dans
             // un seul mois produit une tranche unique, identique au comportement
@@ -715,7 +715,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             // 4. Si entièrement remboursé, mettre à jour le statut
             if (newAmountRemaining <= 0) {
                 await this.supportCIRepository.updateSupportStatus(contractId, supportId, 'REPAID', new Date())
-                
+
                 // Notification si le support est entièrement remboursé
                 try {
                     const contract = await this.contractCIRepository.getContractById(contractId);
@@ -1010,7 +1010,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
             const paidCount = payments.filter(p => p.status === 'PAID').length
             const allPaid = payments.length > 0 && paidCount === payments.length
-            
+
             if (!allPaid) {
                 throw new Error('Remboursement final indisponible : toutes les échéances doivent être payées')
             }
@@ -1152,7 +1152,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         // Générer l'ID au format: MK_DEMANDE_CI_{matricule}_{date}_{heure}
         let matriculeFormatted = "0000";
         let memberName = "Membre inconnu";
-        
+
         if (data.memberId) {
             const member = await this.memberRepository.getMemberById(data.memberId);
             if (member && member.matricule) {
@@ -1167,7 +1167,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const year = String(now.getFullYear()).slice(-2);
         const dateFormatted = `${day}${month}${year}`;
-        
+
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const timeFormatted = `${hours}${minutes}`;
@@ -1181,7 +1181,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         };
 
         const demand = await this.caisseImprevueDemandRepository.createDemand(demandData, customId);
-        
+
         // Notification pour tous les admins
         try {
             await this.notificationService.createNotification({
@@ -1202,7 +1202,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         } catch {
             // Erreur lors de la création de la notification - continue sans
         }
-        
+
         return demand;
     }
 

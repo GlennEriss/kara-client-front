@@ -5,11 +5,13 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class CreditPaymentRepository implements ICreditPaymentRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "CreditPaymentRepository";
 
     async createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CreditPayment> {
         try {
-            const { collection, addDoc, doc, setDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, addDoc, doc, setDoc, db, serverTimestamp } = await this.firestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -44,6 +46,8 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
                 updatedAt: now,
             } as CreditPayment;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création du paiement:", error);
             throw error;
         }
@@ -51,15 +55,15 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
 
     async getPaymentById(id: string): Promise<CreditPayment | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const paymentRef = doc(db, firebaseCollectionNames.creditPayments || "creditPayments", id);
             const docSnap = await getDoc(paymentRef);
-            
+
             if (!docSnap.exists()) {
                 return null;
             }
-            
+
             const data = docSnap.data();
             return {
                 id: docSnap.id,
@@ -69,6 +73,8 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             } as CreditPayment;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération du paiement:", error);
             return null;
         }
@@ -76,7 +82,7 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
 
     async getAllPayments(): Promise<CreditPayment[]> {
         try {
-            const { collection, db, getDocs, query, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, orderBy } = await this.firestore();
 
             const q = query(
                 collection(db, firebaseCollectionNames.creditPayments || "creditPayments"),
@@ -99,6 +105,8 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
 
             return payments;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des paiements:", error);
             return [];
         }
@@ -106,10 +114,10 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
 
     async getPaymentsWithFilters(filters?: CreditPaymentFilters): Promise<CreditPayment[]> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
 
             const constraints: any[] = [];
-            
+
             if (filters?.creditId) {
                 constraints.push(where("creditId", "==", filters.creditId));
             }
@@ -159,6 +167,8 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
 
             return payments;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des paiements filtrés:", error);
             return [];
         }
@@ -185,6 +195,8 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
 
             return stats;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors du calcul des statistiques:", error);
             return {
                 total: 0,
@@ -196,7 +208,7 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
 
     async updatePayment(id: string, data: Partial<Omit<CreditPayment, 'id' | 'createdAt'>>): Promise<CreditPayment | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const paymentRef = doc(db, firebaseCollectionNames.creditPayments || "creditPayments", id);
 
@@ -214,6 +226,8 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
 
             return await this.getPaymentById(id);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour du paiement:", error);
             throw error;
         }
@@ -221,11 +235,13 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
 
     async deletePayment(id: string): Promise<void> {
         try {
-            const { doc, deleteDoc, db } = await getFirestore();
+            const { doc, deleteDoc, db } = await this.firestore();
 
             const paymentRef = doc(db, firebaseCollectionNames.creditPayments || "creditPayments", id);
             await deleteDoc(paymentRef);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression du paiement:", error);
             throw error;
         }

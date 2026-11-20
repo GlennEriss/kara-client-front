@@ -5,19 +5,21 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class MemberRepository implements IMemberRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "MemberRepository";
 
     /**
      * Récupère tous les filleuls ayant un code intermédiaire spécifique
-     * Cherche dans les MembershipRequest approuvées car les membres approuvés 
+     * Cherche dans les MembershipRequest approuvées car les membres approuvés
      * conservent leurs données d'origine avec le code intermédiaire
-     * 
+     *
      * @param {string} intermediaryCode - Le code intermédiaire à rechercher
      * @returns {Promise<Filleul[]>} - Liste des filleuls trouvés
      */
     async getFilleulsByIntermediaryCode(intermediaryCode: string): Promise<Filleul[]> {
         try {
-            const { collection, db, getDocs, query, where } = await getFirestore();
+            const { collection, db, getDocs, query, where } = await this.firestore();
 
             const byMatricule = new Map<string, Filleul>();
 
@@ -63,6 +65,8 @@ export class MemberRepository implements IMemberRepository {
             return Array.from(byMatricule.values());
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des filleuls par code intermédiaire:", error);
             return [];
         }
@@ -71,19 +75,19 @@ export class MemberRepository implements IMemberRepository {
     /**
      * Récupère un membre par son ID (matricule)
      * Cherche dans la collection users
-     * 
+     *
      * @param {string} memberId - L'ID/matricule du membre
      * @returns {Promise<User | null>} - Le membre trouvé ou null
      */
     async getMemberById(memberId: string): Promise<User | null> {
         try {
-            const { collection, doc, getDoc, getDocs, query, where } = await getFirestore();
-            const { db } = await getFirestore();
-            
+            const { collection, doc, getDoc, getDocs, query, where } = await this.firestore();
+            const { db } = await this.firestore();
+
             // Chercher dans la collection users avec l'ID comme document ID
             const userRef = doc(db, firebaseCollectionNames.users || "users", memberId);
             const docSnap = await getDoc(userRef);
-            
+
             // Les contrats CI historiques utilisent parfois le matricule au
             // lieu de l'identifiant du document `users`.
             const memberSnapshot = docSnap.exists()
@@ -99,7 +103,7 @@ export class MemberRepository implements IMemberRepository {
             }
 
             const data = memberSnapshot.data();
-            
+
             // Convertir les timestamps Firebase en Date
             const user: User = {
                 id: memberSnapshot.id,
@@ -107,10 +111,12 @@ export class MemberRepository implements IMemberRepository {
                 createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             };
-            
+
             return user;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération du membre par ID:", error);
             return null;
         }
@@ -119,13 +125,13 @@ export class MemberRepository implements IMemberRepository {
     /**
      * Recherche de membres par matricule, prénom ou nom
      * Cherche dans la collection users
-     * 
+     *
      * @param {string} searchQuery - La requête de recherche
      * @returns {Promise<User[]>} - Liste des membres trouvés
      */
     async searchMembers(searchQuery: string): Promise<User[]> {
         try {
-            const { collection, db, getDocs, query, where } = await getFirestore();
+            const { collection, db, getDocs, query, where } = await this.firestore();
             const normalizedQuery = searchQuery.trim().toLowerCase();
 
             if (!normalizedQuery) {
@@ -165,7 +171,7 @@ export class MemberRepository implements IMemberRepository {
                 if (!isMatricule) {
                     const firstName = (user.firstName || '').toLowerCase();
                     const lastName = (user.lastName || '').toLowerCase();
-                    
+
                     if (firstName.includes(normalizedQuery) || lastName.includes(normalizedQuery)) {
                         members.push(user);
                     }
@@ -177,6 +183,8 @@ export class MemberRepository implements IMemberRepository {
             return members;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la recherche de membres:", error);
             return [];
         }
@@ -187,7 +195,7 @@ export class MemberRepository implements IMemberRepository {
      */
     async updateMemberRoles(memberId: string, roles: string[], adminId: string): Promise<void> {
         try {
-            const { doc, db, updateDoc, serverTimestamp } = await getFirestore();
+            const { doc, db, updateDoc, serverTimestamp } = await this.firestore();
             const userRef = doc(db, firebaseCollectionNames.users || "users", memberId);
             await updateDoc(userRef, {
                 roles,
@@ -195,6 +203,8 @@ export class MemberRepository implements IMemberRepository {
                 updatedBy: adminId
             });
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour des rôles du membre:", error);
             throw error;
         }

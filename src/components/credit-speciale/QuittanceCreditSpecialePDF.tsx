@@ -1,5 +1,3 @@
-'use client'
-
 import { buildMemberContractRow, buildMemberIdentificationRows } from '@/components/pdf/mutuelle/memberIdentification'
 import {
   EMPTY,
@@ -41,6 +39,7 @@ const CREDIT_TYPE_LABELS: Record<CreditContract['creditType'], string> = {
 }
 
 interface QuittanceCreditSpecialePDFProps {
+  logoSrc?: string
   contract: CreditContract
   guarantorPhone?: string
   memberData?: User | null
@@ -120,6 +119,7 @@ export const listCreditLiquidationFields = (input: CreditLiquidationInput): Docu
 }
 
 const QuittanceCreditSpecialePDF = ({
+  logoSrc,
   contract,
   guarantorPhone,
   memberData,
@@ -138,7 +138,7 @@ const QuittanceCreditSpecialePDF = ({
     <Document>
       <Page size="A4" style={styles.page}>
         <MutuellePageChrome footerLabel="Procès-verbal de liquidation et quittance subrogative du crédit" />
-        <MutuelleHeader title="PROCÈS-VERBAL DE LIQUIDATION ET QUITTANCE SUBROGATIVE DU CRÉDIT" />
+        <MutuelleHeader logoSrc={logoSrc} title="PROCÈS-VERBAL DE LIQUIDATION ET QUITTANCE SUBROGATIVE DU CRÉDIT" />
 
         <Text style={styles.preamble}>
           Ce document constate le remboursement intégral du crédit identifié ci-dessous et

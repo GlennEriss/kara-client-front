@@ -11,6 +11,7 @@ import { updateContractPdf, updateContract } from '@/db/caisse/contracts.db'
 import { updatePayment } from '@/db/caisse/payments.db'
 import { computeNextDueAt } from '@/services/caisse/engine'
 import { recomputeNow } from '@/services/caisse/readers'
+import { listRefunds } from '@/db/caisse/refunds.db'
 import { getActiveSettings } from '@/db/caisse/settings.db'
 import { computeContractBonusFromPayments, sumContractNominalPaid, sumContractPenalties } from '@/services/caisse/bonus'
 import type { CaisseType } from '@/services/caisse/types'
@@ -20,11 +21,12 @@ const ALLOWED_REPLACE_PDF_STATUSES = ['DRAFT', 'ACTIVE', 'LATE_NO_PENALTY', 'LAT
 /** Statuts pour lesquels on peut supprimer un versement (pas terminé, pas en remboursement final/anticipé). */
 const ALLOWED_DELETE_PAYMENT_STATUSES = ['DRAFT', 'ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY'] as const
 
+const browserCaisseContractServiceOperations = { listRefunds, getDocuments: () => RepositoryFactory.getDocumentRepository(), getDemands: () => RepositoryFactory.getCaisseSpecialeDemandRepository(), deleteFile, createFile, removeCaisseContractFromEntity, updateContractPdf, updateContract, updatePayment, computeNextDueAt, recomputeNow, getActiveSettings }
+
 export class CaisseContractsService {
   private static instance: CaisseContractsService
-  private readonly repo = CaisseContractsRepository.getInstance()
-
-  private constructor() {}
+  private readonly operations: typeof browserCaisseContractServiceOperations
+  constructor(private readonly repo = CaisseContractsRepository.getInstance(), overrides: Partial<typeof browserCaisseContractServiceOperations> = {}) { this.operations = { ...browserCaisseContractServiceOperations, ...overrides } }
 
   static getInstance(): CaisseContractsService {
     if (!CaisseContractsService.instance) {
@@ -79,6 +81,8 @@ export class CaisseContractsService {
     adminId: string,
     contributionId?: string
   ): Promise<void> {
+    const { updateContract, updatePayment, computeNextDueAt, recomputeNow, getActiveSettings } = this.operations
+
     const contract = await this.repo.getContractById(contractId)
     if (!contract) {
       throw new Error('Contrat introuvable')
@@ -187,6 +191,8 @@ export class CaisseContractsService {
    * Remplace le PDF téléversé d'un contrat (cleanup ancien fichier + documents ADHESION_CS, upload nouveau, update contrat + doc).
    */
   async replaceContractPdf(contractId: string, file: File, adminId: string): Promise<ContractPdfMetadata> {
+    const { deleteFile, createFile, updateContractPdf } = this.operations
+
     const contract = await this.repo.getContractById(contractId)
     if (!contract) {
       throw new Error('Contrat introuvable')
@@ -204,7 +210,7 @@ export class CaisseContractsService {
       console.error('Erreur suppression ancien PDF:', err)
     }
 
-    const documentRepo = RepositoryFactory.getDocumentRepository()
+    const documentRepo = this.operations.getDocuments()
     try {
       const docs = await documentRepo.getDocumentsByContractId(contractId)
       const oldDocs = docs.filter((d) => d.type === 'ADHESION_CS')
@@ -252,6 +258,8 @@ export class CaisseContractsService {
     adminId: string,
     file: File
   ): Promise<void> {
+    const { createFile, updateContractPdf, updateContract } = this.operations
+
     const contract = await this.repo.getContractById(contractId)
     if (!contract) throw new Error('Contrat introuvable')
 
@@ -264,7 +272,7 @@ export class CaisseContractsService {
       url: upload.url,
     }
 
-    const documentRepo = RepositoryFactory.getDocumentRepository()
+    const documentRepo = this.operations.getDocuments()
     const memberIdForDoc = contract.memberId || contractId
     await documentRepo.createDocument({
       type: 'ADHESION_CS',
@@ -291,6 +299,8 @@ export class CaisseContractsService {
    * Refuse le contrat signé par le membre.
    */
   async rejectMemberSignedCSContract(contractId: string, adminId: string): Promise<void> {
+    const { updateContract } = this.operations
+
     await updateContract(contractId, {
       memberSignedStatus: 'REJECTED',
       memberSignedDocumentId: null,
@@ -303,13 +313,15 @@ export class CaisseContractsService {
    * Réactive la demande liée si présente, supprime le PDF en Storage, les sous-collections et le document contrat.
    */
   async deleteCaisseContract(contractId: string, adminId: string): Promise<void> {
+    const { deleteFile, removeCaisseContractFromEntity } = this.operations
+
     const contract = await this.repo.getContractById(contractId)
     if (!contract) {
       throw new Error('Contrat introuvable')
     }
     assertContractUnlocked(isCaisseSpecialeContractLocked(contract.status))
 
-    const demandRepo = RepositoryFactory.getCaisseSpecialeDemandRepository()
+    const demandRepo = this.operations.getDemands()
     const demand = await demandRepo.getByContractId(contractId)
 
     if (contract.contractPdf?.path) {
@@ -323,7 +335,7 @@ export class CaisseContractsService {
     // Preuves de versement et de remboursement (Storage) avant de vider les sous-collections.
     try {
       const { collectStoragePaths } = await import('@/lib/storagePaths')
-      const { listRefunds } = await import('@/db/caisse/refunds.db')
+      const { listRefunds } = this.operations
       const [payments, refunds] = await Promise.all([
         this.repo.getContractPayments(contractId),
         listRefunds(contractId),

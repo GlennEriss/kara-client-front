@@ -1,5 +1,3 @@
-'use client'
-
 import { buildMemberContractRow, buildMemberIdentificationRows } from '@/components/pdf/mutuelle/memberIdentification'
 import {
   EMPTY,
@@ -142,6 +140,7 @@ export const listCaisseImprevueContractFields = (contract?: ContractCI | null): 
   collectDocumentFields(buildCaisseImprevueContractFields(contract))
 
 const CaisseImprevuePDFV3 = ({
+  logoSrc,
   contract,
   fillData,
   completion,
@@ -149,6 +148,7 @@ const CaisseImprevuePDFV3 = ({
   contract?: ContractCI | null
   fillData?: CaisseImprevuePdfFillData
   completion?: DocumentCompletion | null
+  logoSrc?: string
 }) => {
   const resolvedFillData = fillData ?? DEFAULT_FILL_DATA
   const fields = buildCaisseImprevueContractFields(contract)
@@ -158,7 +158,7 @@ const CaisseImprevuePDFV3 = ({
     <Document>
       <Page size="A4" style={styles.page}>
         <MutuellePageChrome footerLabel="Contrat d’adhésion à la Caisse Imprévue" />
-        <MutuelleHeader title="CONTRAT D’ADHÉSION À LA CAISSE IMPRÉVUE" />
+        <MutuelleHeader logoSrc={logoSrc} title="CONTRAT D’ADHÉSION À LA CAISSE IMPRÉVUE" />
 
         <Text style={styles.preamble}>
           Le présent acte formalise l’adhésion du membre à la Caisse Imprévue de la Mutuelle. Il

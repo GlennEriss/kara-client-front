@@ -5,11 +5,13 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class GuarantorRemunerationRepository implements IGuarantorRemunerationRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "GuarantorRemunerationRepository";
 
     async createRemuneration(data: Omit<GuarantorRemuneration, 'id' | 'createdAt' | 'updatedAt'>): Promise<GuarantorRemuneration> {
         try {
-            const { collection, addDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, addDoc, db, serverTimestamp } = await this.firestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -31,6 +33,8 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
             return created;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création de la rémunération:", error);
             throw error;
         }
@@ -38,7 +42,7 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
     async createRemunerationIfAbsent(id: string, data: Omit<GuarantorRemuneration, 'id' | 'createdAt' | 'updatedAt'>): Promise<GuarantorRemuneration | null> {
         try {
-            const { doc, db, runTransaction, serverTimestamp } = await getFirestore();
+            const { doc, db, runTransaction, serverTimestamp } = await this.firestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -63,6 +67,8 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
             return created ? await this.getRemunerationById(id) : null;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création de la rémunération:", error);
             throw error;
         }
@@ -70,15 +76,15 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
     async getRemunerationById(id: string): Promise<GuarantorRemuneration | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const remunerationRef = doc(db, firebaseCollectionNames.guarantorRemunerations || "guarantorRemunerations", id);
             const docSnap = await getDoc(remunerationRef);
-            
+
             if (!docSnap.exists()) {
                 return null;
             }
-            
+
             const data = docSnap.data();
             return {
                 id: docSnap.id,
@@ -87,6 +93,8 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             } as GuarantorRemuneration;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération de la rémunération:", error);
             return null;
         }
@@ -94,7 +102,7 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
     async getAllRemunerations(): Promise<GuarantorRemuneration[]> {
         try {
-            const { collection, db, getDocs, query, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, orderBy } = await this.firestore();
 
             const q = query(
                 collection(db, firebaseCollectionNames.guarantorRemunerations || "guarantorRemunerations"),
@@ -116,6 +124,8 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
             return remunerations;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des rémunérations:", error);
             return [];
         }
@@ -123,10 +133,10 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
     async getRemunerationsWithFilters(filters?: GuarantorRemunerationFilters): Promise<GuarantorRemuneration[]> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
 
             const constraints: any[] = [];
-            
+
             if (filters?.creditId) {
                 constraints.push(where("creditId", "==", filters.creditId));
             }
@@ -162,6 +172,8 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
             return remunerations;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des rémunérations avec filtres:", error);
             return [];
         }
@@ -182,7 +194,7 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
     async getRemunerationsStats(filters?: GuarantorRemunerationFilters): Promise<GuarantorRemunerationStats> {
         try {
             const remunerations = await this.getRemunerationsWithFilters(filters);
-            
+
             const stats: GuarantorRemunerationStats = {
                 total: remunerations.length,
                 totalAmount: remunerations.reduce((sum, r) => sum + r.amount, 0),
@@ -198,6 +210,8 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
             return stats;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors du calcul des statistiques:", error);
             return {
                 total: 0,
@@ -209,7 +223,7 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
     async updateRemuneration(id: string, data: Partial<Omit<GuarantorRemuneration, 'id' | 'createdAt'>>): Promise<GuarantorRemuneration | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -226,6 +240,8 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
             return await this.getRemunerationById(id);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour de la rémunération:", error);
             return null;
         }
@@ -233,10 +249,12 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
 
     async deleteRemuneration(id: string): Promise<void> {
         try {
-            const { doc, deleteDoc, db } = await getFirestore();
+            const { doc, deleteDoc, db } = await this.firestore();
             const remunerationRef = doc(db, firebaseCollectionNames.guarantorRemunerations || "guarantorRemunerations", id);
             await deleteDoc(remunerationRef);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression de la rémunération:", error);
             throw error;
         }

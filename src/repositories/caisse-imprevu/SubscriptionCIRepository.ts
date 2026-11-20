@@ -5,6 +5,8 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class SubscriptionCIRepository implements ISubscriptionCIRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "SubscriptionCIRepository";
 
     /**
@@ -13,7 +15,7 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
      */
     async getAllSubscriptions(): Promise<SubscriptionCI[]> {
         try {
-            const { collection, db, getDocs, query, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, orderBy } = await this.firestore();
 
             // Requête pour récupérer toutes les souscriptions, triées par code alphabétique
             const q = query(
@@ -39,6 +41,8 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
             return subscriptions;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des souscriptions CI:", error);
             // Propager l'erreur au lieu de retourner un tableau vide
             throw error;
@@ -52,7 +56,7 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
      */
     async getActiveSubscriptions(): Promise<SubscriptionCI[]> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const { collection, db, getDocs, query, where, orderBy } = await this.firestore();
 
             // Requête pour récupérer uniquement les souscriptions actives, triées par code
             const q = query(
@@ -79,6 +83,8 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
             return subscriptions;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des souscriptions actives CI:", error);
             // Propager l'erreur au lieu de retourner un tableau vide
             throw error;
@@ -92,28 +98,30 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
      */
     async getSubscriptionById(id: string): Promise<SubscriptionCI | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const subscriptionRef = doc(db, firebaseCollectionNames.subscriptionsCI || "subscriptionsCI", id);
             const docSnap = await getDoc(subscriptionRef);
-            
+
             if (!docSnap.exists()) {
                 console.log(`Souscription CI non trouvée avec l'ID: ${id}`);
                 return null;
             }
-            
+
             const data = docSnap.data();
-            
+
             const subscription: SubscriptionCI = {
                 id: docSnap.id,
                 ...(data as any),
                 createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             };
-            
+
             return subscription;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération de la souscription CI par ID:", error);
             return null;
         }
@@ -126,7 +134,7 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
      */
     async createSubscription(data: Omit<SubscriptionCI, 'createdAt' | 'updatedAt'>): Promise<SubscriptionCI> {
         try {
-            const { doc, setDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, setDoc, db, serverTimestamp } = await this.firestore();
 
             // Utiliser l'ID fourni dans data
             const subscriptionRef = doc(db, firebaseCollectionNames.subscriptionsCI || "subscriptionsCI", data.id);
@@ -139,7 +147,7 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
 
             // Récupérer la souscription créée
             const createdSubscription = await this.getSubscriptionById(data.id);
-            
+
             if (!createdSubscription) {
                 throw new Error("Erreur lors de la récupération de la souscription créée");
             }
@@ -147,6 +155,8 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
             return createdSubscription;
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création de la souscription CI:", error);
             throw error;
         }
@@ -160,7 +170,7 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
      */
     async updateSubscription(id: string, data: Partial<Omit<SubscriptionCI, 'id' | 'createdAt'>>): Promise<SubscriptionCI | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
 
             const subscriptionRef = doc(db, firebaseCollectionNames.subscriptionsCI || "subscriptionsCI", id);
 
@@ -173,6 +183,8 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
             return await this.getSubscriptionById(id);
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour de la souscription CI:", error);
             throw error;
         }
@@ -185,7 +197,7 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
      */
     async deleteSubscription(id: string): Promise<void> {
         try {
-            const { doc, deleteDoc, db } = await getFirestore();
+            const { doc, deleteDoc, db } = await this.firestore();
 
             const subscriptionRef = doc(db, firebaseCollectionNames.subscriptionsCI || "subscriptionsCI", id);
             await deleteDoc(subscriptionRef);
@@ -193,6 +205,8 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
             console.log(`Souscription CI ${id} supprimée avec succès`);
 
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression de la souscription CI:", error);
             throw error;
         }

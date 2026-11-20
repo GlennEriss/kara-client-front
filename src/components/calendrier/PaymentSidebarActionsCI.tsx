@@ -22,7 +22,7 @@ export function PaymentSidebarActionsCI({
   isGeneratingReceipt = false,
 }: PaymentSidebarActionsCIProps) {
   const shownAmount = useShownAmount()
-  const { canRecordPayments, canDownloadDocuments } = useMyAccess()
+  const { canRecordPayments, canDownloadDocuments, canSeeAmounts } = useMyAccess()
   const isPaid = payment.status === "PAID" || 
                  (payment.status === "PARTIAL" && payment.accumulatedAmount >= payment.targetAmount)
   
@@ -30,7 +30,7 @@ export function PaymentSidebarActionsCI({
 
   return (
     <div className="p-5 bg-gradient-to-t from-gray-50 to-white">
-      {isPaid ? (
+      {isPaid && !canSeeAmounts ? (<p className="text-center text-xs text-gray-500">Les documents financiers sont masqués pour votre rôle.</p>) : isPaid ? (
         <div className="space-y-3">
           <Button
             onClick={onViewReceipt}

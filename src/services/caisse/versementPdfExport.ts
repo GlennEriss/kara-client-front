@@ -1,3 +1,4 @@
+import type { FinancePdfDelivery } from '@/services/finance-pdf-delivery'
 import { getCaisseSpecialeRecordedVersements, getMemberQuarterForPdf } from '@/utils/versement-history'
 import { drawPdfHistoryTable } from '@/utils/pdf-history-table'
 /**
@@ -466,10 +467,10 @@ export type GenerateSingleVersementPdfParams = {
 }
 
 /** Génère et télécharge le PDF "historique versement" pour un seul versement (même format que la page versements > PDF). */
-export async function generateSingleVersementPDF(params: GenerateSingleVersementPdfParams): Promise<void> {
+export async function generateSingleVersementPDF(params: GenerateSingleVersementPdfParams, delivery?: FinancePdfDelivery): Promise<void> {
   const { contract, contractId, member, group, payments, payment, getAdminDisplayName } = params
   if (!getCaisseSpecialeRecordedVersements(payment).length) throw new Error('Aucun versement enregistré pour cette échéance')
-  const logoDataUrl = await loadLogoDataUrl()
+  const logoDataUrl = delivery ? delivery.logo : await loadLogoDataUrl()
   const sortedPayments = [...payments].sort((a, b) => a.dueMonthIndex - b.dueMonthIndex)
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('l', 'mm', 'a4')
@@ -498,5 +499,7 @@ export async function generateSingleVersementPDF(params: GenerateSingleVersement
     )
   }
   const dateStr = new Date().toISOString().split('T')[0]
-  doc.save(`versement_${contractId}_M${payment.dueMonthIndex + 1}_${dateStr}.pdf`)
+  const filename = `versement_${contractId}_M${payment.dueMonthIndex + 1}_${dateStr}.pdf`
+  if (delivery) await delivery.deliver(doc, filename)
+  else doc.save(filename)
 }

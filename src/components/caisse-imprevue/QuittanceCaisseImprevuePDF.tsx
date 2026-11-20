@@ -1,5 +1,3 @@
-'use client'
-
 import { buildMemberContractRow, buildMemberIdentificationRows, type MemberIdentitySource } from '@/components/pdf/mutuelle/memberIdentification'
 import { Document, Page, Text } from '@react-pdf/renderer'
 import React from 'react'
@@ -162,6 +160,7 @@ export const listCaisseImprevueLiquidationFields = (input: CaisseImprevueLiquida
 }
 
 const QuittanceCaisseImprevuePDF = ({
+  logoSrc,
   contract,
   refund,
   memberData,
@@ -171,6 +170,7 @@ const QuittanceCaisseImprevuePDF = ({
 }: CaisseImprevueLiquidationInput & {
   fillData?: QuittanceCaisseImprevuePdfFillData
   completion?: DocumentCompletion | null
+  logoSrc?: string
 }) => {
   const signatures = fillData ?? DEFAULT_FILL_DATA
   const fields = buildCaisseImprevueLiquidationFields({ contract, refund, memberData, totalAmountPaid })
@@ -182,7 +182,7 @@ const QuittanceCaisseImprevuePDF = ({
     <Document>
       <Page size="A4" style={styles.page}>
         <MutuellePageChrome footerLabel="Procès-verbal de liquidation du contrat de Caisse Imprévue" />
-        <MutuelleHeader title="PROCÈS-VERBAL DE LIQUIDATION DU CONTRAT DE CAISSE IMPRÉVUE" />
+        <MutuelleHeader logoSrc={logoSrc} title="PROCÈS-VERBAL DE LIQUIDATION DU CONTRAT DE CAISSE IMPRÉVUE" />
 
         <Text style={styles.preamble}>
           Ce document constate la liquidation du contrat de Caisse Imprévue identifié ci-dessous et

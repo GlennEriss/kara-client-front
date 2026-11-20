@@ -5,6 +5,8 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 const getFirestore = () => import("@/firebase/firestore");
 
 export class PaymentCIRepository implements IPaymentCIRepository {
+    constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
+
     readonly name = "PaymentCIRepository";
 
     /**
@@ -12,25 +14,25 @@ export class PaymentCIRepository implements IPaymentCIRepository {
      */
     async getPaymentByMonth(contractId: string, monthIndex: number): Promise<PaymentCI | null> {
         try {
-            const { doc, getDoc, db } = await getFirestore();
-            
+            const { doc, getDoc, db } = await this.firestore();
+
             const paymentId = `month-${monthIndex}`;
             const paymentRef = doc(
-                db, 
-                firebaseCollectionNames.contractsCI || "contractsCI", 
-                contractId, 
-                "payments", 
+                db,
+                firebaseCollectionNames.contractsCI || "contractsCI",
+                contractId,
+                "payments",
                 paymentId
             );
-            
+
             const docSnap = await getDoc(paymentRef);
-            
+
             if (!docSnap.exists()) {
                 return null;
             }
-            
+
             const data = docSnap.data();
-            
+
             return {
                 id: docSnap.id,
                 contractId,
@@ -49,6 +51,8 @@ export class PaymentCIRepository implements IPaymentCIRepository {
                 modificationReason: data.modificationReason,
             } as PaymentCI;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error(`Erreur lors de la récupération du paiement mois ${monthIndex}:`, error);
             return null;
         }
@@ -60,15 +64,15 @@ export class PaymentCIRepository implements IPaymentCIRepository {
     async getPaymentsByContractId(contractId: string, monthIndexes?: number[]): Promise<PaymentCI[]> {
         if (monthIndexes?.length === 0) return [];
         try {
-            const { collection, getDocs, db, query, where } = await getFirestore();
-            
+            const { collection, getDocs, db, query, where } = await this.firestore();
+
             const paymentsCollectionRef = collection(
-                db, 
-                firebaseCollectionNames.contractsCI || "contractsCI", 
-                contractId, 
+                db,
+                firebaseCollectionNames.contractsCI || "contractsCI",
+                contractId,
                 "payments"
             );
-            
+
             // Une plage numérique reste valable au-delà de la limite des requêtes « in ».
             // Les périodes intermédiaires éventuelles sont ignorées par le calendrier.
             const source = monthIndexes
@@ -77,7 +81,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
                     where('monthIndex', '<=', Math.max(...monthIndexes)))
                 : paymentsCollectionRef;
             const snapshot = await getDocs(source);
-            
+
             return snapshot.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -99,6 +103,8 @@ export class PaymentCIRepository implements IPaymentCIRepository {
                 } as PaymentCI;
             });
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la récupération des paiements:", error);
             return [];
         }
@@ -109,14 +115,14 @@ export class PaymentCIRepository implements IPaymentCIRepository {
      */
     async createPayment(contractId: string, data: Omit<PaymentCI, 'id' | 'createdAt' | 'updatedAt'>): Promise<PaymentCI> {
         try {
-            const { doc, setDoc, db, serverTimestamp } = await getFirestore();
-            
+            const { doc, setDoc, db, serverTimestamp } = await this.firestore();
+
             const paymentId = `month-${data.monthIndex}`;
             const paymentRef = doc(
-                db, 
-                firebaseCollectionNames.contractsCI || "contractsCI", 
-                contractId, 
-                "payments", 
+                db,
+                firebaseCollectionNames.contractsCI || "contractsCI",
+                contractId,
+                "payments",
                 paymentId
             );
 
@@ -128,13 +134,15 @@ export class PaymentCIRepository implements IPaymentCIRepository {
 
             // Récupérer le paiement créé
             const createdPayment = await this.getPaymentByMonth(contractId, data.monthIndex);
-            
+
             if (!createdPayment) {
                 throw new Error("Erreur lors de la récupération du paiement créé");
             }
 
             return createdPayment;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la création du paiement:", error);
             throw error;
         }
@@ -145,14 +153,14 @@ export class PaymentCIRepository implements IPaymentCIRepository {
      */
     async addVersement(contractId: string, monthIndex: number, versement: VersementCI, userId: string): Promise<PaymentCI> {
         try {
-            const { doc, updateDoc, arrayUnion, db, serverTimestamp, increment } = await getFirestore();
-            
+            const { doc, updateDoc, arrayUnion, db, serverTimestamp, increment } = await this.firestore();
+
             const paymentId = `month-${monthIndex}`;
             const paymentRef = doc(
-                db, 
-                firebaseCollectionNames.contractsCI || "contractsCI", 
-                contractId, 
-                "payments", 
+                db,
+                firebaseCollectionNames.contractsCI || "contractsCI",
+                contractId,
+                "payments",
                 paymentId
             );
 
@@ -179,7 +187,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
 
             // Récupérer le paiement mis à jour
             const updatedPayment = await this.getPaymentByMonth(contractId, monthIndex);
-            
+
             if (!updatedPayment) {
                 throw new Error("Erreur lors de la récupération du paiement mis à jour");
             }
@@ -201,6 +209,8 @@ export class PaymentCIRepository implements IPaymentCIRepository {
 
             return updatedPayment;
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de l'ajout du versement:", error);
             throw error;
         }
@@ -211,14 +221,14 @@ export class PaymentCIRepository implements IPaymentCIRepository {
      */
     async updatePaymentStatus(contractId: string, monthIndex: number, accumulatedAmount: number, status: 'DUE' | 'PAID' | 'PARTIAL', userId: string): Promise<PaymentCI | null> {
         try {
-            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
-            
+            const { doc, updateDoc, db, serverTimestamp } = await this.firestore();
+
             const paymentId = `month-${monthIndex}`;
             const paymentRef = doc(
-                db, 
-                firebaseCollectionNames.contractsCI || "contractsCI", 
-                contractId, 
-                "payments", 
+                db,
+                firebaseCollectionNames.contractsCI || "contractsCI",
+                contractId,
+                "payments",
                 paymentId
             );
 
@@ -231,6 +241,8 @@ export class PaymentCIRepository implements IPaymentCIRepository {
 
             return await this.getPaymentByMonth(contractId, monthIndex);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour du statut du paiement:", error);
             return null;
         }
@@ -247,7 +259,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
         paymentMeta: { modificationReason: string; updatedBy: string }
     ): Promise<PaymentCI | null> {
         try {
-            const { doc, getDoc, updateDoc, db, serverTimestamp, Timestamp, increment } = await getFirestore() as any;
+            const { doc, getDoc, updateDoc, db, serverTimestamp, Timestamp, increment } = await this.firestore() as any;
             const paymentId = `month-${monthIndex}`;
             const paymentRef = doc(
                 db,
@@ -296,6 +308,8 @@ export class PaymentCIRepository implements IPaymentCIRepository {
 
             return await this.getPaymentByMonth(contractId, monthIndex);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la mise à jour du versement:", error);
             throw error;
         }
@@ -306,7 +320,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
      */
     async deleteVersement(contractId: string, monthIndex: number, versementId: string, userId: string): Promise<PaymentCI | null> {
         try {
-            const { doc, getDoc, updateDoc, db, serverTimestamp, increment } = await getFirestore() as any;
+            const { doc, getDoc, updateDoc, db, serverTimestamp, increment } = await this.firestore() as any;
             const paymentId = `month-${monthIndex}`;
             const paymentRef = doc(
                 db,
@@ -344,6 +358,8 @@ export class PaymentCIRepository implements IPaymentCIRepository {
 
             return await this.getPaymentByMonth(contractId, monthIndex);
         } catch (error) {
+      if (this.strict) throw error
+
             console.error("Erreur lors de la suppression du versement:", error);
             throw error;
         }

@@ -1,3 +1,4 @@
+import type { FinancePdfDelivery } from '@/services/finance-pdf-delivery'
 import { getCIRecordedVersements, getMemberQuarterForPdf } from '@/utils/versement-history'
 import { drawPdfHistoryTable } from '@/utils/pdf-history-table'
 /**
@@ -49,11 +50,12 @@ async function loadLogoDataUrl(): Promise<{ dataUrl: string; width: number; heig
 export async function generateSingleVersementCIPDF(
   contract: ContractCI,
   payment: PaymentCI,
-  options: GenerateSingleVersementCIPDFOptions
+  options: GenerateSingleVersementCIPDFOptions,
+  delivery?: FinancePdfDelivery
 ): Promise<void> {
   const { contractId, member, getAdminDisplayName } = options
   if (!getCIRecordedVersements(payment).length) throw new Error('Aucun versement enregistré pour cette échéance')
-  const logoDataUrl = await loadLogoDataUrl()
+  const logoDataUrl = delivery ? delivery.logo : await loadLogoDataUrl()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('l', 'mm', 'a4')
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -360,5 +362,6 @@ export async function generateSingleVersementCIPDF(
 
   const dateStr = format(new Date(), 'ddMMyyyy')
   const fileName = `Paiement_CI_M${payment.monthIndex + 1}_${contract.memberLastName}_${dateStr}.pdf`
-  doc.save(fileName)
+  if (delivery) await delivery.deliver(doc, fileName)
+  else doc.save(fileName)
 }

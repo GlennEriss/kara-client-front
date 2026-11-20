@@ -1,5 +1,3 @@
-'use client'
-
 import { buildMemberContractRow, buildMemberIdentificationRows } from '@/components/pdf/mutuelle/memberIdentification'
 import {
   EMPTY,
@@ -90,6 +88,7 @@ export const EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA: AdhesionCreditSpecialeFil
 }
 
 interface AdhesionCreditSpecialeV3Props {
+  logoSrc?: string
   contract: CreditContract
   memberData?: any
   guarantorData?: any
@@ -151,7 +150,7 @@ export const buildCreditContractFields = ({ contract, memberData, guarantorData 
 export const listCreditContractFields = (input: CreditContractInput): DocumentField[] =>
   collectDocumentFields(buildCreditContractFields(input))
 
-const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillData, completion }: AdhesionCreditSpecialeV3Props) => {
+const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillData, completion, logoSrc }: AdhesionCreditSpecialeV3Props) => {
   const filled = { ...EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA, ...fillData }
   const fields = buildCreditContractFields({ contract, memberData, guarantorData })
   const read = (target: DocumentField) => readField(target, completion)
@@ -211,7 +210,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <MutuellePageChrome footerLabel="Contrat de crédit — reconnaissance de dette et cautionnement" />
 
         {/* Acte 1 : reconnaissance de dette */}
-        <MutuelleHeader title="RECONNAISSANCE DE DETTE" />
+        <MutuelleHeader logoSrc={logoSrc} title="RECONNAISSANCE DE DETTE" />
 
         <MutuelleSection title="1. IDENTIFICATION DU MEMBRE BÉNÉFICIAIRE">
           <FieldTable rows={fields.member} completion={completion} />
