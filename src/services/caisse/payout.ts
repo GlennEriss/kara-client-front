@@ -1,4 +1,4 @@
-import { computeContractBonusFromPayments } from './bonus'
+import { actualContractNominalPaid, sumContractNominalPaid, computeContractBonusFromPayments } from './bonus'
 
 interface RefundAmount {
   withdrawalAmount?: number
@@ -29,6 +29,8 @@ export function computeCaisseSpecialePayoutAmount(
 ): number {
   const recorded = recordedCaisseSpecialeRefundAmount(refund)
   if (recorded !== null) return recorded
-  const bonus = computeContractBonusFromPayments(contract, payments, settings, now)
-  return (contract.nominalPaid || 0) + bonus.amount
+  const monetaryPayments = payments as Parameters<typeof sumContractNominalPaid>[0] | undefined
+  const nominal = actualContractNominalPaid(contract, monetaryPayments)
+  const bonus = computeContractBonusFromPayments({ ...contract, nominalPaid: nominal }, payments, settings, now)
+  return nominal + bonus.amount
 }

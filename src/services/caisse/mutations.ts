@@ -12,6 +12,7 @@ import { computeDueWindow, computePenalty, computeNextDueAt } from './engine'
 
 import { computeContractBonusFromPayments, sumContractNominalPaid, sumContractPenalties } from './bonus'
 
+import { caisseSpecialeFinalRefundEligibility } from '@/services/refunds/final-refund-policy'
 import { computeContractEndAt, computeDueAt } from './contractDates'
 
 import { createFile } from '@/db/upload-image.db'
@@ -528,11 +529,10 @@ async function requestFinalRefund(contractId: string, reason?: string) {
   const c = await getContract(contractId)
   if (!c) throw new Error('Contrat introuvable')
   assertContractUnlocked(isCaisseSpecialeContractLocked(c.status))
-  // Vérifier que tout est payé
   const payments = await listPayments(contractId)
-  const allPaid = payments.length > 0 && payments.every((p: any) => p.status === 'PAID')
-  if (!allPaid || (c.monthsPlanned && payments.filter((p: any)=> p.status==='PAID').length < c.monthsPlanned)) {
-    throw new Error('Remboursement final indisponible: toutes les échéances ne sont pas payées')
+  const eligibility = caisseSpecialeFinalRefundEligibility(c, payments)
+  if (!eligibility.eligible) {
+    throw new Error(eligibility.totalPaid <= 0 ? 'Aucune cotisation à rembourser pour ce contrat' : 'Le remboursement final est disponible au terme du contrat ou lorsque toutes les échéances sont payées')
   }
   // Vérifier qu'aucun remboursement final n'existe déjà (idempotence)
   const refunds = await listRefunds(contractId)
@@ -540,8 +540,7 @@ async function requestFinalRefund(contractId: string, reason?: string) {
   if (hasFinal || c.status === 'FINAL_REFUND_PENDING' || c.status === 'CLOSED') {
     throw new Error('Un remboursement final est déjà en cours ou a été traité pour ce contrat')
   }
-  await updateContract(contractId, { status: 'FINAL_REFUND_PENDING' })
-  const amountNominal = sumContractNominalPaid(payments)
+  const amountNominal = eligibility.totalPaid
   const settings = await getActiveSettings((c as any).caisseType)
   // Même règle que le retrait anticipé : le taux vient de min(mois écoulés,
   // mois soldés), et non de la durée planifiée. Un contrat soldé en avance ne
@@ -552,10 +551,9 @@ async function requestFinalRefund(contractId: string, reason?: string) {
   // La remise finale est exigible dès le terme du contrat. Les anciens dossiers
   // sans `contractEndAt` sont recalculés avec la même règle que l'échéancier.
   const deadlineAt =
-    (c.contractEndAt ? new Date(c.contractEndAt) : null) ??
-    computeContractEndAt(c.contractStartAt, c.monthsPlanned, c.caisseType) ??
-    new Date()
+    eligibility.endAt ?? new Date()
   await addRefund(contractId, { type: 'FINAL', amountNominal, amountBonus, deadlineAt, status: 'PENDING', reason: reason || '' })
+  await updateContract(contractId, { status: 'FINAL_REFUND_PENDING' })
   return true
 }
 

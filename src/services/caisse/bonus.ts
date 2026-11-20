@@ -144,6 +144,13 @@ export function sumContractNominalPaid(payments: Array<{
   }, 0)
 }
 
+/** Les anciens contrats sans détail monétaire conservent leur nominal enregistré.
+ * Dès que le détail existe, les versements réels sont la source de vérité. */
+export function actualContractNominalPaid(contract: { nominalPaid?: number | null }, payments: Parameters<typeof sumContractNominalPaid>[0] = []): number {
+  const hasAmounts = payments.some(payment => payment.accumulatedAmount != null || (payment.status === 'PAID' && payment.amount != null) || payment.contribs?.length || payment.groupContributions?.length)
+  return hasAmounts ? sumContractNominalPaid(payments) : Math.max(0, Number(contract.nominalPaid) || 0)
+}
+
 /**
  * Même assiette et mêmes plafonds pour la fiche, les remises et les écritures.
  * Avec un échéancier, le nombre de mois payés vient des paiements réels :
