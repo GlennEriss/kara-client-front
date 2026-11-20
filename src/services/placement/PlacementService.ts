@@ -32,7 +32,9 @@ export class PlacementService {
     private documentRepository: IDocumentRepository,
     memberRepository?: IMemberRepository,
     notificationService?: NotificationService, // Optionnel pour éviter dépendance circulaire
-    placementDemandRepository?: IPlacementDemandRepository
+    placementDemandRepository?: IPlacementDemandRepository,
+    adminRepository?: IAdminRepository,
+    private readonly audit: typeof logAdminAction = logAdminAction,
   ) {
     // Initialiser NotificationService si non fourni
     if (!notificationService) {
@@ -48,7 +50,7 @@ export class PlacementService {
       this.memberRepository = memberRepository
     }
     
-    this.adminRepository = RepositoryFactory.getAdminRepository()
+    this.adminRepository = adminRepository || RepositoryFactory.getAdminRepository()
     
     if (!placementDemandRepository) {
       this.placementDemandRepository = RepositoryFactory.getPlacementDemandRepository()
@@ -170,7 +172,7 @@ export class PlacementService {
         // Profil indisponible : le log part quand même avec l'identifiant.
       }
 
-      await logAdminAction({
+      await this.audit({
         adminId: params.adminId || 'inconnu',
         adminName,
         adminEmail,
@@ -182,7 +184,7 @@ export class PlacementService {
         description: params.description,
         metadata: params.metadata,
       })
-    })()
+    })().catch(() => { /* Une indisponibilité du journal ne modifie pas le résultat financier. */ })
   }
 
   /**

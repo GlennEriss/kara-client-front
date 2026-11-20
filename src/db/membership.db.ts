@@ -1014,8 +1014,9 @@ export async function updateMembershipRequestBeneficiary(
     requestId: string,
     beneficiary: Parameters<typeof resolveBeneficiary>[0],
     adminId: string,
+    firestore: typeof getFirestore = getFirestore,
 ): Promise<void> {
-    const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
+    const { db, doc, updateDoc, serverTimestamp } = await firestore();
     const docRef = doc(db, firebaseCollectionNames.membershipRequests || "membership-requests", requestId);
     await updateDoc(docRef, {
         "identity.beneficiary": resolveBeneficiary(beneficiary),

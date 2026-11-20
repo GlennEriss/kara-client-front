@@ -29,6 +29,10 @@ import {
   type CharityStarAdjustment,
   type MemberCharityStars,
 } from '../entities/charity-stars.types'
+const createCharityStarsServiceDefaults = {addDoc,arrayUnion,collection,db,doc,documentId,getDoc,getDocs,orderBy,query,serverTimestamp,Timestamp,updateDoc,where};
+export function createCharityStarsService(overrides: Partial<typeof createCharityStarsServiceDefaults> = {}) {
+const {addDoc,arrayUnion,collection,db,doc,documentId,getDoc,getDocs,orderBy,query,serverTimestamp,Timestamp,updateDoc,where} = {...createCharityStarsServiceDefaults,...overrides};
+
 
 const SUMMARY_COLLECTION = firebaseCollectionNames.memberCharitySummary
 const ADJUSTMENTS_SUBCOLLECTION = 'star-adjustments'
@@ -51,7 +55,7 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out
 }
 
-export class CharityStarsService {
+class CharityStarsService {
   private static instance: CharityStarsService
 
   static getInstance(): CharityStarsService {
@@ -168,3 +172,7 @@ export class CharityStarsService {
     })
   }
 }
+return {CharityStarsService};
+}
+export const {CharityStarsService} = createCharityStarsService();
+export type CharityStarsService = InstanceType<ReturnType<typeof createCharityStarsService>['CharityStarsService']>;

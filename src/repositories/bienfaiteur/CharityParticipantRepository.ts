@@ -1,8 +1,12 @@
 import { CharityParticipant } from '@/types/types'
 
 const getFirestore = () => import('@/firebase/firestore')
+const createCharityParticipantRepositoryDefaults = {getFirestore};
+export function createCharityParticipantRepository(overrides: Partial<typeof createCharityParticipantRepositoryDefaults> = {}) {
+const {getFirestore} = {...createCharityParticipantRepositoryDefaults,...overrides};
 
-export class CharityParticipantRepository {
+
+class CharityParticipantRepository {
   /**
    * Nettoie un objet en supprimant les valeurs undefined
    */
@@ -230,4 +234,7 @@ export class CharityParticipantRepository {
     }
   }
 }
-
+return {CharityParticipantRepository};
+}
+export const {CharityParticipantRepository} = createCharityParticipantRepository();
+export type CharityParticipantRepository = InstanceType<ReturnType<typeof createCharityParticipantRepository>['CharityParticipantRepository']>;

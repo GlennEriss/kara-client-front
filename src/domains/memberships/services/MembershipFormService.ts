@@ -5,11 +5,17 @@
  */
 
 import { withResolvedBeneficiary } from '@/constantes/beneficiary'
+
 import type { RegisterFormData } from '@/types/types'
+
 import { getFunctions, httpsCallable } from 'firebase/functions'
+
 import { app } from '@/firebase/app'
+
 import { MembershipRepositoryV2 } from '../repositories/MembershipRepositoryV2'
+
 import { MembershipErrorHandler } from './MembershipErrorHandler'
+
 
 /**
  * Résultat de la soumission d'une nouvelle demande
@@ -20,6 +26,7 @@ export interface SubmitMembershipResult {
   error?: string
 }
 
+
 /**
  * Résultat de la soumission de corrections
  */
@@ -27,15 +34,22 @@ export interface SubmitCorrectionResult {
   success: boolean
   error?: string
 }
+const createMembershipFormServiceDefaults = { MembershipRepositoryV2, getFunctions, httpsCallable };
+export function createMembershipFormService(overrides: Partial<typeof createMembershipFormServiceDefaults> = {}) {
+const { MembershipRepositoryV2, getFunctions, httpsCallable } = { ...createMembershipFormServiceDefaults, ...overrides };
+
 
 /**
  * Clé localStorage pour les brouillons
  */
 const DRAFT_STORAGE_KEY = 'membership-form-draft'
-const DRAFT_TIMESTAMP_KEY = 'membership-form-draft-timestamp'
-const DRAFT_EXPIRY_DAYS = 7 // Les brouillons expirent après 7 jours
 
-export class MembershipFormService {
+const DRAFT_TIMESTAMP_KEY = 'membership-form-draft-timestamp'
+
+const DRAFT_EXPIRY_DAYS = 7
+ // Les brouillons expirent après 7 jours
+
+class MembershipFormService {
   private static instance: MembershipFormService
   private membershipRepository: MembershipRepositoryV2
   private errorHandler: MembershipErrorHandler
@@ -405,3 +419,7 @@ export class MembershipFormService {
     }
   }
 }
+return { MembershipFormService };
+}
+export const { MembershipFormService } = createMembershipFormService();
+export type MembershipFormService = ReturnType<ReturnType<typeof createMembershipFormService>['MembershipFormService']['getInstance']>;

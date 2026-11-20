@@ -1,6 +1,9 @@
 import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-names'
+
 import { db } from '@/firebase/firestore'
+
 import type { MembershipType, Subscription } from '@/types/types'
+
 import {
     collection,
     deleteDoc,
@@ -17,10 +20,15 @@ import {
     where
 } from 'firebase/firestore'
 
+const createSubscriptionsRepositoryDefaults = { db, collection, deleteDoc, doc, getCountFromServer, getDoc, getDocs, limit, orderBy, query, setDoc, Timestamp, updateDoc, where };
+export function createSubscriptionsRepository(overrides: Partial<typeof createSubscriptionsRepositoryDefaults> = {}) {
+const { db, collection, deleteDoc, doc, getCountFromServer, getDoc, getDocs, limit, orderBy, query, setDoc, Timestamp, updateDoc, where } = { ...createSubscriptionsRepositoryDefaults, ...overrides };
+
+
 /**
  * Crée une nouvelle souscription
  */
-export async function createSubscription(subscriptionData: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>): Promise<Subscription> {
+async function createSubscription(subscriptionData: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>): Promise<Subscription> {
   try {
     // Générer un ID personnalisé au format MK_SUB_DDMMYY_HHMM
     const now = new Date()
@@ -60,10 +68,11 @@ export async function createSubscription(subscriptionData: Omit<Subscription, 'i
   }
 }
 
+
 /**
  * Récupère une souscription par son ID
  */
-export async function getSubscriptionById(subscriptionId: string): Promise<Subscription | null> {
+async function getSubscriptionById(subscriptionId: string): Promise<Subscription | null> {
   try {
     const subscriptionRef = doc(db, FIREBASE_COLLECTION_NAMES.SUBSCRIPTIONS, subscriptionId)
     const docSnap = await getDoc(subscriptionRef)
@@ -97,10 +106,11 @@ export async function getSubscriptionById(subscriptionId: string): Promise<Subsc
   }
 }
 
+
 /**
  * Récupère toutes les souscriptions d'un utilisateur
  */
-export async function getSubscriptionsByUserId(userId: string): Promise<Subscription[]> {
+async function getSubscriptionsByUserId(userId: string): Promise<Subscription[]> {
   try {
     const subscriptionsRef = collection(db, FIREBASE_COLLECTION_NAMES.SUBSCRIPTIONS)
     // ✅ Fallback : chercher sur dateStart (nouveau) ou startDate (ancien)
@@ -143,10 +153,11 @@ export async function getSubscriptionsByUserId(userId: string): Promise<Subscrip
   }
 }
 
+
 /**
  * Récupère la souscription active d'un utilisateur (la plus récente et valide)
  */
-export async function getActiveSubscriptionByUserId(userId: string): Promise<Subscription | null> {
+async function getActiveSubscriptionByUserId(userId: string): Promise<Subscription | null> {
   try {
     const subscriptions = await getSubscriptionsByUserId(userId)
     
@@ -165,10 +176,11 @@ export async function getActiveSubscriptionByUserId(userId: string): Promise<Sub
   }
 }
 
+
 /**
  * Met à jour une souscription
  */
-export async function updateSubscription(subscriptionId: string, updates: Partial<Omit<Subscription, 'id' | 'createdAt'>>): Promise<boolean> {
+async function updateSubscription(subscriptionId: string, updates: Partial<Omit<Subscription, 'id' | 'createdAt'>>): Promise<boolean> {
   try {
     const subscriptionRef = doc(db, FIREBASE_COLLECTION_NAMES.SUBSCRIPTIONS, subscriptionId)
     
@@ -196,10 +208,11 @@ export async function updateSubscription(subscriptionId: string, updates: Partia
   }
 }
 
+
 /**
  * Supprime une souscription
  */
-export async function deleteSubscription(subscriptionId: string): Promise<boolean> {
+async function deleteSubscription(subscriptionId: string): Promise<boolean> {
   try {
     const subscriptionRef = doc(db, FIREBASE_COLLECTION_NAMES.SUBSCRIPTIONS, subscriptionId)
     await deleteDoc(subscriptionRef)
@@ -211,10 +224,11 @@ export async function deleteSubscription(subscriptionId: string): Promise<boolea
   }
 }
 
+
 /**
  * Récupère toutes les souscriptions avec filtres
  */
-export async function getAllSubscriptions(filters: {
+async function getAllSubscriptions(filters: {
   userId?: string
   type?: MembershipType[]
   isValid?: boolean
@@ -282,10 +296,11 @@ export async function getAllSubscriptions(filters: {
   }
 }
 
+
 /**
  * Récupère les souscriptions qui expirent bientôt
  */
-export async function getExpiringSoonSubscriptions(daysBeforeExpiry: number = 30): Promise<Subscription[]> {
+async function getExpiringSoonSubscriptions(daysBeforeExpiry: number = 30): Promise<Subscription[]> {
   try {
     const now = new Date()
     const expiryThreshold = new Date()
@@ -328,10 +343,11 @@ export async function getExpiringSoonSubscriptions(daysBeforeExpiry: number = 30
   }
 }
 
+
 /**
  * Crée une souscription par défaut pour un nouveau membre
  */
-export async function createDefaultSubscription(
+async function createDefaultSubscription(
   userId: string, 
   membershipType: MembershipType,
   createdBy: string
@@ -365,3 +381,6 @@ export async function createDefaultSubscription(
     throw new Error('Impossible de créer la souscription par défaut')
   }
 }
+return { createSubscription, getSubscriptionById, getSubscriptionsByUserId, getActiveSubscriptionByUserId, updateSubscription, deleteSubscription, getAllSubscriptions, getExpiringSoonSubscriptions, createDefaultSubscription };
+}
+export const { createSubscription, getSubscriptionById, getSubscriptionsByUserId, getActiveSubscriptionByUserId, updateSubscription, deleteSubscription, getAllSubscriptions, getExpiringSoonSubscriptions, createDefaultSubscription } = createSubscriptionsRepository();

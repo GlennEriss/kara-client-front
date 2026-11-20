@@ -1,9 +1,12 @@
 'use client'
+import { ContractCardActions } from '@/components/shared/ContractCardActions'
+import { useCreditCardSummaries } from '@/hooks/credit-speciale/useCreditCardSummaries'
 import { isCreditContractLocked } from '@/utils/contract-lock'
+import { canUploadSignedCreditContract as canUploadSignedContract, hasCreditContractExtension, isCreditContractActivationUpload } from '@/utils/credit-contract-documents'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { ENDED_CREDIT_STATUSES } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
-import { getCreditContractEndDate, getCreditContractRemainingMonths, getCreditContractStartDates } from '@/services/credit-speciale/creditContractDates'
+import { getCreditContractEndDate, getCreditContractElapsedInstallments, getCreditContractRemainingMonths, getCreditContractStartDates } from '@/services/credit-speciale/creditContractDates'
 import { isWeeklyCredit } from '@/utils/credit-weekly'
 import { canCreditContractBeInFixedPhase, type CreditContractFixedPhase } from '@/utils/credit-speciale-history'
 
@@ -13,7 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ListPagination } from '@/components/ui/list-pagination'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import {
     DropdownMenu,
@@ -160,12 +163,6 @@ function canReplaceSignedContract(contract: CreditContract): boolean {
 /** L'accès au détail n'est autorisé qu'après téléversement du contrat signé */
 function canOpenContractDetail(contract: CreditContract): boolean {
   return Boolean(contract.signedContractUrl)
-}
-
-/** Autoriser le téléversement du contrat signé pour l'activation initiale ou après augmentation */
-function canUploadSignedContract(contract: CreditContract): boolean {
-  const uploadableStatuses: CreditContractStatus[] = ['PENDING', 'ACTIVE', 'PARTIAL', 'OVERDUE', 'BLOCKED']
-  return !contract.signedContractUrl && uploadableStatuses.includes(contract.status)
 }
 
 /** Contrat de remboursement disponible quand la quittance signée a été téléversée */
@@ -863,7 +860,7 @@ const ListContrats = ({
     orderByDirection: 'desc',
   }
 
-  const { data: contrats = [], isLoading: isLoadingContracts, error } = useCreditContracts(queryFilters)
+  const { data: contrats = [], isLoading: isLoadingContracts, error, refetch: refetchContracts } = useCreditContracts(queryFilters)
 
   // Onglet « En perte » : contrats terminés avec des pénalités impayées ou un
   // manque à gagner, et ceux clôturés en perte. Les pertes se calculent à
@@ -908,7 +905,7 @@ const ListContrats = ({
   const [showDeleteContractModal, setShowDeleteContractModal] = useState(false)
   const [selectedContractForDelete, setSelectedContractForDelete] = useState<CreditContract | null>(null)
   const [viewerDoc, setViewerDoc] = useState<ViewerDoc | null>(null)
-  const isUploadActivationFlow = selectedContractForUpload?.status === 'PENDING'
+  const isUploadActivationFlow = !!selectedContractForUpload && isCreditContractActivationUpload(selectedContractForUpload)
 
   // Ouvre la modale d'aperçu/téléchargement (mécanisme mobile unifié).
   const openCreditDocument = (contract: CreditContract, url: string | undefined | null, label: string, title: string) => {
@@ -968,7 +965,7 @@ const ListContrats = ({
   }
 
   const handleRefresh = async () => {
-    // Le refetch est géré automatiquement par React Query
+    await Promise.all([refetchContracts(), cardSummaries.refetch()])
   }
 
   const exportToExcel = async () => {
@@ -989,7 +986,7 @@ const ListContrats = ({
         'Statut',
         'Montant emprunté (FCFA)',
         'Montant total (FCFA)',
-        'Durée (mois)',
+        forcedCreditType === 'SPECIALE' || !forcedCreditType ? 'Durée — échéances passées (tous cycles)' : 'Durée (mois)',
         'Mensualité (FCFA)',
         'Montant versé (FCFA)',
         'Montant restant (FCFA)',
@@ -1113,7 +1110,7 @@ const ListContrats = ({
         'Statut',
         'Montant FCFA',
         'Total FCFA',
-        'Durée',
+        forcedCreditType === 'SPECIALE' || !forcedCreditType ? 'Échéances passées' : 'Durée',
         'Mensualité FCFA',
         'Versé FCFA',
         'Restant FCFA',
@@ -1422,7 +1419,7 @@ const ListContrats = ({
       getStatusLabel(contrat.status),
       formatAmount(contrat.amount),
       formatAmount(contrat.totalAmount),
-      contrat.duration,
+      contrat.creditType === 'SPECIALE' ? getCreditContractElapsedInstallments(contrat) : contrat.duration,
       formatAmount(contrat.monthlyPaymentAmount),
       formatAmount(contrat.amountPaid),
       formatAmount(contrat.amountRemaining),
@@ -1438,7 +1435,11 @@ const ListContrats = ({
   const totalPages = Math.ceil(filteredContrats.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentContrats = filteredContrats.slice(startIndex, endIndex)
+  const visibleContrats = filteredContrats.slice(startIndex, endIndex)
+  const cardSummaries = useCreditCardSummaries(visibleContrats)
+  const currentContrats = visibleContrats
+  const cardAmounts = (contract: CreditContract) => cardSummaries.data?.get(contract.id)
+  const cardTotalsLoading = visibleContrats.length > 0 && cardSummaries.isPending
 
   const renderPagination = () => {
     if (totalPages <= 1) return null
@@ -1464,13 +1465,13 @@ const ListContrats = ({
   }
 
   // Gestion des erreurs
-  if (error) {
+  if (error || cardSummaries.error) {
     return (
       <div className="space-y-8 animate-in fade-in-0 duration-500">
         <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50 shadow-lg">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <AlertDescription className="text-red-700 font-medium">
-            Une erreur est survenue lors du chargement des contrats : {error instanceof Error ? error.message : 'Erreur inconnue'}
+            Une erreur est survenue lors du chargement des contrats : {(error || cardSummaries.error) instanceof Error ? (error || cardSummaries.error)?.message : 'Erreur inconnue'}
             <Button
               variant="link"
               className="p-0 h-auto ml-2 text-red-700 underline font-bold hover:text-red-800"
@@ -1679,7 +1680,7 @@ const ListContrats = ({
       </Tabs>
 
       {/* Liste des contrats */}
-      {isLoading ? (
+      {isLoading || cardTotalsLoading ? (
         <div className={
           viewMode === 'grid'
             ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
@@ -1703,8 +1704,8 @@ const ListContrats = ({
               const scoreValue = contract.score
               const { startDate, initialStartDate, hasExtension } = getCreditContractStartDates(contract)
               const remainingMonths = getCreditContractRemainingMonths(contract)
-              const repaymentProgress = contract.totalAmount > 0
-                ? Math.min(100, Math.round(((contract.amountPaid || 0) / contract.totalAmount) * 100))
+              const repaymentProgress = (cardAmounts(contract)?.totalAmount || 0) > 0
+                ? Math.min(100, Math.round(((cardAmounts(contract)?.amountPaid || 0) / cardAmounts(contract)!.totalAmount) * 100))
                 : 0
 
               return (
@@ -1757,10 +1758,10 @@ const ListContrats = ({
                           )}
                         </div>
                         {remainingMonths !== null && (
-                          <div title="Mensualités prévues aujourd’hui ou à venir dans le cycle en cours">
-                            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mois restants</p>
+                          <div title="Échéances du cycle courant, à partir de la première date de paiement, et non du départ du calendrier">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Échéances à venir</p>
                             <p className="font-bold text-gray-900 tabular-nums text-sm">{remainingMonths} / {contract.duration}</p>
-                            <p className="mt-1 text-[10px] text-gray-500">Selon l&apos;échéancier actuel</p>
+                            <p className="mt-1 text-[10px] text-gray-500">1re échéance : {new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR')}</p>
                           </div>
                         )}
                         <div>
@@ -1801,7 +1802,7 @@ const ListContrats = ({
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Total versé</p>
                           <p className="font-bold text-gray-900 tabular-nums text-sm">
-                            {(contract.amountPaid || 0).toLocaleString('fr-FR')}{' '}
+                            {(cardAmounts(contract)?.amountPaid || 0).toLocaleString('fr-FR')}{' '}
                             <span className="text-[10px] font-normal text-gray-400">FCFA</span>
                           </p>
                         </div>
@@ -1820,7 +1821,7 @@ const ListContrats = ({
                           />
                         </div>
                         <p className="text-[11px] text-gray-400 tabular-nums">
-                          Reste {Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
+                          Reste {Math.round(cardAmounts(contract)?.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
                           {CREDIT_SCORING_ENABLED && scoreValue !== undefined && <> · Score {scoreValue}/10</>}
                         </p>
                         <ContractLossSummary loss={getContractLoss(contract.id)} />
@@ -1840,104 +1841,22 @@ const ListContrats = ({
                         )}
                       </div>
 
-                      {/* Actions : « Ouvrir » en primaire, secondaires en rangée compacte */}
-                      <div className="mt-auto space-y-2 border-t border-gray-100 pt-3">
-                        <Button
-                          onClick={() => {
-                            if (!canOpenContractDetail(contract)) return
-                            router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
-                          }}
-                          disabled={!canOpenContractDetail(contract)}
-                          className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-xs font-semibold"
-                        >
-                          <Eye className="mr-1.5 h-3.5 w-3.5" />
-                          Ouvrir
-                        </Button>
-
-                        <div className="flex flex-wrap gap-1.5">
-                          {hasSignedContract ? (
-                            <Button
-                              onClick={() => openCreditDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE', 'Contrat signé')}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                            >
-                              <FileText className="mr-1.5 h-3.5 w-3.5" />
-                              Voir
-                            </Button>
-                          ) : canUploadSignedContract(contract) ? (
-                            <Button
-                              onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 cursor-pointer rounded-lg border-orange-300 px-3 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
-                            >
-                              <Upload className="mr-1.5 h-3.5 w-3.5" />
-                              Téléverser
-                            </Button>
-                          ) : null}
-
-                          {hasSignedContract && canReplaceSignedContract(contract) && (
-                            <Button
-                              onClick={() => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 cursor-pointer rounded-lg border-amber-300 px-3 text-xs text-amber-700 hover:bg-amber-500 hover:text-white"
-                            >
-                              <FileText className="mr-1.5 h-3.5 w-3.5" />
-                              Remplacer
-                            </Button>
-                          )}
-
-                          {!isCreditContractLocked(contract.status) && (
-                            <Button
-                              onClick={contract.contractUrl
-                                ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat')
-                                : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 cursor-pointer rounded-lg border-gray-200 px-3 text-xs text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-                            >
-                              <Download className="mr-1.5 h-3.5 w-3.5" />
-                              Contrat
-                            </Button>
-                          )}
-
-                          {canViewRepaymentContract(contract) && (
-                            <Button
-                              onClick={() => openCreditDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE', 'Contrat de remboursement')}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 cursor-pointer rounded-lg border-blue-300 px-3 text-xs text-blue-700 hover:bg-blue-600 hover:text-white"
-                            >
-                              <Eye className="mr-1.5 h-3.5 w-3.5" />
-                              Remboursement
-                            </Button>
-                          )}
-
-                          <Button
-                            onClick={() => setSelectedContractForOverview(contract)}
-                            variant="outline"
-                            size="sm"
-                            className="h-8 cursor-pointer rounded-lg border-gray-200 px-3 text-xs text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-                          >
-                            <User className="mr-1.5 h-3.5 w-3.5" />
-                            Infos
-                          </Button>
-
-                          {!isCreditContractLocked(contract.status) && (
-                          <Button
-                            onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
-                            variant="outline"
-                            size="sm"
-                            className="h-8 cursor-pointer rounded-lg border-red-300 px-3 text-xs text-red-600 hover:bg-red-500 hover:text-white"
-                          >
-                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                            Supprimer
-                          </Button>
-                          )}
-                        </div>
-                      </div>
+                      <ContractCardActions
+                        contractId={contract.id}
+                        onOpen={() => {
+                          if (canOpenContractDetail(contract)) router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
+                        }}
+                        openDisabled={!canOpenContractDetail(contract)}
+                        actions={[
+                          { id: 'info', label: 'Voir les informations', icon: User, onSelect: () => setSelectedContractForOverview(contract) },
+                          { id: 'view', label: 'Voir le contrat signé', icon: Eye, onSelect: () => openCreditDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE', 'Contrat signé'), visible: hasSignedContract, group: 'documents' },
+                          { id: 'upload', label: hasSignedContract ? 'Téléverser un nouveau contrat signé' : 'Téléverser le contrat signé', icon: Upload, onSelect: () => { setSelectedContractForUpload(contract); setContractFile(undefined); setShowUploadModal(true) }, visible: canUploadSignedContract(contract), group: 'documents' },
+                          { id: 'replace', label: 'Remplacer le contrat signé', icon: FileText, onSelect: () => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }, visible: hasSignedContract && canReplaceSignedContract(contract), group: 'documents' },
+                          { id: 'pdf', label: contract.contractUrl ? 'Consulter le contrat PDF' : 'Générer le contrat PDF', icon: Download, onSelect: contract.contractUrl ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat') : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }, visible: !isCreditContractLocked(contract.status), group: 'documents' },
+                          { id: 'repayment', label: 'Contrat de remboursement', icon: FileText, onSelect: () => openCreditDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE', 'Contrat de remboursement'), visible: canViewRepaymentContract(contract), group: 'documents' },
+                          { id: 'delete', label: 'Supprimer le contrat', icon: Trash2, onSelect: () => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }, visible: !isCreditContractLocked(contract.status), destructive: true },
+                        ]}
+                      />
                     </CardContent>
                   </Card>
                 </div>
@@ -2004,17 +1923,17 @@ const ListContrats = ({
                         ) : '—'}
                       </td>
                       <td className="px-4 py-3 text-right font-medium text-green-700">{contract.amount.toLocaleString('fr-FR')} FCFA</td>
-                      <td className="px-4 py-3 text-right">{contract.amountPaid.toLocaleString('fr-FR')} FCFA</td>
+                      <td className="px-4 py-3 text-right">{(cardAmounts(contract)?.amountPaid || 0).toLocaleString('fr-FR')} FCFA</td>
                       <td className="px-4 py-3 text-right font-medium text-orange-600">
-                        {Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA
+                        {Math.round(cardAmounts(contract)?.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
                         <ContractLossSummary loss={getContractLoss(contract.id)} />
                         <ContractFixedPhaseSummary fixedPhase={getContractFixedPhase(contract.id)} />
                       </td>
                       <td className="px-4 py-3 text-right text-gray-700">
                         {contract.nextDueAt ? (contract.nextDueAt instanceof Date ? contract.nextDueAt.toLocaleDateString('fr-FR') : new Date(contract.nextDueAt).toLocaleDateString('fr-FR')) : '—'}
                         {getCreditContractRemainingMonths(contract) !== null && (
-                          <p className="mt-1 text-xs text-gray-500" title="Mensualités prévues aujourd’hui ou à venir dans le cycle en cours">
-                            {getCreditContractRemainingMonths(contract)} mois restants sur {contract.duration}
+                          <p className="mt-1 text-xs text-gray-500" title="Échéances du cycle courant, à partir de la première date de paiement, et non du départ du calendrier">
+                            {getCreditContractRemainingMonths(contract)} échéances à venir sur {contract.duration}
                           </p>
                         )}
                       </td>
@@ -2071,7 +1990,7 @@ const ListContrats = ({
                               {canUploadSignedContract(contract) && (
                                 <DropdownMenuItem onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }} className="cursor-pointer">
                                   <Upload className="h-4 w-4 mr-2" />
-                                  {contract.status === 'PENDING' ? 'Téléverser contrat signé' : 'Téléverser nouveau contrat signé'}
+                                  {hasCreditContractExtension(contract) ? 'Téléverser un nouveau contrat signé' : 'Téléverser le contrat signé'}
                                 </DropdownMenuItem>
                               )}
                               {canReplaceSignedContract(contract) && (
@@ -2291,11 +2210,11 @@ const ListContrats = ({
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
                               <p className="text-[11px] uppercase tracking-wide text-slate-500">Déjà versé</p>
-                              <p className="text-base font-semibold text-slate-900">{(contract.amountPaid || 0).toLocaleString('fr-FR')} FCFA</p>
+                              <p className="text-base font-semibold text-slate-900">{(cardAmounts(contract)?.amountPaid || 0).toLocaleString('fr-FR')} FCFA</p>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
                               <p className="text-[11px] uppercase tracking-wide text-slate-500">Reste à payer</p>
-                              <p className="text-base font-semibold text-slate-900">{Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA</p>
+                              <p className="text-base font-semibold text-slate-900">{Math.round(cardAmounts(contract)?.amountRemaining || 0).toLocaleString('fr-FR')} FCFA</p>
                             </div>
                           </div>
                         </div>
@@ -2315,7 +2234,7 @@ const ListContrats = ({
                             </div>
                             {remainingMonths !== null && (
                               <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
-                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Mois restants</p>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Échéances à venir</p>
                                 <p className="text-base font-semibold text-slate-900">{remainingMonths} sur {contract.duration}</p>
                                 <p className="mt-1 text-xs text-slate-500">Mensualités prévues aujourd&apos;hui ou à venir</p>
                               </div>
@@ -2369,11 +2288,11 @@ const ListContrats = ({
         <ModalContent size="sm">
           <ModalHeader
             icon={Upload}
-            title="Téléverser le contrat signé"
+            title={selectedContractForUpload && hasCreditContractExtension(selectedContractForUpload) ? 'Téléverser un nouveau contrat signé' : 'Téléverser le contrat signé'}
             description={
               isUploadActivationFlow
                 ? 'Téléversez le contrat signé par le client. Le contrat sera automatiquement activé après l\'upload.'
-                : 'Téléversez le nouveau contrat signé par le client après augmentation du crédit.'
+                : 'Ajoutez le contrat signé. Les versions précédentes sont conservées ; le statut et la date de remise des fonds restent inchangés.'
             }
           />
 

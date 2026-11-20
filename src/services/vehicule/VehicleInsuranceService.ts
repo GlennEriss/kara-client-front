@@ -4,6 +4,7 @@ import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsur
 import { NotificationService } from '@/services/notifications/NotificationService'
 import { VehicleDeclarationCorrection, VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult, VehicleInsuranceStats, VehicleInsuranceStatus } from '@/types/types'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
+import { pickVehicleLocation } from '@/domains/vehicles/location'
 
 type CreatePayload = VehicleInsuranceFormValues & {
   memberContacts?: string[]
@@ -13,8 +14,8 @@ type CreatePayload = VehicleInsuranceFormValues & {
 export class VehicleInsuranceService {
   private notificationService: NotificationService
 
-  constructor(private readonly repository: VehicleInsuranceRepository = RepositoryFactory.getVehicleInsuranceRepository()) {
-    this.notificationService = ServiceFactory.getNotificationService()
+  constructor(private readonly repository: VehicleInsuranceRepository = RepositoryFactory.getVehicleInsuranceRepository(), notificationService?: NotificationService) {
+    this.notificationService = notificationService ?? ServiceFactory.getNotificationService()
   }
 
   list(filters?: VehicleInsuranceFilters, page: number = 1, pageSize: number = 12): Promise<VehicleInsuranceListResult> {
@@ -43,6 +44,7 @@ export class VehicleInsuranceService {
     const entity: any = {
       holderType: payload.holderType,
       city: payload.city,
+      ...pickVehicleLocation(payload),
       primaryPhone: primaryPhone || null,
       // Champs pour membre
       memberId: payload.holderType === 'member' ? payload.memberId : undefined,
@@ -357,4 +359,3 @@ export class VehicleInsuranceService {
     return cleaned
   }
 }
-

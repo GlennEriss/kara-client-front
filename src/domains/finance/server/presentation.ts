@@ -1,25 +1,49 @@
+import { projectContractCard } from './contract-card'
+import { computeMissedEarningsBalance, computePostTermPenaltyBalance } from '@/utils/credit-losses'
+import {
+  isCreditContractEnded,
+  computeWriteOffLoss,
+} from '@/utils/credit-write-off'
+import { isCreditModule, creditTypeForModule } from '../credit-module'
 /* eslint-disable no-restricted-imports -- Réutilise les calculs métier purs du site pour préserver les échéances et les soldes. */
 import { fromFirestore } from '@/domains/mobile/server/calendar-service'
 import {
   businessWallTime,
   withBusinessDates,
   getMobileCIDueDate,
+  civilDayToTimestamp,
 } from '@/domains/mobile/server/calendar-dates'
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 import {
   computeDueAt,
+  addContractMonths,
   resolveContractEndAt,
 } from '@/services/caisse/contractDates'
 import {
   getPaymentDueDate,
   getContractEndDate,
+  getMonthPeriod,
 } from '@/utils/caisse-imprevue-utils'
-import { findOverdueMonths } from '@/services/caisse-imprevue/overdueDetection'
-import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
+import {
+  findOverdueMonths,
+  summarizeOverdue,
+} from '@/services/caisse-imprevue/overdueDetection'
+import {
+  getCreditContractEndDate,
+  getCreditContractStartDates,
+  getCreditContractRemainingMonths,
+} from '@/services/credit-speciale/creditContractDates'
 import {
   getCreditContractFixedPhase,
   canCreditContractBeInFixedPhase,
 } from '@/utils/credit-speciale-history'
+import { creditContractSummary } from '@/utils/credit-contract-summary'
+import {
+  computeWeeklyCreditTotals,
+  isFlatCredit,
+  isWeeklyCredit,
+} from '@/utils/credit-weekly'
+import { getWeeklyInterestEndDate } from '@/utils/credit-periods'
 import { computeCreditInstallments } from '@/utils/credit-installments'
 import type { CreditContract, CreditPayment } from '@/types/types'
 import type { FinanceModule } from '../actions'
@@ -28,6 +52,7 @@ import { enrichFinanceRows, financeCollection } from './read-model'
 
 type Row = Record<string, any>
 export interface PresentationFilters {
+  memberId?: string
   search?: string
   status?: string
   type?: string
@@ -91,6 +116,11 @@ export function filterPresentedRows(
     const v = row.financeView
     if (!v) return false
     if (
+      input.memberId &&
+      ![row.memberId, row.clientId].includes(input.memberId)
+    )
+      return false
+    if (
       input.search &&
       !normalize(
         [
@@ -135,7 +165,15 @@ export function filterPresentedRows(
     if (input.tab === 'closed' && !ended.has(row.status)) return false
     if (input.tab === 'overdue' && !v.overdue) return false
     if (input.tab === 'fixed' && !v.fixedPhase) return false
-    if (input.tab === 'writtenOff' && row.status !== 'WRITTEN_OFF') return false
+    if (
+      input.tab === 'writtenOff' &&
+      row.status !== 'WRITTEN_OFF' &&
+      !(
+        row.contractCard?.credit?.losses?.unpaidPenalties > 0 ||
+        row.contractCard?.credit?.losses?.missedEarnings > 0
+      )
+    )
+      return false
     if (input.tab === 'currentMonth' && day(v.nextDueAt).slice(0, 7) !== month)
       return false
     return (
@@ -157,7 +195,7 @@ export function summarizePresentedRows(rows: Row[], module: FinanceModule) {
     rows.reduce((total, r) => total + number(r.financeView[key]), 0)
   const byType = new Map<string, number>()
   for (const row of rows) {
-    const key = module === 'credit-speciale' ? row.status : row.financeView.type
+    const key = isCreditModule(module) ? row.status : row.financeView.type
     byType.set(key, (byType.get(key) || 0) + 1)
   }
   return {
@@ -165,10 +203,9 @@ export function summarizePresentedRows(rows: Row[], module: FinanceModule) {
     active: count('ACTIVE'),
     closed: rows.filter((r) => ended.has(r.status)).length,
     partial: count('PARTIAL'),
-    overdue:
-      module === 'credit-speciale'
-        ? count('OVERDUE')
-        : rows.filter((r) => r.financeView.overdue).length,
+    overdue: isCreditModule(module)
+      ? count('OVERDUE')
+      : rows.filter((r) => r.financeView.overdue).length,
     finished: count('FINISHED'),
     canceled: count('CANCELED', 'RESCINDED'),
     transformed: count('TRANSFORMED'),
@@ -190,7 +227,7 @@ export function financeTimeline(
   payments: Row[],
   now = new Date(),
 ) {
-  if (module === 'credit-speciale') return []
+  if (isCreditModule(module)) return []
   const cs = module === 'caisse-speciale'
   const duration = number(cs ? row.monthsPlanned : row.subscriptionCIDuration)
   if (duration > 1200) throw new Error('Durée du contrat invalide.')
@@ -212,6 +249,29 @@ export function financeTimeline(
       ? computeDueAt(row.contractStartAt, index, row.caisseType)
       : getMobileCIDueDate(row, index)
     const isPaid = payment?.status === 'PAID' || (target > 0 && paid >= target)
+    // Same monthly bounds as StandardContract; daily savings use 30-day periods.
+    const start = row.contractStartAt || row.firstPaymentDate
+    const monthlyStart = start ? addContractMonths(start, index) : null
+    const monthlyEnd = start ? addContractMonths(start, index + 1) : null
+    if (monthlyEnd) monthlyEnd.setDate(monthlyEnd.getDate() - 1)
+    const daily =
+      (cs && String(row.caisseType).startsWith('JOURNALIERE')) ||
+      (!cs && row.paymentFrequency === 'DAILY')
+    const period =
+      daily && start
+        ? getMonthPeriod(index, String(start))
+        : cs && monthlyStart && monthlyEnd
+          ? { startDate: monthlyStart, endDate: monthlyEnd }
+          : null
+    const recorded = cs
+      ? payment?.contribs?.length
+        ? payment.contribs
+        : payment?.groupContributions?.length
+          ? payment.groupContributions
+          : payment?.paidAt
+            ? [payment]
+            : []
+      : payment?.versements || []
     return {
       id: payment?.id || `month-${index}`,
       paymentId: payment?.id,
@@ -220,6 +280,17 @@ export function financeTimeline(
       totalAmount: target,
       paidAmount: paid,
       remainingAmount: Math.max(0, target - paid),
+      period: period
+        ? { startDate: date(period.startDate), endDate: date(period.endDate) }
+        : null,
+      recordedPayments: recorded.map((entry: Row) => ({
+        id: entry.id || payment?.id,
+        amount: entry.amount ?? entry.accumulatedAmount,
+        date: date(entry.paidAt || entry.date || entry.paymentDate),
+        time: entry.time || entry.paymentTime || null,
+        mode: entry.mode || entry.paymentMode || null,
+        withFees: entry.withFees ?? null,
+      })),
       status: isPaid
         ? 'PAID'
         : !ended.has(row.status) && due && day(due) < day(now)
@@ -240,8 +311,8 @@ export async function presentedContracts(
   let source = services.db
     .collection(financeCollection(module, 'contract'))
     .limit(5001)
-  if (module === 'credit-speciale')
-    source = source.where('creditType', '==', 'SPECIALE')
+  if (isCreditModule(module))
+    source = source.where('creditType', '==', creditTypeForModule(module))
   const snapshot = await source.get()
   if (snapshot.size > 5000)
     throw new Error(
@@ -258,17 +329,16 @@ export async function presentedContracts(
   )
   const named = await enrichFinanceRows(services, module, raw)
   const now = new Date()
-  const penalties =
-    module === 'credit-speciale'
-      ? await services.creditPenalties.getAllPenalties()
-      : []
+  const penalties = isCreditModule(module)
+    ? await services.creditPenalties.getAllPenalties()
+    : []
   const rows: Row[] = await mapWithConcurrency(named, 6, (row) =>
     projectFinanceContract(
       services,
       module,
       row,
       now,
-      module === 'credit-speciale'
+      isCreditModule(module)
         ? { penalties: penalties.filter((p) => p.creditId === row.id) }
         : {},
     ),
@@ -325,6 +395,9 @@ export async function projectFinanceContract(
     overdue = false,
     fixedPhase = false,
     penalties = number(row.penaltiesTotal)
+  let cardCredit: Row | null = null
+  let overdueSummary = null
+  let creditRemaining: number | undefined
   let refunds: Row[] = []
   if (module === 'caisse-speciale') {
     const payments: Row[] =
@@ -360,7 +433,10 @@ export async function projectFinanceContract(
     monthly = number(row.subscriptionCIAmountPerMonth)
     duration = number(row.subscriptionCIDuration)
     paid = payments.reduce((s, p) => s + number(p.accumulatedAmount), 0)
-    total = monthly * duration
+    total =
+      row.subscriptionCINominal != null
+        ? number(row.subscriptionCINominal)
+        : monthly * duration
     paidPeriods = payments.filter(
       (p) =>
         p.status === 'PAID' ||
@@ -378,9 +454,13 @@ export async function projectFinanceContract(
     nextDueAt =
       firstUnpaid == null ? null : getPaymentDueDate(contract, firstUnpaid)
     endAt = getContractEndDate(contract)
-    overdue =
-      row.status === 'ACTIVE' &&
-      findOverdueMonths(contract, payments, { today: wallNow }).length > 0
+    overdueSummary =
+      row.status === 'ACTIVE'
+        ? summarizeOverdue(
+            findOverdueMonths(contract, payments, { today: wallNow }),
+          )
+        : null
+    overdue = !!overdueSummary
     refunds =
       loaded.refunds ||
       (await services.ciRefunds.getEarlyRefundsByContractId(row.id))
@@ -396,8 +476,10 @@ export async function projectFinanceContract(
     )
     monthly = number(row.monthlyPaymentAmount)
     duration = number(row.duration)
-    paid = number(row.amountPaid)
-    total = number(row.totalAmount)
+    const totals = creditContractSummary(contract as CreditContract, normalized)
+    creditRemaining = totals.remaining
+    paid = totals.paid
+    total = totals.total
     paidPeriods = installments.filter((p) => p.status === 'PAID').length
     nextDueAt =
       installments.find((p) => p.status !== 'PAID')?.dueDate || row.nextDueAt
@@ -413,18 +495,74 @@ export async function projectFinanceContract(
       loaded.penalties ||
       (await services.creditSpeciale.getPenaltiesByCreditId(row.id))
     penalties = penaltyRows.reduce((s, p) => s + number(p.amount), 0)
+    const starts = getCreditContractStartDates(contract)
+    const weekly = isWeeklyCredit(contract)
+    const initialWeeklyTotals = weekly
+      ? computeWeeklyCreditTotals(contract.amount, contract.interestRate)
+      : null
+    const civilDate = (value: Date | null | undefined) =>
+      value && !Number.isNaN(value.getTime())
+        ? date(civilDayToTimestamp(value))
+        : null
+    const unpaid = penaltyRows.filter((p) => !p.paid)
+    cardCredit = {
+      startAt: weekly ? civilDate(starts.startDate) : date(starts.startDate),
+      initialStartAt: starts.hasExtension
+        ? date(starts.initialStartDate)
+        : null,
+      hasExtension: starts.hasExtension,
+      remainingMonths: getCreditContractRemainingMonths(contract, wallNow),
+      ...(weekly && initialWeeklyTotals
+        ? {
+            weekly: {
+              weeks: contract.duration,
+              firstDueAt: civilDate(contract.firstPaymentDate),
+              interestEndAt: isFlatCredit(contract)
+                ? null
+                : civilDate(getWeeklyInterestEndDate(contract)),
+              initialInterestAmount: initialWeeklyTotals.interest,
+              initialDueAmount: initialWeeklyTotals.totalAmount,
+              recurring: !isFlatCredit(contract),
+              periodDays: isFlatCredit(contract) ? null : 7,
+            },
+          }
+        : {}),
+      fixedPhase: fixed || null,
+      losses: isCreditContractEnded(row.status)
+        ? {
+            unpaidPenalties: unpaid.reduce(
+              (sum, p) => sum + number(p.amount),
+              computePostTermPenaltyBalance(contract, normalized, wallNow).net,
+            ),
+            unpaidPenaltiesCount: unpaid.length,
+            missedEarnings: computeMissedEarningsBalance(
+              contract,
+              normalized,
+              wallNow,
+            ).net,
+            ...(row.writeOff
+              ? { writeOff: computeWriteOffLoss(contract) }
+              : {}),
+          }
+        : null,
+    }
   }
   return {
     ...row,
+    contractCard: projectContractCard(module, row, {
+      refunds,
+      overdueSummary,
+      credit: cardCredit,
+      paidPeriods,
+      duration,
+      progress: total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0,
+    }),
     financeView: {
       monthly,
       paid,
       total,
       penalties,
-      remaining:
-        module === 'credit-speciale'
-          ? number(row.amountRemaining)
-          : Math.max(0, total - paid),
+      remaining: creditRemaining ?? Math.max(0, total - paid),
       duration,
       durationUnit: row.durationUnit || 'MONTHS',
       paidPeriods,

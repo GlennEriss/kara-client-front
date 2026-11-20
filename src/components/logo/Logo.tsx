@@ -2,6 +2,7 @@
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import React from 'react'
+import { karaLogo, karaLogoWithBackground } from './assets'
 
 export interface LogoProps {
   /**
@@ -134,9 +135,9 @@ const Logo: React.FC<LogoProps> = ({
   const getImageSrc = () => {
     switch (variant) {
       case 'with-bg':
-        return '/Logo-Kara-bg.jpg'
+        return karaLogoWithBackground
       default:
-        return '/Logo-Kara.webp'
+        return karaLogo
     }
   }
 
@@ -155,6 +156,7 @@ const Logo: React.FC<LogoProps> = ({
     <div className={cn('inline-block', clickable && 'cursor-pointer')} onClick={clickable ? onClick : undefined}>
       <Image
         {...imageProps}
+        unoptimized
         style={{
           width: 'auto',
           height: 'auto',

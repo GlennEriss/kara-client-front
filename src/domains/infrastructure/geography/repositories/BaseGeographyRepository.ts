@@ -1,4 +1,5 @@
 import { IRepository } from '@/repositories/IRepository'
+import { geographySearchText } from '../utils/search-text'
 import type { PaginatedResult, QueryOptions, CountCache } from '../types/pagination.types'
 
 const getFirestore = () => import('@/firebase/firestore')
@@ -26,12 +27,7 @@ export abstract class BaseGeographyRepository<T extends { id: string; name: stri
    * Génère le texte de recherche (lowercase, sans accents)
    */
   protected generateSearchableText(name: string, ...additionalFields: (string | undefined)[]): string {
-    const fields = [name, ...additionalFields].filter(Boolean)
-    return fields
-      .join(' ')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Supprime les accents
+    return geographySearchText(name, ...additionalFields)
   }
 
   /**

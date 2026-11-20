@@ -1,3 +1,4 @@
+import { isCreditModule, creditTypeForModule } from '../credit-module'
 import { z } from 'zod'
 import {
   asDate,
@@ -202,7 +203,7 @@ export function demandActions(module: FinanceModule): FinanceAction[] {
           guarantorFirstName: guarantor?.firstName,
           guarantorLastName: guarantor?.lastName,
           guarantorIsMember: !!guarantor,
-          creditType: 'SPECIALE',
+          creditType: creditTypeForModule(module),
           status: 'PENDING',
           createdBy: uid,
         })
@@ -221,7 +222,7 @@ export function demandActions(module: FinanceModule): FinanceAction[] {
             data,
             ctx.caller.claims.uid,
           )
-        if (module === 'credit-speciale')
+        if (isCreditModule(module))
           return ctx.services.creditSpeciale.updateDemandDetails(
             ctx.id,
             data,
@@ -308,7 +309,7 @@ export function demandActions(module: FinanceModule): FinanceAction[] {
       async (ctx) => {
         if (module === 'caisse-speciale')
           return ctx.services.caisseSpeciale.deleteDemand(ctx.id)
-        if (module === 'credit-speciale')
+        if (isCreditModule(module))
           return ctx.services.creditSpeciale.deleteDemand(ctx.id)
         return ctx.services.ciDemandService.deleteDemand(
           ctx.id,
@@ -322,16 +323,47 @@ export function demandActions(module: FinanceModule): FinanceAction[] {
       'Créer le contrat',
       'demand',
       'validate',
-      module === 'credit-speciale'
+      isCreditModule(module)
         ? [
-            ...simulationFields,
+            ...simulationFields.map((f) => {
+              if (!['credit-fixe', 'caisse-aide'].includes(module)) return f
+              const maxDuration = module === 'credit-fixe' ? 14 : 3
+              if (f.key === 'interestRate')
+                return field(
+                  'interestRate',
+                  'Taux d’intérêt (%)',
+                  'number',
+                  z
+                    .number()
+                    .min(0)
+                    .max(module === 'credit-fixe' ? 50 : 5),
+                  { min: 0, max: module === 'credit-fixe' ? 50 : 5 },
+                )
+              if (f.key === 'duration')
+                return numberField('duration', 'Durée (mois)', 1, maxDuration)
+              if (f.key === 'durationUnit')
+                return {
+                  ...selectField(
+                    'durationUnit',
+                    'Unité de durée',
+                    [{ value: 'MONTHS', label: 'Mois' }],
+                    true,
+                  ),
+                  initial: 'MONTHS',
+                }
+              return f
+            }),
             contactField,
-            field(
-              'guarantorRemunerationPercentage',
-              'Commission du garant (%)',
-              'number',
-              z.number().min(0).max(100).optional(),
-            ),
+            ...(module === 'credit-speciale'
+              ? [
+                  field(
+                    'guarantorRemunerationPercentage',
+                    'Commission du garant (%)',
+                    'number',
+                    z.number().min(0).max(100).optional(),
+                  ),
+                ]
+              : []),
             selectField(
               'disbursementPaymentMode',
               'Moyen de décaissement',

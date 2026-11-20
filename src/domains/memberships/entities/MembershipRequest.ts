@@ -71,6 +71,7 @@ export interface PaymentInfo {
   paymentMethodOther?: string // Obligatoire si mode = other
   proofUrl?: string // URL de la preuve de paiement (upload image)
   proofPath?: string // Chemin Firebase Storage de la preuve
+  proofJustification?: string // Motif lorsque la preuve n’est pas disponible
   // Traçabilité : qui a enregistré et quand (ajoutés automatiquement par le service)
   recordedBy?: string // ID de l'admin qui enregistre (ajouté par le service)
   recordedByName?: string // Nom complet de l'admin (prénom + nom) (ajouté par le service)

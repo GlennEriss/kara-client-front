@@ -167,15 +167,13 @@ export function createFinanceServices(caller: MobileCaller) {
     resolveIsSuperAdmin: async () => caller.access.isSuperAdmin,
     logAdminAction: async (input) => {
       try {
-        await db
-          .collection(names.auditLogs)
-          .add(
-            cleanFinanceWrite({
-              ...input,
-              adminId: caller.claims.uid,
-              createdAt: new Date(),
-            }),
-          )
+        await db.collection(names.auditLogs).add(
+          cleanFinanceWrite({
+            ...input,
+            adminId: caller.claims.uid,
+            createdAt: new Date(),
+          }),
+        )
       } catch {
         /* L’audit ne doit pas interrompre un versement enregistré. */
       }

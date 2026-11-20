@@ -20,6 +20,7 @@ import { requiredViewPermissionForPath, isOpenToRestrictedRole } from "@/constan
 import { useAuth } from "@/hooks/useAuth";
 import { useMyAccess } from "@/hooks/useMyAccess";
 import { useLogout } from "@/domains/auth/hooks";
+import { karaLogo } from '@/components/logo/assets'
 import { cn } from "@/lib/utils";
 import {
   Briefcase,
@@ -512,7 +513,8 @@ export function AppSidebar() {
             style={{ background: "rgba(203,177,113,0.15)" }}
           >
             <Image
-              src="/Logo-Kara.webp"
+              src={karaLogo}
+              unoptimized
               alt="LE KARA"
               width={24}
               height={24}

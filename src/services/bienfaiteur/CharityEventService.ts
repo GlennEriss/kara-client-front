@@ -2,8 +2,12 @@ import { CharityEventRepository, PaginatedCharityEvents } from '@/repositories/b
 import { CharityContributionRepository } from '@/repositories/bienfaiteur/CharityContributionRepository'
 import { CharityParticipantRepository } from '@/repositories/bienfaiteur/CharityParticipantRepository'
 import { CharityEvent, CharityEventFilters, CharityGlobalStats } from '@/types/types'
+const createCharityEventServiceDefaults = {CharityEventRepository,CharityContributionRepository,CharityParticipantRepository};
+export function createCharityEventService(overrides: Partial<typeof createCharityEventServiceDefaults> = {}) {
+const {CharityEventRepository,CharityContributionRepository,CharityParticipantRepository} = {...createCharityEventServiceDefaults,...overrides};
 
-export class CharityEventService {
+
+class CharityEventService {
   /**
    * Récupère les évènements avec pagination
    */
@@ -220,4 +224,7 @@ export class CharityEventService {
       .replace(/^-+|-+$/g, '')
   }
 }
-
+return {CharityEventService};
+}
+export const {CharityEventService} = createCharityEventService();
+export type CharityEventService = InstanceType<ReturnType<typeof createCharityEventService>['CharityEventService']>;

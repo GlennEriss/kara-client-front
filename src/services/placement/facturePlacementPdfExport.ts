@@ -1,3 +1,4 @@
+import type {FinancePdfDelivery} from '@/services/finance-pdf-delivery'
 import { getMemberQuarterForPdf } from '@/utils/versement-history'
 import { getNationalityName } from '@/constantes/nationality'
 import { CommissionPaymentPlacement, PaymentMode, Placement, User } from '@/types/types'
@@ -217,14 +218,14 @@ export const generatePlacementFacturePDF = async ({
   versements,
   filename,
   title = 'HISTORIQUE VERSEMENTS PLACEMENT',
-}: GeneratePlacementFactureOptions) => {
+}: GeneratePlacementFactureOptions,delivery?:FinancePdfDelivery) => {
   if (!versements.length) {
     throw new Error('Aucun versement disponible pour générer la facture')
   }
 
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const logoData = await loadFactureCreditSpecialLogoDataUrl()
+  const logoData = delivery?delivery.logo:await loadFactureCreditSpecialLogoDataUrl()
   const totalPages = 1 + versements.length
 
   drawFactureCreditSpecialPage1(doc, page1Data, logoData, 1, totalPages, title)
@@ -234,7 +235,8 @@ export const generatePlacementFacturePDF = async ({
     drawVersementPage(doc, versement, index + 2, totalPages)
   })
 
-  doc.save(filename)
+  if(delivery)await delivery.deliver(doc,filename)
+  else doc.save(filename)
 }
 
 export const mapCommissionToPlacementVersement = (params: {

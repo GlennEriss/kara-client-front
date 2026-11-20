@@ -1,3 +1,5 @@
+import { mobileSections } from '../sections'
+import { adminAccessRedirect } from '@/domains/auth/access-policy'
 import { adminAuth } from '@/firebase/adminAuth'
 import { adminFirestore } from '@/firebase/adminFirestore'
 import { loadAdminAccess } from '@/domains/auth/server/admin-access'
@@ -20,7 +22,8 @@ export function mobileCapabilities(access: ResolvedAdminAccess) {
     dashboard: !access.isAgent,
     calendar: canWithAccess(access, 'calendar.view'),
     amounts: access.restrictedRole !== 'AgentRecouvrement',
-    finance: Object.fromEntries([['caisse-speciale','caisseSpeciale'],['caisse-imprevue','caisseImprevue'],['credit-speciale','creditSpeciale']].map(([key,prefix])=>[key, access.restrictedRole !== 'AgentRecouvrement' && canWithAccess(access, `${prefix}.view`)])),
+    sections: Object.fromEntries(mobileSections.map(section => [section.key, (!section.superAdminOnly || access.isSuperAdmin) && (!section.permission || canWithAccess(access, section.permission)) && !adminAccessRedirect(section.path, access)])),
+    finance: Object.fromEntries([['caisse-speciale','caisseSpeciale'],['caisse-imprevue','caisseImprevue'],['credit-speciale','creditSpeciale'],['credit-fixe','creditFixe'],['caisse-aide','creditAide']].map(([key,prefix])=>[key, access.restrictedRole !== 'AgentRecouvrement' && canWithAccess(access, `${prefix}.view`)])),
   }
 }
 /** Les routes mobiles demandent un ID token Firebase, jamais un rôle fourni par le client. */
@@ -38,7 +41,7 @@ export async function requireMobileCaller(request: NextRequest, feature?: 'dashb
     const mustChangePassword = ref ? (await ref.get()).data()?.mustChangePassword === true : false
     if (feature && mustChangePassword) return mobileJson({ error: 'Choisissez votre mot de passe personnel avant de continuer.' }, 403)
     const capabilities = mobileCapabilities(access)
-    if (!capabilities.dashboard && !capabilities.calendar) return mobileJson({ error: 'Votre compte ne dispose pas d’un accès aux écrans mobiles.' }, 403)
+    if (!capabilities.dashboard && !capabilities.calendar && !Object.values(capabilities.sections).some(Boolean)) return mobileJson({ error: 'Votre compte ne dispose pas d’un accès aux écrans mobiles.' }, 403)
     if (feature && !capabilities[feature]) return mobileJson({ error: 'Vos permissions ne permettent pas d’accéder à cet écran.' }, 403)
     return { claims, access, mustChangePassword }
   } catch {

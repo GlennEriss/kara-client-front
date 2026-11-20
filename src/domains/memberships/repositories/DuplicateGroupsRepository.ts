@@ -15,6 +15,10 @@ import {
   limit,
 } from '@/firebase/firestore'
 import type { DuplicateGroup, DuplicateGroupType } from '../entities/DuplicateGroup'
+const createDuplicateGroupsRepositoryDefaults = {db,collection,query,where,getDocs,doc,updateDoc,serverTimestamp,limit};
+export function createDuplicateGroupsRepository(overrides: Partial<typeof createDuplicateGroupsRepositoryDefaults> = {}) {
+const {db,collection,query,where,getDocs,doc,updateDoc,serverTimestamp,limit} = {...createDuplicateGroupsRepositoryDefaults,...overrides};
+
 
 const COLLECTION = 'duplicate-groups'
 
@@ -32,7 +36,7 @@ function toDuplicateGroup(id: string, data: Record<string, unknown>): DuplicateG
   }
 }
 
-export class DuplicateGroupsRepository {
+class DuplicateGroupsRepository {
   private static instance: DuplicateGroupsRepository
 
   static getInstance(): DuplicateGroupsRepository {
@@ -78,3 +82,7 @@ export class DuplicateGroupsRepository {
     })
   }
 }
+return {DuplicateGroupsRepository};
+}
+export const {DuplicateGroupsRepository} = createDuplicateGroupsRepository();
+export type DuplicateGroupsRepository = InstanceType<ReturnType<typeof createDuplicateGroupsRepository>['DuplicateGroupsRepository']>;

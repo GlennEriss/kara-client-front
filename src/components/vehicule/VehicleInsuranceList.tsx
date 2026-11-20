@@ -2,6 +2,7 @@
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { PageHero } from '@/components/ui/page-hero'
@@ -56,6 +57,8 @@ const EXPORT_HEADERS = [
   'NOMS',
   'PRENOMS',
   'VILLE',
+  'QUARTIER',
+  'EMPLACEMENT',
   'TEL',
   'MARQUE VEHICULE',
   'TYPE DE VIHUCLE',
@@ -80,6 +83,8 @@ export function VehicleInsuranceList() {
     ...DEFAULT_FILTERS,
     ...(searchParams.get('statut') ? { status: searchParams.get('statut') as VehicleInsuranceFilters['status'] } : {}),
     ...(searchParams.get('type') ? { vehicleType: searchParams.get('type') as VehicleInsuranceFilters['vehicleType'] } : {}),
+    ...(searchParams.get('quarterId') ? { quarterId: searchParams.get('quarterId')! } : {}),
+    ...(searchParams.get('locationMissing') === 'true' ? { locationMissing: true } : {}),
     ...(searchParams.get('q') ? { searchQuery: searchParams.get('q') as string } : {}),
   }))
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
@@ -95,6 +100,8 @@ export function VehicleInsuranceList() {
     statut: filters.status && filters.status !== 'all' ? filters.status : null,
     type: filters.vehicleType && filters.vehicleType !== 'all' ? filters.vehicleType : null,
     q: filters.searchQuery || null,
+    quarterId: filters.quarterId || null,
+    locationMissing: filters.locationMissing ? 'true' : null,
     page: page > 1 ? page : null,
     limit: pageSize !== 10 ? pageSize : null,
     vue: view === 'pending' ? 'a-valider' : view === 'rewards' ? 'reversements' : null,
@@ -177,6 +184,8 @@ export function VehicleInsuranceList() {
         lastName,
         firstName,
         insurance.city || '',
+        insurance.quarter || '',
+        insurance.locationType === 'other' ? insurance.locationDetails || '' : '',
         phone,
         brand,
         vehicleType,
@@ -386,6 +395,7 @@ export function VehicleInsuranceList() {
         }
         action={
           <div className="flex flex-wrap gap-2 md:gap-3">
+            <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20"><Link href="/vehicules/prospection">Prospection assurance</Link></Button>
             {canExport && (
               <Button
                 type="button"
@@ -476,7 +486,7 @@ export function VehicleInsuranceList() {
         <VehicleRewardsPanel canManage={can('vehicules.edit')} />
       ) : (
       <>
-      <FiltersComponent filters={filters} onChange={next => {
+      <FiltersComponent quarters={stats?.locations?.quarters} filters={filters} onChange={next => {
         setFilters(next)
         setPage(1)
       }} onReset={() => {

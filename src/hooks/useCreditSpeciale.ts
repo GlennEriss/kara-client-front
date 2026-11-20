@@ -260,8 +260,8 @@ export function useCreditContractMutations() {
             qc.invalidateQueries({ queryKey: ['creditContract'] })
             qc.invalidateQueries({ queryKey: ['creditContracts'] })
             qc.invalidateQueries({ queryKey: ['creditContractsStats'] })
-            toast.success('Contrat signé téléversé et contrat activé avec succès')
-            log({ action: 'validate', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: variables.contractId, description: 'Téléversement du contrat signé et activation du contrat de crédit' })
+            toast.success('Contrat signé téléversé avec succès')
+            log({ action: 'validate', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: variables.contractId, description: 'Téléversement du contrat signé du crédit' })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors du téléversement du contrat signé')

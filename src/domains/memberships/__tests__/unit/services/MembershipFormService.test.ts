@@ -15,7 +15,7 @@ import type { RegisterFormData } from '@/types/types'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 
 // Mock des dépendances
-vi.mock('../../../repositories/MembershipRepositoryV2')
+vi.mock('../../../repositories/MembershipRepositoryV2', () => ({ MembershipRepositoryV2: { getInstance: vi.fn() } }))
 vi.mock('../../../services/MembershipErrorHandler')
 vi.mock('firebase/functions')
 vi.mock('@/firebase/app', () => ({

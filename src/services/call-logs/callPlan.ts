@@ -86,6 +86,20 @@ export interface CreateCallPlanBatchInput {
   sourceCallLogId?: string
 }
 
+export type RescheduleCallPlanRequest = ({ id: string; batchId?: never } | { batchId: string; id?: never }) & {
+  scheduledDate: string
+  reason?: string
+}
+
+export type RescheduleCallPlanInput = RescheduleCallPlanRequest & {
+  byId: string
+  byName: string
+}
+const createCallPlansServiceDefaults = {collection,deleteDoc,doc,getDocs,orderBy,query,runTransaction,serverTimestamp,Timestamp,updateDoc,where,writeBatch,db};
+export function createCallPlansService(overrides: Partial<typeof createCallPlansServiceDefaults> = {}) {
+const {collection,deleteDoc,doc,getDocs,orderBy,query,runTransaction,serverTimestamp,Timestamp,updateDoc,where,writeBatch,db} = {...createCallPlansServiceDefaults,...overrides};
+
+
 const toDate = (value: unknown): Date => {
   if (value instanceof Date) return value
   if (value && typeof (value as any).toDate === 'function') return (value as any).toDate()
@@ -102,7 +116,7 @@ const optionalDate = (value: unknown): Date | undefined => {
 const sanitize = <T extends Record<string, unknown>>(value: T): T =>
   Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T
 
-export async function createCallPlanBatch(input: CreateCallPlanBatchInput): Promise<number> {
+async function createCallPlanBatch(input: CreateCallPlanBatchInput): Promise<number> {
   if (!isValidCallPlanDate(input.scheduledDate)) throw new Error('Choisissez une date à partir d’aujourd’hui.')
   const batchId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
   // Un report conserve son ID : ne jamais écraser une ancienne tâche ni son historique.
@@ -184,24 +198,14 @@ const mapCallPlan = (id: string, data: Record<string, any>): CallPlanItem => ({
 })
 
 /** Une seule égalité : aucun nouvel index composite nécessaire. */
-export async function listOverdueCallPlans(today = callPlanToday()): Promise<CallPlanItem[]> {
+async function listOverdueCallPlans(today = callPlanToday()): Promise<CallPlanItem[]> {
   const snap = await getDocs(query(collection(db, firebaseCollectionNames.callPlans), where('status', '==', 'planned')))
   return snap.docs.map((item) => mapCallPlan(item.id, item.data()))
     .filter((item) => item.scheduledDate < today)
     .sort((left, right) => left.scheduledDate.localeCompare(right.scheduledDate))
 }
 
-export type RescheduleCallPlanRequest = ({ id: string; batchId?: never } | { batchId: string; id?: never }) & {
-  scheduledDate: string
-  reason?: string
-}
-
-export type RescheduleCallPlanInput = RescheduleCallPlanRequest & {
-  byId: string
-  byName: string
-}
-
-export async function rescheduleCallPlan(input: RescheduleCallPlanInput): Promise<number> {
+async function rescheduleCallPlan(input: RescheduleCallPlanInput): Promise<number> {
   if (!isValidCallPlanDate(input.scheduledDate)) throw new Error('Choisissez une date à partir d’aujourd’hui.')
   const refs = input.id
     ? [doc(db, firebaseCollectionNames.callPlans, input.id)]
@@ -234,7 +238,7 @@ export async function rescheduleCallPlan(input: RescheduleCallPlanInput): Promis
   return count
 }
 
-export async function listCallPlans(startDate: string, endDate: string): Promise<CallPlanItem[]> {
+async function listCallPlans(startDate: string, endDate: string): Promise<CallPlanItem[]> {
   const q = query(
     collection(db, firebaseCollectionNames.callPlans),
     where('scheduledDate', '>=', startDate),
@@ -245,7 +249,7 @@ export async function listCallPlans(startDate: string, endDate: string): Promise
   return snap.docs.map((item) => mapCallPlan(item.id, item.data() as Record<string, any>))
 }
 
-export async function completeCallPlan(
+async function completeCallPlan(
   id: string,
   input: { completedById: string; completedByName: string; callLogId: string },
 ): Promise<void> {
@@ -259,6 +263,9 @@ export async function completeCallPlan(
   })
 }
 
-export async function deleteCallPlan(id: string): Promise<void> {
+async function deleteCallPlan(id: string): Promise<void> {
   await deleteDoc(doc(db, firebaseCollectionNames.callPlans, id))
 }
+return {createCallPlanBatch,listOverdueCallPlans,rescheduleCallPlan,listCallPlans,completeCallPlan,deleteCallPlan};
+}
+export const {createCallPlanBatch,listOverdueCallPlans,rescheduleCallPlan,listCallPlans,completeCallPlan,deleteCallPlan} = createCallPlansService();

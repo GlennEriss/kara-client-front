@@ -11,13 +11,22 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore'
+
 import { db } from '@/firebase/firestore'
+
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+
 import { SHOP_PROPOSABLE_FIELDS, type Shop, type ShopArticle, type ShopChangeProposal, type ShopCreditPartner, type ShopPhoto, type ShopStatus } from '@/types/types'
+
+
+export type ShopInput = Omit<Shop, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>
+const createShopsRepositoryDefaults = { collection, deleteDoc, deleteField, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc, db };
+export function createShopsRepository(overrides: Partial<typeof createShopsRepositoryDefaults> = {}) {
+const { collection, deleteDoc, deleteField, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc, db } = { ...createShopsRepositoryDefaults, ...overrides };
+
 
 const COL = firebaseCollectionNames.shops
 
-export type ShopInput = Omit<Shop, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>
 
 /** Retire les clés `undefined` (Firestore ne les accepte pas). */
 function clean<T extends Record<string, unknown>>(obj: T): T {
@@ -27,6 +36,7 @@ function clean<T extends Record<string, unknown>>(obj: T): T {
   }
   return out as T
 }
+
 
 function mapShop(id: string, data: any): Shop {
   const toDate = (v: any) =>
@@ -75,18 +85,21 @@ function mapShop(id: string, data: any): Shop {
   }
 }
 
+
 /** Liste toutes les boutiques (triées par nom). */
-export async function listShops(): Promise<Shop[]> {
+async function listShops(): Promise<Shop[]> {
   const snap = await getDocs(query(collection(db, COL), orderBy('name', 'asc')))
   return snap.docs.map((d) => mapShop(d.id, d.data()))
 }
 
-export async function getShop(id: string): Promise<Shop | null> {
+
+async function getShop(id: string): Promise<Shop | null> {
   const s = await getDoc(doc(db, COL, id))
   return s.exists() ? mapShop(s.id, s.data()) : null
 }
 
-export async function createShop(input: ShopInput, adminId: string): Promise<string> {
+
+async function createShop(input: ShopInput, adminId: string): Promise<string> {
   const id = doc(collection(db, COL)).id
   await setDoc(doc(db, COL, id), {
     ...clean(input as Record<string, unknown>),
@@ -102,7 +115,8 @@ export async function createShop(input: ShopInput, adminId: string): Promise<str
   return id
 }
 
-export async function updateShop(
+
+async function updateShop(
   id: string,
   updates: Partial<ShopInput>,
   adminId: string,
@@ -114,9 +128,11 @@ export async function updateShop(
   })
 }
 
-export async function deleteShop(id: string): Promise<void> {
+
+async function deleteShop(id: string): Promise<void> {
   await deleteDoc(doc(db, COL, id))
 }
+
 
 /**
  * Tranche une boutique soumise par un membre.
@@ -124,7 +140,7 @@ export async function deleteShop(id: string): Promise<void> {
  * L'acceptation la publie (`isActive`), le refus la laisse hors annuaire avec
  * son motif : le membre peut la corriger et la resoumettre sans tout ressaisir.
  */
-export async function reviewShop(
+async function reviewShop(
   id: string,
   decision: Extract<ShopStatus, 'approved' | 'rejected'>,
   adminId: string,
@@ -141,7 +157,9 @@ export async function reviewShop(
   })
 }
 
+
 const PARTNERS_COL = firebaseCollectionNames.shopCreditPartners
+
 
 function mapPartner(id: string, data: any): ShopCreditPartner {
   return {
@@ -158,22 +176,25 @@ function mapPartner(id: string, data: any): ShopCreditPartner {
   }
 }
 
+
 /** Conditions de partenariat « achat à crédit » de toutes les boutiques. */
-export async function listShopCreditPartners(): Promise<ShopCreditPartner[]> {
+async function listShopCreditPartners(): Promise<ShopCreditPartner[]> {
   const snap = await getDocs(collection(db, PARTNERS_COL))
   return snap.docs.map((d) => mapPartner(d.id, d.data()))
 }
 
-export async function getShopCreditPartner(shopId: string): Promise<ShopCreditPartner | null> {
+
+async function getShopCreditPartner(shopId: string): Promise<ShopCreditPartner | null> {
   const s = await getDoc(doc(db, PARTNERS_COL, shopId))
   return s.exists() ? mapPartner(s.id, s.data()) : null
 }
+
 
 /**
  * Enregistre les conditions d'une boutique partenaire et répercute sur la
  * fiche publique le seul fait qu'elle accepte le crédit.
  */
-export async function saveShopCreditPartner(
+async function saveShopCreditPartner(
   partner: Omit<ShopCreditPartner, 'updatedAt' | 'updatedBy'>,
   adminId: string,
 ): Promise<void> {
@@ -190,8 +211,9 @@ export async function saveShopCreditPartner(
   })
 }
 
+
 /** Ne garde que les champs qu'un membre a le droit de faire modifier. */
-export function pickProposableChanges(changes: Record<string, unknown> | null | undefined): ShopChangeProposal {
+function pickProposableChanges(changes: Record<string, unknown> | null | undefined): ShopChangeProposal {
   const out: Record<string, unknown> = {}
   if (!changes) return out
   for (const key of SHOP_PROPOSABLE_FIELDS) {
@@ -200,14 +222,16 @@ export function pickProposableChanges(changes: Record<string, unknown> | null | 
   return out as ShopChangeProposal
 }
 
+
 const CLEAR_PROPOSAL = {
   pendingChanges: deleteField(),
   pendingChangesSubmittedAt: deleteField(),
   pendingChangesSubmittedBy: deleteField(),
 }
 
+
 /** Reporte sur la fiche publiée la modification proposée par le membre. */
-export async function approveShopChanges(shop: Shop, adminId: string): Promise<void> {
+async function approveShopChanges(shop: Shop, adminId: string): Promise<void> {
   const changes = pickProposableChanges(shop.pendingChanges as Record<string, unknown>)
   await updateDoc(doc(db, COL, shop.id), {
     ...clean(changes as Record<string, unknown>),
@@ -220,8 +244,9 @@ export async function approveShopChanges(shop: Shop, adminId: string): Promise<v
   })
 }
 
+
 /** Refuse la modification proposée : la fiche publiée reste telle quelle. */
-export async function rejectShopChanges(shopId: string, adminId: string, reason: string): Promise<void> {
+async function rejectShopChanges(shopId: string, adminId: string, reason: string): Promise<void> {
   await updateDoc(doc(db, COL, shopId), {
     ...CLEAR_PROPOSAL,
     pendingChangesRejectionReason: reason.trim(),
@@ -232,7 +257,9 @@ export async function rejectShopChanges(shopId: string, adminId: string, reason:
   })
 }
 
+
 const ARTICLES_COL = firebaseCollectionNames.shopArticles
+
 
 function mapArticle(id: string, data: any): ShopArticle {
   const toDate = (v: any) => (v?.toDate ? v.toDate() : v ? new Date(v) : undefined)
@@ -265,21 +292,24 @@ function mapArticle(id: string, data: any): ShopArticle {
   }
 }
 
+
 /** Tous les articles des boutiques (catalogues et file de validation). */
-export async function listShopArticles(): Promise<ShopArticle[]> {
+async function listShopArticles(): Promise<ShopArticle[]> {
   const snap = await getDocs(collection(db, ARTICLES_COL))
   return snap.docs
     .map((d) => mapArticle(d.id, d.data()))
     .sort((a, b) => a.shopName.localeCompare(b.shopName, 'fr') || a.name.localeCompare(b.name, 'fr'))
 }
 
-export async function getShopArticle(id: string): Promise<ShopArticle | null> {
+
+async function getShopArticle(id: string): Promise<ShopArticle | null> {
   const s = await getDoc(doc(db, ARTICLES_COL, id))
   return s.exists() ? mapArticle(s.id, s.data()) : null
 }
 
+
 /** Valide ou refuse un article proposé par le propriétaire de la boutique. */
-export async function reviewShopArticle(
+async function reviewShopArticle(
   id: string,
   decision: Extract<ShopStatus, 'approved' | 'rejected'>,
   adminId: string,
@@ -294,6 +324,10 @@ export async function reviewShopArticle(
   })
 }
 
-export async function deleteShopArticle(id: string): Promise<void> {
+
+async function deleteShopArticle(id: string): Promise<void> {
   await deleteDoc(doc(db, ARTICLES_COL, id))
 }
+return { listShops, getShop, createShop, updateShop, deleteShop, reviewShop, listShopCreditPartners, getShopCreditPartner, saveShopCreditPartner, pickProposableChanges, approveShopChanges, rejectShopChanges, listShopArticles, getShopArticle, reviewShopArticle, deleteShopArticle };
+}
+export const { listShops, getShop, createShop, updateShop, deleteShop, reviewShop, listShopCreditPartners, getShopCreditPartner, saveShopCreditPartner, pickProposableChanges, approveShopChanges, rejectShopChanges, listShopArticles, getShopArticle, reviewShopArticle, deleteShopArticle } = createShopsRepository();

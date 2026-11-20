@@ -7,8 +7,12 @@ export interface PaginatedParticipants {
   total: number
   hasMore: boolean
 }
+const createCharityParticipantServiceDefaults = {CharityParticipantRepository,CharityEventRepository};
+export function createCharityParticipantService(overrides: Partial<typeof createCharityParticipantServiceDefaults> = {}) {
+const {CharityParticipantRepository,CharityEventRepository} = {...createCharityParticipantServiceDefaults,...overrides};
 
-export class CharityParticipantService {
+
+class CharityParticipantService {
   /**
    * Ajoute un participant à un évènement
    */
@@ -124,4 +128,7 @@ export class CharityParticipantService {
     }
   }
 }
-
+return {CharityParticipantService};
+}
+export const {CharityParticipantService} = createCharityParticipantService();
+export type CharityParticipantService = InstanceType<ReturnType<typeof createCharityParticipantService>['CharityParticipantService']>;

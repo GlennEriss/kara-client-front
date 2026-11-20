@@ -127,7 +127,7 @@ function NotificationItem({
       onNavigate(`/caisse-imprevue/contrats/${notification.metadata.contractId}/versements`)
     } else if (notification.module === 'vehicule') {
       // Déclaration envoyée par un membre : file « À valider » des véhicules.
-      onNavigate(notification.type === 'vehicle_declared' ? '/vehicules?vue=a-valider' : '/vehicules')
+      onNavigate(notification.metadata?.prospectId ? '/vehicules/prospection' : notification.type === 'vehicle_declared' ? '/vehicules?vue=a-valider' : '/vehicules')
     } else if (notification.module === 'boutique') {
       // Boutique soumise par un membre : l'annuaire l'affiche dans sa file
       // « À valider ».

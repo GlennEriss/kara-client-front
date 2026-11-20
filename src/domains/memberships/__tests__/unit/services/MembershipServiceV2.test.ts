@@ -17,12 +17,10 @@ import { generateSecurityCode, calculateCodeExpiry } from '../../../utils/securi
 import { generateWhatsAppUrl } from '../../../utils/whatsappUrl'
 
 // Mock des dépendances
-vi.mock('../../../repositories/MembershipRepositoryV2')
+vi.mock('../../../repositories/MembershipRepositoryV2', () => ({ MembershipRepositoryV2: { getInstance: vi.fn() } }))
 vi.mock('../../../utils/securityCode')
 vi.mock('../../../utils/whatsappUrl')
 vi.mock('@/firebase/adminAuth')
-vi.mock('@/db/user.db')
-vi.mock('@/db/subscription.db')
 vi.mock('@/repositories/admins/AdminRepository')
 vi.mock('firebase/functions')
 vi.mock('@/utils/pdfGenerator')
@@ -70,6 +68,7 @@ describe('MembershipServiceV2', () => {
     
     // Mock de NotificationService
     mockNotificationService = {
+      notifyMember: vi.fn().mockResolvedValue(undefined),
       createNotification: vi.fn().mockResolvedValue(undefined),
       createRejectionNotification: vi.fn().mockResolvedValue(undefined),
       createReopeningNotification: vi.fn().mockResolvedValue(undefined),

@@ -12,6 +12,7 @@ export interface CreditSpecialLossHistoryRow {
 
 export interface GenerateCreditSpecialLossHistoryPDFOptions {
   contractId: string
+  penaltyHistory?: boolean
   page1Data: FactureCreditSpecialPage1Data
   rows: CreditSpecialLossHistoryRow[]
   totalLosses: number
@@ -38,7 +39,8 @@ const drawLossTablePage = (
   descriptionText: string,
   pageNumber: number,
   totalPages: number,
-  isLastPage: boolean
+  isLastPage: boolean,
+  penaltyHistory = false
 ) => {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -57,7 +59,7 @@ const drawLossTablePage = (
   doc.setFont('times', 'bold')
   doc.setFontSize(14)
   doc.setTextColor(...NAVY)
-  doc.text('HISTORIQUE DU MANQUE A GAGNER', pageWidth / 2, 18, { align: 'center' })
+  doc.text(penaltyHistory ? 'PENALITES MENSUELLES APRES TERME' : 'HISTORIQUE DU MANQUE A GAGNER', pageWidth / 2, 18, { align: 'center' })
   doc.setFontSize(10)
   doc.setTextColor(45, 45, 45)
   doc.text(`Contrat : ${contractId}`, pageWidth / 2, 23, { align: 'center' })
@@ -79,7 +81,7 @@ const drawLossTablePage = (
   doc.setFontSize(10)
   doc.setTextColor(...NAVY)
   doc.text('ECHEANCE', marginX + col1Width / 2, y + 5.8, { align: 'center' })
-  doc.text('PERTES (FCFA)', marginX + col1Width + col2Width / 2, y + 5.8, { align: 'center' })
+  doc.text(penaltyHistory ? 'PENALITES (FCFA)' : 'PERTES (FCFA)', marginX + col1Width + col2Width / 2, y + 5.8, { align: 'center' })
   y += rowHeight
 
   rows.forEach((row) => {
@@ -107,7 +109,7 @@ const drawLossTablePage = (
     doc.setFont('times', 'bold')
     doc.setFontSize(10)
     doc.setTextColor(...NAVY)
-    doc.text('TOTAL DU MANQUE A GAGNER', marginX + 3, y + 6.2)
+    doc.text(penaltyHistory ? 'TOTAL DES PENALITES' : 'TOTAL DU MANQUE A GAGNER', marginX + 3, y + 6.2)
     doc.text(formatAmount(totalLosses), marginX + col1Width + col2Width - 3, y + 6.2, { align: 'right' })
   }
 
@@ -127,6 +129,7 @@ export async function generateCreditSpecialLossHistoryPDF(
 ): Promise<void> {
   const {
     contractId,
+    penaltyHistory = false,
     page1Data,
     rows,
     totalLosses,
@@ -137,7 +140,7 @@ export async function generateCreditSpecialLossHistoryPDF(
   } = options
 
   if (!rows.length) {
-    throw new Error('Aucune perte à exporter')
+    throw new Error(penaltyHistory ? 'Aucune pénalité après terme à exporter' : 'Aucune perte à exporter')
   }
 
   const rowsPerPage = 22
@@ -156,7 +159,7 @@ export async function generateCreditSpecialLossHistoryPDF(
     logoDataUrl,
     1,
     totalPages,
-    'HISTORIQUE DU MANQUE A GAGNER'
+    penaltyHistory ? 'PENALITES MENSUELLES APRES TERME' : 'HISTORIQUE DU MANQUE A GAGNER'
   )
 
   chunks.forEach((chunk, index) => {
@@ -169,7 +172,8 @@ export async function generateCreditSpecialLossHistoryPDF(
       descriptionText,
       index + 2,
       totalPages,
-      index === chunks.length - 1
+      index === chunks.length - 1,
+      penaltyHistory
     )
   })
 
@@ -186,5 +190,5 @@ export async function generateCreditSpecialLossHistoryPDF(
   }
 
   const dateStr = new Date().toISOString().split('T')[0]
-  doc.save(filename || `historique_pertes_${contractId}_${dateStr}.pdf`)
+  doc.save(filename || `historique_${penaltyHistory ? 'penalites' : 'pertes'}_${contractId}_${dateStr}.pdf`)
 }

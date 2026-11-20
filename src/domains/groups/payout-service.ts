@@ -9,9 +9,13 @@ import {
   Timestamp,
   type DocumentData,
 } from "firebase/firestore";
+
 import { db } from "@/firebase/firestore";
+
 import type { GroupProject } from "@/types/types";
+
 import type { GroupActor } from "./group-service";
+
 import {
   contributionId,
   paidContribution,
@@ -20,18 +24,30 @@ import {
   contributionFrequency,
   type GroupContribution,
 } from "./contribution-model";
+
 import {
   payoutAmounts,
   payoutId,
   type GroupPayout,
   type PayoutFee,
 } from "./payout-model";
+
+export type PayoutInput = Pick<
+  GroupPayout,
+  "operationId" | "beneficiaryId" | "date" | "source" | "reference" | "note"
+> & { expectedGross: number; expectedFee: number };
+const createPayoutServiceDefaults = { collection, doc, getDocs, query, where, runTransaction, serverTimestamp, Timestamp, db };
+export function createPayoutService(overrides: Partial<typeof createPayoutServiceDefaults> = {}) {
+const { collection, doc, getDocs, query, where, runTransaction, serverTimestamp, Timestamp, db } = { ...createPayoutServiceDefaults, ...overrides };
+
 const checked = (id: string) => {
   if (!id || id.includes("/") || id === "." || id === "..")
     throw new Error("Référence de remise invalide.");
   return id;
 };
+
 const groupRef = (id: string) => doc(db, "groups", checked(id));
+
 function projectOf(group: DocumentData, projectId: string): GroupProject {
   const p = (group.projects ?? []).find(
     (p: GroupProject) => p.id === projectId,
@@ -40,6 +56,7 @@ function projectOf(group: DocumentData, projectId: string): GroupProject {
     throw new Error("Configurez d’abord le cycle de cette caisse collective.");
   return p;
 }
+
 const event = (description: string, actor: GroupActor) => ({
   id: crypto.randomUUID(),
   description,
@@ -47,7 +64,8 @@ const event = (description: string, actor: GroupActor) => ({
   byName: actor.name,
   at: Timestamp.now(),
 });
-export async function configurePayoutFee(
+
+async function configurePayoutFee(
   groupId: string,
   projectId: string,
   input: PayoutFee,
@@ -88,7 +106,8 @@ export async function configurePayoutFee(
     });
   });
 }
-export async function listGroupPayouts(
+
+async function listGroupPayouts(
   groupId: string,
   projectId: string,
 ): Promise<GroupPayout[]> {
@@ -103,12 +122,9 @@ export async function listGroupPayouts(
     .filter((p) => p.projectId === projectId)
     .sort((a, b) => b.period.localeCompare(a.period));
 }
-export type PayoutInput = Pick<
-  GroupPayout,
-  "operationId" | "beneficiaryId" | "date" | "source" | "reference" | "note"
-> & { expectedGross: number; expectedFee: number };
+
 /** Une seule remise définitive par période (jour, semaine ou mois). */
-export async function recordGroupPayout(
+async function recordGroupPayout(
   groupId: string,
   projectId: string,
   period: string,
@@ -260,3 +276,6 @@ export async function recordGroupPayout(
     });
   });
 }
+return { configurePayoutFee, listGroupPayouts, recordGroupPayout };
+}
+export const { configurePayoutFee, listGroupPayouts, recordGroupPayout } = createPayoutService();

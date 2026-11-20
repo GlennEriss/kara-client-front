@@ -1,4 +1,9 @@
+import type { CreditContract } from '@/types/types'
+import { withBusinessDates } from '@/domains/mobile/server/calendar-dates'
+import { getCreditContractElapsedInstallments } from '@/services/credit-speciale/creditContractDates'
+import { settingsExportRow, settingsRow } from './settings-presentation'
 /* eslint-disable no-restricted-imports -- Adaptateur temporaire vers les règles métier et modèles officiels existants. */
+import { financeAttachmentPath } from './attachment-path'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { z } from 'zod'
@@ -24,8 +29,16 @@ import {
 import type { FinancePdfDelivery } from '@/services/finance-pdf-delivery'
 const schema = z
   .object({
-    type: z.enum(['receipt', 'document', 'export', 'contract', 'quittance']),
+    type: z.enum([
+      'receipt',
+      'document',
+      'attachment',
+      'export',
+      'contract',
+      'quittance',
+    ]),
     id: identifier.optional(),
+    url: z.string().url().max(4000).optional(),
     kind: z.enum(['contracts', 'demands', 'settings']).optional(),
     format: z.enum(['pdf', 'excel']).optional(),
     blank: z.enum(['true', 'false']).optional(),
@@ -69,6 +82,27 @@ export async function getFinanceFile(
         filename,
       }
     }
+    if (query.data.type === 'attachment') {
+      const detail = await financeContractDetail(services, module.data, id.data)
+      const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || ''
+      if (!adminApp) throw new Error('Stockage indisponible.')
+      const path = financeAttachmentPath(detail, query.data.url, bucketName)
+      const file = getStorage(adminApp).bucket(bucketName).file(path)
+      const [metadata] = await file.getMetadata()
+      if (
+        Number(metadata.size) > 20 * 1024 * 1024 ||
+        !['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(
+          metadata.contentType || '',
+        )
+      )
+        throw new Error('Format ou taille non pris en charge.')
+      const [buffer] = await file.download()
+      return mobileJson({
+        base64: buffer.toString('base64'),
+        mime: metadata.contentType,
+        filename: path.split('/').pop() || 'document-LE-KARA',
+      })
+    }
     if (['contract', 'quittance'].includes(query.data.type))
       return mobileJson(
         await generateContractDocument(
@@ -111,17 +145,22 @@ export async function getFinanceFile(
           },
           400,
         )
-      const rows = result.items.map((row) => ({
-        Référence: row.id,
-        Membre: row.memberName,
-        Statut: row.status || '',
-        Montant:
-          row.monthlyAmount ||
-          row.amount ||
-          row.subscriptionCIAmountPerMonth ||
-          row.amountPerMonth ||
-          0,
-      }))
+      const rows = result.items.map((row) =>
+        kind === 'settings'
+          ? settingsExportRow(module.data, settingsRow(module.data, row))
+          : {
+              Référence: row.id,
+              Membre: row.memberName,
+              Statut: row.status || '',
+              ...(module.data === 'credit-speciale' && kind === 'contracts' ? { 'Échéances passées (tous cycles)': getCreditContractElapsedInstallments(withBusinessDates(row) as CreditContract) } : {}),
+              Montant:
+                row.monthlyAmount ||
+                row.amount ||
+                row.subscriptionCIAmountPerMonth ||
+                row.amountPerMonth ||
+                0,
+            },
+      )
       if (query.data.format === 'excel') {
         const { Workbook } = await import('exceljs')
         const workbook = new Workbook(),
@@ -163,9 +202,23 @@ export async function getFinanceFile(
         module.data,
         id.data,
       )
-      const document = detail.documents.find(
+      let document = detail.documents.find(
         (row: any) => row.id === query.data.id,
       )
+      if (
+        !document &&
+        [
+          detail.record.contractStartId,
+          detail.record.signedContractDocumentId,
+          detail.record.memberSignedDocumentId,
+          detail.record.finalRefundDocumentId,
+          detail.record.earlyRefundDocumentId,
+        ]
+          .filter(Boolean)
+          .includes(query.data.id)
+      ) {
+        document = await services.documents.getDocumentById(query.data.id!)
+      }
       if (!document?.path)
         return mobileJson(
           { error: 'Document introuvable dans ce contrat.' },

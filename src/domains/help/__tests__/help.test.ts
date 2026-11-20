@@ -25,6 +25,7 @@ describe('aide : fiche de la page en cours', () => {
     expect(findHelpContext(HELP_TOPICS, '/memberships/add')?.topic.key).toBe('adhesions')
     expect(findHelpContext(HELP_TOPICS, '/admin/relances')?.topic.key).toBe('journal-relances')
     expect(findHelpContext(HELP_TOPICS, '/admin')?.topic.key).toBe('administration')
+    expect(findHelpContext(HELP_TOPICS, '/vehicules/prospection')?.page.label).toBe('Prospection assurance')
   })
 
   it('ne confond pas deux URL qui commencent pareil', () => {
@@ -50,6 +51,7 @@ describe('aide : recherche', () => {
     expect(first.topic.key).toBe('credit-speciale')
     expect(searchHelp(HELP_TOPICS, 'sortie anticipée commission')[0].topic.key).toBe('placements')
     expect(searchHelp(HELP_TOPICS, 'zzzz')).toEqual([])
+    expect(searchHelp(HELP_TOPICS, 'prospection quartier')[0].topic.key).toBe('vehicules')
   })
 })
 

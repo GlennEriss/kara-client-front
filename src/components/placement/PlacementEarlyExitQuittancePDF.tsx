@@ -1,5 +1,3 @@
-'use client'
-
 import {
   EMPTY,
   FieldTable,
@@ -67,6 +65,7 @@ export type PlacementEarlyExitQuittancePdfProps = {
   earlyExit: EarlyExitPlacement
   member?: User | null
   commissions: CommissionPaymentPlacement[]
+  logoSrc?:string
   completion?: DocumentCompletion | null
 }
 
@@ -134,6 +133,7 @@ export default function PlacementEarlyExitQuittancePDF({
   member,
   commissions,
   completion,
+  logoSrc,
 }: PlacementEarlyExitQuittancePdfProps) {
   const fields = buildPlacementEarlyExitFields({ placement, earlyExit, member, commissions })
   const [[lastNameField, firstNameField]] = fields.member
@@ -145,7 +145,7 @@ export default function PlacementEarlyExitQuittancePDF({
     <Document>
       <Page size="A4" style={mutuelleStyles.page}>
         <MutuellePageChrome footerLabel="Procès-verbal de liquidation anticipée du placement" />
-        <MutuelleHeader title="PROCÈS-VERBAL DE LIQUIDATION ANTICIPÉE DU PLACEMENT (VOLET BIENFAITEUR)" />
+        <MutuelleHeader logoSrc={logoSrc} title="PROCÈS-VERBAL DE LIQUIDATION ANTICIPÉE DU PLACEMENT (VOLET BIENFAITEUR)" />
 
         <Text style={mutuelleStyles.preamble}>
           Ce document constate la liquidation anticipée du placement identifié ci-dessous, à la

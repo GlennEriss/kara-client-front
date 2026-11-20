@@ -1,5 +1,3 @@
-'use client'
-
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
 
@@ -339,10 +337,12 @@ const Bloc = ({ bloc }: { bloc: ReglementBloc }) => {
 
 export interface ReglementInterieurPDFProps {
   /** Lieu, date et signataires. Omis => document vierge à signer à la main. */
+  logoSrc?: string
   fillData?: SignataireFillData
 }
 
 const ReglementInterieurPDF = ({
+  logoSrc,
   fillData = reglementFillDataParDefaut(),
 }: ReglementInterieurPDFProps) => (
   <Document>
@@ -357,7 +357,7 @@ const ReglementInterieurPDF = ({
       </Text>
 
       <View style={styles.header}>
-        <Image src={window.location.origin + '/Logo-Kara.jpg'} style={styles.logo} cache={false} />
+        <Image src={logoSrc || (typeof window !== 'undefined' ? window.location.origin + '/Logo-Kara.jpg' : '')} style={styles.logo} cache={false} />
         <Text style={styles.association}>{REGLEMENT_ENTETE.association}</Text>
         <Text style={styles.devise}>{REGLEMENT_ENTETE.devise}</Text>
         <Text style={styles.siege}>{REGLEMENT_ENTETE.siege}</Text>

@@ -29,7 +29,12 @@ describe('autorisations des API mobiles', () => {
   it('retire le dashboard et les montants à un agent tout en conservant son calendrier', async () => {
     const agent = { ...access, isAgent: true, restrictedRole: 'AgentRecouvrement' }
     mock.loadAccess.mockResolvedValue(agent)
-    expect(mobileCapabilities(agent)).toEqual({ dashboard: false, calendar: true, amounts: false, finance: { 'caisse-speciale': false, 'caisse-imprevue': false, 'credit-speciale': false } })
+    const capabilities = mobileCapabilities(agent)
+    expect(capabilities).toMatchObject({ dashboard: false, calendar: true, amounts: false, finance: { 'caisse-speciale': false, 'caisse-imprevue': false, 'credit-speciale': false, 'credit-fixe': false, 'caisse-aide': false } })
+    expect(Object.values(capabilities.finance).every(value => value === false)).toBe(true)
+    expect(capabilities.sections).toMatchObject({ calls: true, help: true, members: false, groups: false, reports: false, admins: false, 'cs-settings': false, 'ci-settings': false })
+    expect(capabilities.sections).not.toHaveProperty('reset')
+    expect(capabilities.sections).not.toHaveProperty('import-members')
     expect((await requireMobileCaller(request(), 'dashboard') as NextResponse).status).toBe(403)
     expect(await requireMobileCaller(request(), 'calendar')).not.toBeInstanceOf(NextResponse)
   })

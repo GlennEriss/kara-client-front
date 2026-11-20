@@ -27,6 +27,7 @@ import { addContractMonths } from '@/utils/contract-months'
 import { calculateSchedule } from '@/utils/credit-speciale-calculations'
 import { computeWeeklyCreditTotals, formatCreditDuration, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from '@/utils/credit-weekly'
 import { getWeeklyInterestEndDate } from '@/utils/credit-periods'
+import { getCreditContractDocumentDate } from '@/services/credit-speciale/creditContractDates'
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
 
@@ -143,7 +144,7 @@ export const buildCreditContractFields = ({ contract, memberData, guarantorData 
         field('guarantor.identityDocumentNumber', 'N° de pièce :', guarantorData?.identityDocumentNumber),
       ],
     ] as FieldRow[],
-    disbursementDate: field('contract.disbursementDate', 'Date de mise à disposition des fonds', optionalDate(contract.disbursementDate), 'date'),
+    disbursementDate: field('contract.disbursementDate', 'Date de mise à disposition des fonds ou du rajout', optionalDate(getCreditContractDocumentDate(contract)), 'date'),
   }
 }
 

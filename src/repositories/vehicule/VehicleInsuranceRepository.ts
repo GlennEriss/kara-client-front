@@ -1,5 +1,6 @@
 import { VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult, VehicleInsuranceStats, VehicleInsuranceStatus, isValidatedVehicleInsurance } from '@/types/types'
 import { IRepository } from '@/repositories/IRepository'
+import { pickVehicleLocation, resolveVehicleLocation, vehicleLocationStats, type VehicleLocation } from '@/domains/vehicles/location'
 
 const getFirestore = () => import('@/firebase/firestore')
 
@@ -18,12 +19,22 @@ type FirestoreVehicleInsurance = Omit<VehicleInsurance, 'id' | 'startDate' | 'en
 
 export class VehicleInsuranceRepository implements IRepository {
   readonly name = 'VehicleInsuranceRepository'
+  constructor(private readonly firestore: typeof getFirestore = getFirestore) {}
+
+  private async location(data: VehicleLocation) {
+    const f = await this.firestore()
+    return resolveVehicleLocation(pickVehicleLocation(data), async (collection, id) => {
+      const doc = await f.getDoc(f.doc(f.db, collection, id))
+      return doc.exists() ? doc.data() : null
+    })
+  }
+
 
   /**
    * Récupération paginée (pagination côté client après fetch)
    */
   async list(filters?: VehicleInsuranceFilters, page: number = 1, pageSize: number = 12): Promise<VehicleInsuranceListResult> {
-    const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
+    const { collection, query, where, orderBy, getDocs, db } = await this.firestore()
     const collectionRef = collection(db, COLLECTION_NAME)
     const constraints: any[] = []
 
@@ -51,6 +62,9 @@ export class VehicleInsuranceRepository implements IRepository {
     const snapshot = await getDocs(q)
 
     let items = snapshot.docs.map(doc => this.mapDocToEntity(doc.id, doc.data() as FirestoreVehicleInsurance))
+    if (filters?.quarterId) items = items.filter(item => item.quarterId === filters.quarterId)
+    if (filters?.communeId) items = items.filter(item => item.communeId === filters.communeId)
+    if (filters?.locationMissing) items = items.filter(item => !item.quarterId && item.locationType !== 'other')
 
     // Déclarations des membres : les brouillons ne regardent que le membre ; les
     // déclarations envoyées attendent la validation et restent hors du suivi.
@@ -133,7 +147,7 @@ export class VehicleInsuranceRepository implements IRepository {
   }
 
   async getById(id: string): Promise<VehicleInsurance | null> {
-    const { doc, getDoc, db } = await getFirestore()
+    const { doc, getDoc, db } = await this.firestore()
     const docRef = doc(db, COLLECTION_NAME, id)
     const snap = await getDoc(docRef)
     if (!snap.exists()) return null
@@ -141,7 +155,7 @@ export class VehicleInsuranceRepository implements IRepository {
   }
 
   async getByMemberId(memberId: string): Promise<VehicleInsurance | null> {
-    const { collection, query, where, getDocs, limit, db } = await getFirestore()
+    const { collection, query, where, getDocs, limit, db } = await this.firestore()
     const collectionRef = collection(db, COLLECTION_NAME)
     const q = query(collectionRef, where('memberId', '==', memberId), limit(1))
     const snapshot = await getDocs(q)
@@ -151,7 +165,8 @@ export class VehicleInsuranceRepository implements IRepository {
   }
 
   async create(data: Omit<VehicleInsurance, 'id'>): Promise<string> {
-    const { addDoc, collection, Timestamp, db } = await getFirestore()
+    data = { ...data, ...await this.location(data) }
+    const { addDoc, collection, Timestamp, db } = await this.firestore()
     const collectionRef = collection(db, COLLECTION_NAME)
     const payload = this.mapEntityToDoc(data, Timestamp)
     const docRef = await addDoc(collectionRef, payload)
@@ -159,20 +174,21 @@ export class VehicleInsuranceRepository implements IRepository {
   }
 
   async update(id: string, updates: Partial<VehicleInsurance>): Promise<void> {
-    const { doc, updateDoc, Timestamp, db } = await getFirestore()
+    updates = { ...updates, ...await this.location(updates) }
+    const { doc, updateDoc, Timestamp, db } = await this.firestore()
     const docRef = doc(db, COLLECTION_NAME, id)
     const payload = this.mapEntityToDoc(updates as VehicleInsurance, Timestamp, true)
     await updateDoc(docRef, payload)
   }
 
   async delete(id: string): Promise<void> {
-    const { doc, deleteDoc, db } = await getFirestore()
+    const { doc, deleteDoc, db } = await this.firestore()
     const docRef = doc(db, COLLECTION_NAME, id)
     await deleteDoc(docRef)
   }
 
   async getStats(): Promise<VehicleInsuranceStats> {
-    const { collection, getDocs, db } = await getFirestore()
+    const { collection, getDocs, db } = await this.firestore()
     const snapshot = await getDocs(collection(db, COLLECTION_NAME))
     const allItems = snapshot.docs.map(doc => this.mapDocToEntity(doc.id, doc.data() as FirestoreVehicleInsurance))
     const pendingDeclarations = allItems.filter(item => item.declarationStatus === 'pending').length
@@ -213,6 +229,7 @@ export class VehicleInsuranceRepository implements IRepository {
 
     return {
       totalInsured: items.length,
+      locations: vehicleLocationStats(items),
       active: totals.active,
       expiresSoon: totals.expiresSoon,
       expired: totals.expired,
@@ -235,7 +252,9 @@ export class VehicleInsuranceRepository implements IRepository {
   private mapDocToEntity(id: string, data: FirestoreVehicleInsurance): VehicleInsurance {
     return {
       id,
+      prospectId: data.prospectId,
       city: data.city,
+      ...pickVehicleLocation(data),
       primaryPhone: data.primaryPhone || data.nonMemberPhone1 || data.memberContacts?.[0],
       holderType: data.holderType || (data.memberId ? 'member' : 'non-member'), // Rétrocompatibilité
       memberId: data.memberId,
@@ -324,4 +343,3 @@ export class VehicleInsuranceRepository implements IRepository {
     return 'active'
   }
 }
-

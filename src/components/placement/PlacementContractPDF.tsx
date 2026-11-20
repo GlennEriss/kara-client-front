@@ -1,5 +1,3 @@
-'use client'
-
 import {
   EMPTY,
   FieldTable,
@@ -99,7 +97,8 @@ export default function PlacementContractPDF({
   placement,
   member,
   completion,
-}: PlacementContractInput & { completion?: DocumentCompletion | null }) {
+  logoSrc,
+}: PlacementContractInput & { completion?: DocumentCompletion | null;logoSrc?:string }) {
   const fields = buildPlacementContractFields({ placement, member })
   const [[lastNameField, firstNameField]] = fields.member
   const memberName = fullNameFrom(readField(lastNameField, completion), readField(firstNameField, completion))
@@ -108,7 +107,7 @@ export default function PlacementContractPDF({
     <Document>
       <Page size="A4" style={styles.page}>
         <MutuellePageChrome footerLabel="Contrat d’adhésion au volet Bienfaiteur" />
-        <MutuelleHeader title="CONTRAT D’ADHÉSION AU VOLET BIENFAITEUR" />
+        <MutuelleHeader logoSrc={logoSrc} title="CONTRAT D’ADHÉSION AU VOLET BIENFAITEUR" />
 
         <Text style={styles.preamble}>
           Le présent acte formalise l’adhésion du membre, dit le Bienfaiteur, au volet Bienfaiteur de

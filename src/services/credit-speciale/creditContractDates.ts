@@ -14,6 +14,8 @@ import { addContractMonths } from '@/services/caisse/contractDates'
 import type { CreditContract, CreditContractStatus } from '@/types/types'
 import { isCreditContractEnded } from '@/utils/credit-write-off'
 import { getCreditExtensionStartDate, getCreditInitialStartDate, validCreditDate } from '@/utils/credit-cycle-dates'
+import { getCreditContractCycles, SPECIAL_CREDIT_MAX_HISTORY_MONTHS } from '@/utils/credit-speciale-history'
+import { getCreditPeriodDueDate } from '@/utils/credit-periods'
 
 export interface CreditContractDatesInput {
   firstPaymentDate?: Date | string | null
@@ -25,7 +27,7 @@ export interface CreditContractDatesInput {
 
 /** Le rajout devient le départ courant, sans modifier la date initiale enregistrée. */
 export function getCreditContractStartDates(
-  contract: Partial<Pick<CreditContract, 'createdAt' | 'disbursementDate' | 'initialStartAt' | 'extendedAt' | 'creditCycles' | 'firstPaymentDate' | 'rajoutEffectue'>>
+  contract: Partial<Pick<CreditContract, 'createdAt' | 'disbursementDate' | 'initialStartAt' | 'extendedAt' | 'creditCycles' | 'firstPaymentDate' | 'rajoutEffectue' | 'duration' | 'durationUnit'>>
 ) {
   const cycles = [...(contract.creditCycles ?? [])].sort((left, right) => left.cycleNumber - right.cycleNumber)
   const initialStartDate = getCreditInitialStartDate(contract)
@@ -40,6 +42,21 @@ export function getCreditContractStartDates(
     initialStartDate,
     hasExtension: extensionStartDate !== null,
   }
+}
+
+/**
+ * Date des actes à signer : remise initiale avant rajout, départ effectif du
+ * nouveau cycle après rajout (la saisie peut avoir été faite plus tard).
+ * Une date de rajout manquante reste à compléter, sans réutiliser l'ancienne remise.
+ */
+export function getCreditContractDocumentDate(
+  contract: Parameters<typeof getCreditContractStartDates>[0]
+): Date | null {
+  const dates = getCreditContractStartDates(contract)
+  const hasExtension = dates.hasExtension || contract.rajoutEffectue === true ||
+    (contract.creditCycles ?? []).some((cycle) => cycle.type === 'AUGMENTATION')
+  if (hasExtension) return dates.hasExtension ? dates.startDate : null
+  return validCreditDate(contract.disbursementDate)
 }
 
 /** Date de la dernière mensualité, ou `null` si l'échéancier est inconnu. */
@@ -78,4 +95,31 @@ export function getCreditContractRemainingMonths(
     if (addContractMonths(first, index) >= currentDay) remaining++
   }
   return remaining
+}
+
+/** Nombre calendaire d'échéances passées, tous cycles, indépendamment des versements.
+ * Le prochain cycle remplace les échéances de l'ancien à sa première échéance.
+ * La durée exportée ne repart donc jamais à zéro lors d'un rajout.
+ */
+export function getCreditContractElapsedInstallments(contract: CreditContract, today = new Date()): number {
+  const day = validCreditDate(today)
+  if (!day) return 0
+  day.setHours(0, 0, 0, 0)
+  const terminalDate = validCreditDate(contract.closedAt ?? contract.dischargedAt ?? contract.writeOff?.writtenOffAt)
+  const cutoff = terminalDate && terminalDate < day ? terminalDate : day
+  const cycles = getCreditContractCycles(contract)
+  let count = 0
+  for (const [index, cycle] of cycles.entries()) {
+    const nextFirst = validCreditDate(cycles[index + 1]?.firstPaymentDate)
+    const cycleEnd = nextFirst && nextFirst < cutoff ? nextFirst : cutoff
+    const cycleContract = { ...contract, ...cycle, creditCycles: undefined }
+    if (!validCreditDate(cycle.firstPaymentDate)) continue
+    for (let period = 1; period <= SPECIAL_CREDIT_MAX_HISTORY_MONTHS; period++) {
+      const due = getCreditPeriodDueDate(cycleContract, period)
+      due.setHours(0, 0, 0, 0)
+      if (!Number.isFinite(due.getTime()) || due >= cycleEnd) break
+      if (!(cycle.restMonths ?? []).some(rest => rest.monthNumber === period)) count++
+    }
+  }
+  return count
 }

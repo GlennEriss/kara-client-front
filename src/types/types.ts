@@ -1,3 +1,4 @@
+import type { VehicleLocation } from '@/domains/vehicles/location'
 // ================== TYPES CENTRALISÉS ==================
 
 import { EmergencyContact } from '@/schemas/emergency-contact.schema'
@@ -2378,7 +2379,9 @@ export type VehicleEnergySource = 'essence' | 'diesel' | 'electrique' | 'hybride
 
 export type VehicleInsuranceHolderType = 'member' | 'non-member'
 
-export interface VehicleInsurance {
+export interface VehicleInsurance extends VehicleLocation {
+  /** Prospect converti, rattaché après validation de l’assurance. */
+  prospectId?: string
   id: string
   holderType: VehicleInsuranceHolderType
   city?: string
@@ -2536,6 +2539,9 @@ export const isValidatedVehicleInsurance = (insurance: Pick<VehicleInsurance, 'd
   !insurance.declarationStatus || insurance.declarationStatus === 'validated'
 
 export interface VehicleInsuranceFilters {
+  quarterId?: string
+  communeId?: string
+  locationMissing?: boolean
   status?: VehicleInsuranceStatus | 'all'
   insuranceCompany?: string
   vehicleType?: VehicleType | 'all'
@@ -2562,6 +2568,7 @@ export interface VehicleInsuranceListResult {
 }
 
 export interface VehicleInsuranceStats {
+  locations?: ReturnType<typeof import('@/domains/vehicles/location').vehicleLocationStats>
   totalInsured: number
   active: number
   expiresSoon: number

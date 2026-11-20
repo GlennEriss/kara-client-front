@@ -5,6 +5,7 @@ import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 const getFirestore = () => import('@/firebase/firestore')
 
 export class DepartmentRepository implements IRepository {
+  constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
   readonly name = 'DepartmentRepository'
 
   /**
@@ -12,7 +13,7 @@ export class DepartmentRepository implements IRepository {
    */
   async create(data: Omit<Department, 'id' | 'createdAt' | 'updatedAt'>): Promise<Department> {
     try {
-      const { collection, addDoc, db, serverTimestamp } = await getFirestore()
+      const { collection, addDoc, db, serverTimestamp } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.departments || 'departments')
 
       const docData: any = {
@@ -37,6 +38,7 @@ export class DepartmentRepository implements IRepository {
 
       return createdDoc
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la création du département:', error)
       throw error
     }
@@ -47,7 +49,7 @@ export class DepartmentRepository implements IRepository {
    */
   async getById(id: string): Promise<Department | null> {
     try {
-      const { doc, getDoc, db } = await getFirestore()
+      const { doc, getDoc, db } = await this.firestore()
       const docRef = doc(db, firebaseCollectionNames.departments || 'departments', id)
       const snapshot = await getDoc(docRef)
 
@@ -67,6 +69,7 @@ export class DepartmentRepository implements IRepository {
         updatedBy: data.updatedBy ?? undefined,
       }
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la récupération du département:', error)
       throw error
     }
@@ -77,7 +80,7 @@ export class DepartmentRepository implements IRepository {
    */
   async getByProvinceId(provinceId: string): Promise<Department[]> {
     try {
-      const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
+      const { collection, query, where, orderBy, getDocs, db } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.departments || 'departments')
 
       const q = query(
@@ -105,6 +108,7 @@ export class DepartmentRepository implements IRepository {
 
       return departments
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la récupération des départements:', error)
       throw error
     }
@@ -115,7 +119,7 @@ export class DepartmentRepository implements IRepository {
    */
   async getAll(): Promise<Department[]> {
     try {
-      const { collection, query, orderBy, getDocs, db } = await getFirestore()
+      const { collection, query, orderBy, getDocs, db } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.departments || 'departments')
 
       const q = query(collectionRef, orderBy('name', 'asc'))
@@ -139,6 +143,7 @@ export class DepartmentRepository implements IRepository {
 
       return departments
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la récupération des départements:', error)
       throw error
     }
@@ -149,7 +154,7 @@ export class DepartmentRepository implements IRepository {
    */
   async update(id: string, data: Partial<Omit<Department, 'id' | 'createdAt'>>): Promise<Department> {
     try {
-      const { doc, updateDoc, db, serverTimestamp } = await getFirestore()
+      const { doc, updateDoc, db, serverTimestamp } = await this.firestore()
       const docRef = doc(db, firebaseCollectionNames.departments || 'departments', id)
 
       const updateData: any = {
@@ -172,6 +177,7 @@ export class DepartmentRepository implements IRepository {
 
       return updatedDoc
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la mise à jour du département:', error)
       throw error
     }
@@ -182,10 +188,11 @@ export class DepartmentRepository implements IRepository {
    */
   async delete(id: string): Promise<void> {
     try {
-      const { doc, deleteDoc, db } = await getFirestore()
+      const { doc, deleteDoc, db } = await this.firestore()
       const docRef = doc(db, firebaseCollectionNames.departments || 'departments', id)
       await deleteDoc(docRef)
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la suppression du département:', error)
       throw error
     }
@@ -196,7 +203,7 @@ export class DepartmentRepository implements IRepository {
    */
   async searchByName(searchTerm: string, provinceId?: string): Promise<Department[]> {
     try {
-      const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
+      const { collection, query, where, orderBy, getDocs, db } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.departments || 'departments')
 
       let q
@@ -235,9 +242,9 @@ export class DepartmentRepository implements IRepository {
 
       return departments
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la recherche de départements:', error)
       throw error
     }
   }
 }
-

@@ -121,6 +121,7 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
                 <DetailItem label="Nom complet">{holderName}</DetailItem>
                 <DetailItem label="Type / référence">{holderLabel} · {holderReference}</DetailItem>
                 <DetailItem label="Ville"><span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-slate-400" />{insurance.city || '—'}</span></DetailItem>
+                <DetailItem label="Quartier">{insurance.locationType === 'other' ? insurance.locationDetails : insurance.quarterId ? `${insurance.quarter} · ${insurance.district || ''}` : 'À rattacher à Géographie'}</DetailItem>
                 <DetailItem label="Contact"><span className="inline-flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-slate-400" />{phone || '—'}</span></DetailItem>
               </div>
             </SectionCard>

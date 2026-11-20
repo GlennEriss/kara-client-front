@@ -25,9 +25,6 @@ import { auth } from '@/firebase/auth'
 import { addCaisseContractToUser } from '@/db/member.db'
 import { generateAllDemandSearchableTexts } from '@/utils/demandSearchableText'
 import { getActiveSettings } from '@/db/caisse/settings.db'
-
-/** Cache du settingsVersion des réglages actifs par type de caisse (1 fetch/type). */
-const csSettingsVersionCache = new Map<string, string | undefined>()
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import type { SubscriptionCI, User } from '@/types/types'
 import {
@@ -47,6 +44,145 @@ import {
   buildUnknownUserBase,
 } from './unknownUser'
 import { addContractMonths } from '@/utils/caisse-imprevue-utils'
+
+export interface ImportContext {
+  adminId: string
+  sheetName: string
+  sourceFile: string
+  members: Map<string, User>
+  forfaits: SubscriptionCI[]
+  /** Données MEMBRES (par matricule) pour enrichir les comptes créés à la volée. */
+  memberData: Map<string, ImportMemberData>
+  /** Cible : 'CI' (contractsCI, défaut) ou 'CS' (caisseContracts). */
+  target?: ImportTarget
+}
+
+export interface ImportRowResult {
+  rowNumber: number
+  matricule: string
+  status: 'created' | 'skipped'
+  reason?: string
+  contractId?: string
+  payments?: number
+  supports?: number
+  earlyRefund?: boolean
+  memberCreated?: boolean
+  /** Champs laissés en placeholder (à compléter manuellement). */
+  placeholders?: string[]
+}
+
+export interface ImportReport {
+  created: number
+  skipped: number
+  membersCreated: number
+  /** Catégories de forfait créées automatiquement (ex. ['A','C']). */
+  forfaitsCreated: string[]
+  /** Nombre de contrats avec au moins un champ à compléter. */
+  toComplete: number
+  results: ImportRowResult[]
+}
+
+type AdminImportDoc = {
+  path: string[]
+  data: Record<string, unknown>
+}
+
+type ResolvedMember = { id: string; firstName: string; lastName: string }
+
+export interface ContractDriftRow {
+  contractId: string
+  /** Le contrat existe déjà en base. */
+  exists: boolean
+  expectedMonthsPaid: number
+  expectedNominalPaid: number
+  dbMonthsPaid: number | null
+  dbNominalPaid: number | null
+  /** Existe en base avec des compteurs différents → à rectifier. */
+  drifted: boolean
+}
+
+/**
+ * Annule un import : supprime tous les contrats (et leurs sous-collections)
+ * portant le marqueur de migration pour cette feuille + ce fichier source.
+ */
+export interface RollbackResult {
+  contractsDeleted: number
+  usersDeleted: number
+  subscriptionsDeleted: number
+  requestsDeleted?: number
+}
+
+export interface RelinkUnknownResult {
+  dryRun: boolean
+  fromId: string
+  toMatricule: string
+  targetId: string
+  targetName: string
+  membersRelinked: number
+  contractsRelinked: number
+  oldAccountDeleted?: boolean
+  message: string
+}
+
+export interface FixImportDatesResult {
+  dryRun: boolean
+  sourceFile: string
+  caisseImprevue: { scanned: number; fixed: number; alreadyFixed: number }
+  caisseSpeciale: { scanned: number; fixed: number; alreadyFixed: number }
+  membres: { scanned: number; fixed: number; alreadyFixed: number }
+  message: string
+}
+
+export interface ChangeAdminUidResult {
+  success: boolean
+  oldUid: string
+  newUid: string
+  email: string
+  migratedDocs: string[]
+  claimsCopied: string[]
+}
+
+export interface LinkUnknownResult {
+  unknownCreated: boolean
+  membersLinked: number
+  contractsLinked: number
+}
+
+// ===================== IMPORT DES MEMBRES (ADHESION MEMBRES) =====================
+
+export interface WriteMembersResult {
+  rowNumber: number
+  matricule: string
+  status: 'created' | 'skipped'
+  reason?: string
+  membershipType?: string
+}
+
+export interface WriteMembersReport {
+  created: number
+  skipped: number
+  /** Abonnements créés depuis ADHESION MEMBRES (croisement). */
+  subscriptionsCreated: number
+  byType: Record<string, number>
+  results: WriteMembersResult[]
+}
+
+export interface MembersImportContext {
+  adminId: string
+  sheetName: string
+  sourceFile: string
+  /** Membres déjà présents (par matricule). */
+  existing: Map<string, User>
+  /** Données MEMBRES (par matricule) pour enrichir l'identité + abonnement. */
+  enrich: Map<string, ImportMemberData>
+}
+const createExcelImportWriterDefaults = {collection,db,doc,getDoc,getDocs,serverTimestamp,setDoc,auth,addCaisseContractToUser,getActiveSettings,fetch};
+export function createExcelImportWriter(overrides: Partial<typeof createExcelImportWriterDefaults> = {}) {
+const {collection,db,doc,getDoc,getDocs,serverTimestamp,setDoc,auth,addCaisseContractToUser,getActiveSettings,fetch} = {...createExcelImportWriterDefaults,...overrides};
+
+
+/** Cache du settingsVersion des réglages actifs par type de caisse (1 fetch/type). */
+const csSettingsVersionCache = new Map<string, string | undefined>()
 
 const CONTRACTS = firebaseCollectionNames.contractsCI || 'contractsCI'
 const SUBSCRIPTIONS = firebaseCollectionNames.subscriptionsCI || 'subscriptionsCI'
@@ -68,7 +204,7 @@ function mapPaymentMode(raw?: string): string {
 }
 
 /** Récupère les forfaits A–E (subscriptionsCI) pour résoudre subscriptionCIID/Code. */
-export async function fetchForfaits(): Promise<SubscriptionCI[]> {
+async function fetchForfaits(): Promise<SubscriptionCI[]> {
   const snap = await getDocs(collection(db, SUBSCRIPTIONS))
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })) as SubscriptionCI[]
 }
@@ -77,7 +213,7 @@ export async function fetchForfaits(): Promise<SubscriptionCI[]> {
  * Crée les forfaits A–E manquants (parmi les catégories réellement utilisées),
  * pour que chaque contrat pointe vers un vrai forfait. Retourne la liste complète.
  */
-export async function ensureForfaits(
+async function ensureForfaits(
   neededCategories: Iterable<string>,
   existing: SubscriptionCI[],
   adminId: string,
@@ -116,43 +252,6 @@ export async function ensureForfaits(
     created.push(cat)
   }
   return { forfaits: [...existing, ...added], created }
-}
-
-export interface ImportContext {
-  adminId: string
-  sheetName: string
-  sourceFile: string
-  members: Map<string, User>
-  forfaits: SubscriptionCI[]
-  /** Données MEMBRES (par matricule) pour enrichir les comptes créés à la volée. */
-  memberData: Map<string, ImportMemberData>
-  /** Cible : 'CI' (contractsCI, défaut) ou 'CS' (caisseContracts). */
-  target?: ImportTarget
-}
-
-export interface ImportRowResult {
-  rowNumber: number
-  matricule: string
-  status: 'created' | 'skipped'
-  reason?: string
-  contractId?: string
-  payments?: number
-  supports?: number
-  earlyRefund?: boolean
-  memberCreated?: boolean
-  /** Champs laissés en placeholder (à compléter manuellement). */
-  placeholders?: string[]
-}
-
-export interface ImportReport {
-  created: number
-  skipped: number
-  membersCreated: number
-  /** Catégories de forfait créées automatiquement (ex. ['A','C']). */
-  forfaitsCreated: string[]
-  /** Nombre de contrats avec au moins un champ à compléter. */
-  toComplete: number
-  results: ImportRowResult[]
 }
 
 function safeDate(s: string | undefined | null): Date {
@@ -249,7 +348,7 @@ function shortHash(s: string): string {
   return h.toString(36)
 }
 
-export function makeContractId(
+function makeContractId(
   kind: 'A' | 'C',
   matricule: string,
   startDate: string | null,
@@ -271,7 +370,7 @@ export function makeContractId(
  * Repli (lignes sans code) : ancienne clé composite type + matricule + date début
  * + catégorie + montant mensuel + durée + date de fin.
  */
-export function contractIdForRow(row: AnalyzedRow, target: ImportTarget = 'CI'): string {
+function contractIdForRow(row: AnalyzedRow, target: ImportTarget = 'CI'): string {
   const prefix = target === 'CS' ? 'MK_CS_MIG' : 'MK_CI_MIG'
 
   const code = row.entraide?.code ? sanitizeMatricule(row.entraide.code) : ''
@@ -316,11 +415,6 @@ function cleanPlain<T extends Record<string, unknown>>(obj: T): T {
 
 const SERVER_TIMESTAMP_TOKEN = '__karaServerTimestamp'
 const DATE_TOKEN = '__karaDate'
-
-type AdminImportDoc = {
-  path: string[]
-  data: Record<string, unknown>
-}
 
 function adminServerTimestamp(): Record<string, true> {
   return { [SERVER_TIMESTAMP_TOKEN]: true }
@@ -398,8 +492,6 @@ function marker(
     },
   }
 }
-
-type ResolvedMember = { id: string; firstName: string; lastName: string }
 
 /**
  * Retourne le membre existant, sinon le crée (compte adhérent, sans Auth).
@@ -873,7 +965,7 @@ const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(
  *    (ex. 12 mois payés → 4-5 affichés, cas matricule 6932.MK.070226).
  * Renvoie null si le contrat n'est pas bucketisé (STANDARD, ou sans début).
  */
-export function groupCSVersementsByMonth(row: AnalyzedRow): Map<number, ImportPayment[]> | null {
+function groupCSVersementsByMonth(row: AnalyzedRow): Map<number, ImportPayment[]> | null {
   const caisseType = row.category || 'STANDARD'
   const isDaily = caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
   const isLibre = caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
@@ -900,23 +992,11 @@ export function groupCSVersementsByMonth(row: AnalyzedRow): Map<number, ImportPa
  * mettra sur le contrat (`currentMonthIndex` CS / `totalMonthsPaid` CI).
  * Sert à comparer avec la base sans réimporter.
  */
-export function expectedMonthsPaid(row: AnalyzedRow, target: ImportTarget = 'CI'): number {
+function expectedMonthsPaid(row: AnalyzedRow, target: ImportTarget = 'CI'): number {
   const paidCount = row.payments.filter((p) => p.status === 'PAID').length
   if (target !== 'CS') return paidCount
   const grouped = groupCSVersementsByMonth(row)
   return grouped ? grouped.size : paidCount
-}
-
-export interface ContractDriftRow {
-  contractId: string
-  /** Le contrat existe déjà en base. */
-  exists: boolean
-  expectedMonthsPaid: number
-  expectedNominalPaid: number
-  dbMonthsPaid: number | null
-  dbNominalPaid: number | null
-  /** Existe en base avec des compteurs différents → à rectifier. */
-  drifted: boolean
 }
 
 /**
@@ -924,7 +1004,7 @@ export interface ContractDriftRow {
  * mois payés (CS `currentMonthIndex` / CI `totalMonthsPaid`) et total versé (CS).
  * Alimente les indicateurs « écart » et la rectification ciblée, sans réimporter.
  */
-export async function checkContractsDrift(
+async function checkContractsDrift(
   rows: AnalyzedRow[],
   target: ImportTarget = 'CI',
 ): Promise<Map<string, ContractDriftRow>> {
@@ -1217,7 +1297,7 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
 }
 
 /** Importe toutes les lignes (un batch par contrat). */
-export async function writeImport(
+async function writeImport(
   rows: AnalyzedRow[],
   ctx: ImportContext,
   onProgress?: (done: number, total: number) => void,
@@ -1283,22 +1363,11 @@ export async function writeImport(
 }
 
 /**
- * Annule un import : supprime tous les contrats (et leurs sous-collections)
- * portant le marqueur de migration pour cette feuille + ce fichier source.
- */
-export interface RollbackResult {
-  contractsDeleted: number
-  usersDeleted: number
-  subscriptionsDeleted: number
-  requestsDeleted?: number
-}
-
-/**
  * Supprime tout ce qu'un import a créé (contrats + sous-collections + membres +
  * adhésions migrés) pour `sourceFile` + `sheetName`, via une route serveur
  * (Admin SDK) pour contourner les règles Firestore côté client.
  */
-export async function rollbackImport(ctx: {
+async function rollbackImport(ctx: {
   sheetName: string
   sourceFile: string
 }): Promise<RollbackResult> {
@@ -1315,23 +1384,11 @@ export async function rollbackImport(ctx: {
   return (await response.json()) as RollbackResult
 }
 
-export interface RelinkUnknownResult {
-  dryRun: boolean
-  fromId: string
-  toMatricule: string
-  targetId: string
-  targetName: string
-  membersRelinked: number
-  contractsRelinked: number
-  oldAccountDeleted?: boolean
-  message: string
-}
-
 /**
  * Re-pointe les références « INCONNU » (parrain / contact d'urgence) vers un
  * autre compte placeholder identifié par son matricule. `dryRun` = simulation.
  */
-export async function relinkUnknown(ctx: {
+async function relinkUnknown(ctx: {
   toMatricule: string
   fromId?: string
   dryRun: boolean
@@ -1349,21 +1406,12 @@ export async function relinkUnknown(ctx: {
   return (await response.json()) as RelinkUnknownResult
 }
 
-export interface FixImportDatesResult {
-  dryRun: boolean
-  sourceFile: string
-  caisseImprevue: { scanned: number; fixed: number; alreadyFixed: number }
-  caisseSpeciale: { scanned: number; fixed: number; alreadyFixed: number }
-  membres: { scanned: number; fixed: number; alreadyFixed: number }
-  message: string
-}
-
 /**
  * Corrige le décalage J-1 des dates des documents importés (Caisse Imprévue,
  * Caisse Spéciale, membres). `dryRun` = simulation (aucune écriture).
  * `sourceFile` limite la correction à un fichier ; absent = tous les imports.
  */
-export async function fixImportDates(ctx: {
+async function fixImportDates(ctx: {
   dryRun: boolean
   sourceFile?: string
 }): Promise<FixImportDatesResult> {
@@ -1380,20 +1428,11 @@ export async function fixImportDates(ctx: {
   return (await response.json()) as FixImportDatesResult
 }
 
-export interface ChangeAdminUidResult {
-  success: boolean
-  oldUid: string
-  newUid: string
-  email: string
-  migratedDocs: string[]
-  claimsCopied: string[]
-}
-
 /**
  * Migre l'UID d'un compte admin (Auth + Firestore) vers `newUid`.
  * Recrée le compte avec le même email + le mot de passe fourni (conservé).
  */
-export async function changeAdminUid(ctx: {
+async function changeAdminUid(ctx: {
   email: string
   newUid: string
   password: string
@@ -1411,17 +1450,11 @@ export async function changeAdminUid(ctx: {
   return (await response.json()) as ChangeAdminUidResult
 }
 
-export interface LinkUnknownResult {
-  unknownCreated: boolean
-  membersLinked: number
-  contractsLinked: number
-}
-
 /**
  * Rattache rétroactivement les membres sans parrain et les contrats CI sans
  * contact d'urgence au compte INCONNU INCONNU (créé si absent).
  */
-export async function linkUnknownMembers(): Promise<LinkUnknownResult> {
+async function linkUnknownMembers(): Promise<LinkUnknownResult> {
   const response = await fetch('/api/import-caisse-imprevue/link-unknown', {
     method: 'POST',
     headers: await adminImportHeaders(),
@@ -1433,35 +1466,6 @@ export async function linkUnknownMembers(): Promise<LinkUnknownResult> {
     throw new Error(details?.details || details?.error || response.statusText)
   }
   return (await response.json()) as LinkUnknownResult
-}
-
-// ===================== IMPORT DES MEMBRES (ADHESION MEMBRES) =====================
-
-export interface WriteMembersResult {
-  rowNumber: number
-  matricule: string
-  status: 'created' | 'skipped'
-  reason?: string
-  membershipType?: string
-}
-
-export interface WriteMembersReport {
-  created: number
-  skipped: number
-  /** Abonnements créés depuis ADHESION MEMBRES (croisement). */
-  subscriptionsCreated: number
-  byType: Record<string, number>
-  results: WriteMembersResult[]
-}
-
-export interface MembersImportContext {
-  adminId: string
-  sheetName: string
-  sourceFile: string
-  /** Membres déjà présents (par matricule). */
-  existing: Map<string, User>
-  /** Données MEMBRES (par matricule) pour enrichir l'identité + abonnement. */
-  enrich: Map<string, ImportMemberData>
 }
 
 /**
@@ -1547,7 +1551,7 @@ async function writeMemberAdhesionPayment(opts: {
 }
 
 /** Crée les membres absents (compte sans Auth, id = matricule, type depuis T.MEMBRES). */
-export async function writeMembers(
+async function writeMembers(
   members: AnalyzedMember[],
   ctx: MembersImportContext,
   onProgress?: (done: number, total: number) => void,
@@ -1811,7 +1815,10 @@ export async function writeMembers(
 }
 
 /** Annule l'import de membres : supprime les membres migrés pour ce fichier/feuille. */
-export async function rollbackMembers(ctx: { sheetName: string; sourceFile: string }): Promise<{ deleted: number }> {
+async function rollbackMembers(ctx: { sheetName: string; sourceFile: string }): Promise<{ deleted: number }> {
   const res = await rollbackImport(ctx)
   return { deleted: res.usersDeleted }
 }
+return {fetchForfaits,ensureForfaits,makeContractId,contractIdForRow,groupCSVersementsByMonth,expectedMonthsPaid,checkContractsDrift,writeImport,rollbackImport,relinkUnknown,fixImportDates,changeAdminUid,linkUnknownMembers,writeMembers,rollbackMembers};
+}
+export const {fetchForfaits,ensureForfaits,makeContractId,contractIdForRow,groupCSVersementsByMonth,expectedMonthsPaid,checkContractsDrift,writeImport,rollbackImport,relinkUnknown,fixImportDates,changeAdminUid,linkUnknownMembers,writeMembers,rollbackMembers} = createExcelImportWriter();

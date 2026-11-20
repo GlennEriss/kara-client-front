@@ -6,14 +6,23 @@
  */
 
 import { MembershipRepositoryV2 } from '../repositories/MembershipRepositoryV2'
+
 import { generateSecurityCode, calculateCodeExpiry } from '../utils/securityCode'
+
 import { generateWhatsAppUrl } from '../utils/whatsappUrl'
+
 import { AdminRepository } from '@/repositories/admins/AdminRepository'
+
 import { NotificationService } from '@/services/notifications/NotificationService'
+
 import { ServiceFactory } from '@/factories/ServiceFactory'
+
 import { getFunctions, httpsCallable } from 'firebase/functions'
+
 import { app } from '@/firebase/app'
+
 import { generateCredentialsPDF, downloadPDF, formatCredentialsFilename } from '@/utils/pdfGenerator'
+
 import type {
   IMembershipService,
   ApproveMembershipRequestParams,
@@ -23,10 +32,17 @@ import type {
   ProcessPaymentParams,
   ReplaceAdhesionPdfParams,
 } from './interfaces/IMembershipService'
+
 import { createFile } from '@/db/upload-image.db'
+
 import { MEMBERSHIP_REQUEST_VALIDATION, type PaymentMode } from '@/constantes/membership-requests'
 
-export class MembershipServiceV2 implements IMembershipService {
+const createMembershipServiceV2Defaults = { MembershipRepositoryV2, getFunctions, httpsCallable, downloadPDF, createFile };
+export function createMembershipServiceV2(overrides: Partial<typeof createMembershipServiceV2Defaults> = {}, options: { awaitEffects?: boolean } = {}) {
+const { MembershipRepositoryV2, getFunctions, httpsCallable, downloadPDF, createFile } = { ...createMembershipServiceV2Defaults, ...overrides };
+
+
+class MembershipServiceV2 implements IMembershipService {
   private static instance: MembershipServiceV2
   private repository: MembershipRepositoryV2
   private adminRepository: AdminRepository
@@ -130,7 +146,7 @@ export class MembershipServiceV2 implements IMembershipService {
     // Générer/télécharger le PDF en arrière-plan pour ne pas ralentir l'approbation UX.
     const firstName = request.identity?.firstName || ''
     const lastName = request.identity?.lastName || ''
-    void (async () => {
+    const credentialsCompletion = (async () => {
       try {
         const pdfBlob = await generateCredentialsPDF({
           firstName,
@@ -147,6 +163,7 @@ export class MembershipServiceV2 implements IMembershipService {
         console.error('[MembershipServiceV2] Erreur lors de la génération du PDF des identifiants:', error)
       }
     })()
+    if (options.awaitEffects) await credentialsCompletion
   }
 
   async rejectMembershipRequest(params: RejectMembershipRequestParams): Promise<void> {
@@ -615,3 +632,7 @@ export class MembershipServiceV2 implements IMembershipService {
     // TODO: Envoyer notification
   }
 }
+return { MembershipServiceV2 };
+}
+export const { MembershipServiceV2 } = createMembershipServiceV2();
+export type MembershipServiceV2 = ReturnType<ReturnType<typeof createMembershipServiceV2>['MembershipServiceV2']['getInstance']>;

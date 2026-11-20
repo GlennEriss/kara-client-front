@@ -10,8 +10,11 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
+
 import { db } from '@/firebase/firestore'
+
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+
 import type {
   PaymentMode,
   VehicleInsurance,
@@ -19,12 +22,21 @@ import type {
   VehicleInsuranceReward,
   VehicleRewardStatus,
 } from '@/types/types'
+
 import { computeVehicleReward, findInsurancePartner, memberShareOf, resolveRewardBeneficiary } from '@/utils/vehicle-rewards'
 
+const createVehicleRewardsRepositoryDefaults = { collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, db };
+export function createVehicleRewardsRepository(overrides: Partial<typeof createVehicleRewardsRepositoryDefaults> = {}) {
+const { collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, db } = { ...createVehicleRewardsRepositoryDefaults, ...overrides };
+
+
 const PARTNERS = firebaseCollectionNames.vehicleInsurancePartners
+
 const REWARDS = firebaseCollectionNames.vehicleInsuranceRewards
 
+
 const toDate = (v: any): Date | undefined => (v?.toDate ? v.toDate() : v ? new Date(v) : undefined)
+
 
 /** Firestore refuse les `undefined`, y compris imbriqués. */
 function clean<T>(value: T): T {
@@ -39,9 +51,10 @@ function clean<T>(value: T): T {
   return value
 }
 
+
 // ==================== Assureurs partenaires ====================
 
-export async function listInsurancePartners(): Promise<VehicleInsurancePartner[]> {
+async function listInsurancePartners(): Promise<VehicleInsurancePartner[]> {
   const snap = await getDocs(collection(db, PARTNERS))
   return snap.docs
     .map((d) => {
@@ -58,7 +71,8 @@ export async function listInsurancePartners(): Promise<VehicleInsurancePartner[]
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
 }
 
-export async function saveInsurancePartner(
+
+async function saveInsurancePartner(
   partner: Omit<VehicleInsurancePartner, 'id' | 'updatedAt' | 'updatedBy'> & { id?: string },
   adminId: string,
 ): Promise<string> {
@@ -73,9 +87,11 @@ export async function saveInsurancePartner(
   return id
 }
 
-export async function deleteInsurancePartner(id: string): Promise<void> {
+
+async function deleteInsurancePartner(id: string): Promise<void> {
   await deleteDoc(doc(db, PARTNERS, id))
 }
+
 
 // ==================== Reversements ====================
 
@@ -109,25 +125,29 @@ function mapReward(id: string, data: any): VehicleInsuranceReward {
   }
 }
 
+
 const byPeriod = (a: VehicleInsuranceReward, b: VehicleInsuranceReward) =>
   b.startDate.getTime() - a.startDate.getTime()
 
-export async function listVehicleRewards(): Promise<VehicleInsuranceReward[]> {
+
+async function listVehicleRewards(): Promise<VehicleInsuranceReward[]> {
   const snap = await getDocs(collection(db, REWARDS))
   return snap.docs.map((d) => mapReward(d.id, d.data())).sort(byPeriod)
 }
 
-export async function listRewardsForInsurance(insuranceId: string): Promise<VehicleInsuranceReward[]> {
+
+async function listRewardsForInsurance(insuranceId: string): Promise<VehicleInsuranceReward[]> {
   const snap = await getDocs(query(collection(db, REWARDS), where('insuranceId', '==', insuranceId)))
   return snap.docs.map((d) => mapReward(d.id, d.data())).sort(byPeriod)
 }
+
 
 /**
  * Ouvre le reversement d'une période d'assurance (validation ou
  * renouvellement). Sans effet si la période existe déjà : un reversement
  * versé ne doit jamais être écrasé.
  */
-export async function openRewardForPeriod(
+async function openRewardForPeriod(
   insurance: VehicleInsurance,
   periodIndex: number,
   adminId: string,
@@ -167,8 +187,9 @@ export async function openRewardForPeriod(
   return mapReward(id, { ...data, createdAt: new Date() })
 }
 
+
 /** L'assureur a versé sa commission : la part du parrain se calcule sur ce montant. */
-export async function recordPartnerReceipt(
+async function recordPartnerReceipt(
   reward: VehicleInsuranceReward,
   data: { amount: number; receivedAt: Date; memberSharePercent: number; reference?: string },
   admin: { id: string; name?: string },
@@ -193,8 +214,9 @@ export async function recordPartnerReceipt(
   )
 }
 
+
 /** LE KARA a versé sa part au membre. */
-export async function recordMemberPayment(
+async function recordMemberPayment(
   reward: VehicleInsuranceReward,
   data: { paidAt: Date; mode: PaymentMode; reference?: string; proofUrl?: string; proofPath?: string },
   admin: { id: string; name?: string },
@@ -220,3 +242,6 @@ export async function recordMemberPayment(
     }),
   )
 }
+return { listInsurancePartners, saveInsurancePartner, deleteInsurancePartner, listVehicleRewards, listRewardsForInsurance, openRewardForPeriod, recordPartnerReceipt, recordMemberPayment };
+}
+export const { listInsurancePartners, saveInsurancePartner, deleteInsurancePartner, listVehicleRewards, listRewardsForInsurance, openRewardForPeriod, recordPartnerReceipt, recordMemberPayment } = createVehicleRewardsRepository();

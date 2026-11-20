@@ -30,7 +30,7 @@ export interface MemberOverviewListItem {
   createdAt?: string
   desiredDate?: string
   contractId?: string
-  /** Libellé lisible affiché à la place de l'id brut (ex. titre d'événement). */
+  /** Libellé lisible affiché avec l'identifiant (ex. titre d'événement). */
   label?: string
   kind: MemberOverviewRecordKind
   module: MemberOverviewModuleKey
@@ -39,6 +39,9 @@ export interface MemberOverviewListItem {
 export interface MemberOverviewModuleData {
   demandes: MemberOverviewListItem[]
   contrats: MemberOverviewListItem[]
+  /** Contrats clôturés consultables derrière le compteur, sans limite d’affichage. */
+  closedContracts?: MemberOverviewListItem[]
+  available?: boolean
   /**
    * Vrai si au moins une requête du module a échoué (index manquant, droits,
    * réseau…). Sans ce drapeau, une section en erreur est indiscernable d'une
@@ -46,9 +49,8 @@ export interface MemberOverviewModuleData {
    */
   hasError?: boolean
   /**
-   * Nombre total de contrats clôturés du membre dans ce module (compté côté
-   * serveur, sans la limite des listes). Absent pour la charité ; null si le
-   * comptage a échoué.
+   * Nombre total de contrats clôturés, issu de la même liste que les liens.
+   * Absent pour la charité ; null si la lecture des contrats a échoué.
    */
   closedContrats?: number | null
 }
@@ -68,4 +70,3 @@ export interface MemberGlobalSearchItem {
   contacts?: string[]
   photoURL?: string | null
 }
-

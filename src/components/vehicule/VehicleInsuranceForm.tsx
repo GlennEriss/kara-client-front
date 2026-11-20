@@ -16,6 +16,8 @@ import { Calendar, Car, DollarSign, FileText, Loader2, Shield, Upload, User, Use
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import MemberSearchInput from './MemberSearchInput'
+import { VehicleLocationFields } from './VehicleLocationFields'
+import { pickVehicleLocation } from '@/domains/vehicles/location'
 
 const DEFAULT_PHONE_PREFIX = '+241 '
 const PHONE_DIGITS_LIMIT = 8
@@ -50,6 +52,8 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
       return {
         holderType: 'member' as VehicleInsuranceFormValues['holderType'],
         city: '',
+        locationType: 'quarter',
+        communeId: '', districtId: '', quarterId: '', quarter: '', locationDetails: '',
         memberId: '',
         memberFirstName: '',
         memberLastName: '',
@@ -87,6 +91,8 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
     return {
       holderType,
       city: initialInsurance.city || '',
+      ...pickVehicleLocation(initialInsurance),
+      locationType: initialInsurance.locationType || 'quarter',
       memberId: initialInsurance.memberId || '',
       memberFirstName: initialInsurance.memberFirstName || '',
       memberLastName: initialInsurance.memberLastName || '',
@@ -311,24 +317,12 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
               />
             )}
 
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-semibold">Ville (Gabon)</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="Libreville, Port-Gentil..."
-                      className="h-11"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-2">
+              <VehicleLocationFields value={form.watch()} allowOther disabled={isSubmitting} onChange={location => {
+                for (const [key, value] of Object.entries(pickVehicleLocation(location))) form.setValue(key as keyof VehicleInsuranceFormValues, value, { shouldDirty: true, shouldValidate: true })
+              }} />
+              {(form.formState.errors.quarterId || form.formState.errors.locationDetails) && <p role="alert" className="text-sm text-red-600">{form.formState.errors.quarterId?.message || form.formState.errors.locationDetails?.message}</p>}
+            </div>
 
             {/* Champs pour non-membre */}
             {holderType === 'non-member' && (

@@ -24,6 +24,12 @@ export const vehicleInsuranceFormSchema = z.object({
   // Type de titulaire
   holderType: z.enum(['member', 'non-member']),
   city: z.string().min(1, 'La ville est requise'),
+  communeId: z.string().optional(),
+  districtId: z.string().optional(),
+  quarterId: z.string().optional(),
+  quarter: z.string().optional(),
+  locationType: z.enum(['quarter', 'other']).optional(),
+  locationDetails: z.string().max(2000).optional(),
   
   // Champs pour membre (conditionnel)
   memberId: z.string().optional(),
@@ -87,6 +93,8 @@ export const vehicleInsuranceFormSchema = z.object({
   path: ['endDate'],
 })
 .superRefine((data, ctx) => {
+  if (data.locationType === 'quarter' && !data.quarterId) ctx.addIssue({ code: 'custom', path: ['quarterId'], message: 'Sélectionnez un quartier de Géographie' })
+  if (data.locationType === 'other' && !data.locationDetails?.trim()) ctx.addIssue({ code: 'custom', path: ['locationDetails'], message: 'Précisez l’emplacement' })
   if (data.holderType === 'member') {
     if (!data.memberId) {
       ctx.addIssue({

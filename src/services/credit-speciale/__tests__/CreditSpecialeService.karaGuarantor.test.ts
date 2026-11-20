@@ -36,6 +36,24 @@ beforeEach(() => {
 })
 
 describe('commissions exclues lorsque LE KARA assure la garantie', () => {
+  it('enregistre le départ du forfait hebdomadaire indépendamment de la remise des fonds', async () => {
+    mocks.demand.mockResolvedValue({
+      id: 'demand', status: 'APPROVED', creditType: 'SPECIALE', clientId: 'client',
+      clientFirstName: 'Membre', clientLastName: 'Fictif', clientContacts: [],
+      guarantorId: UNKNOWN_USER_ID, guarantorIsMember: false, score: 5,
+    } satisfies Partial<CreditDemand>)
+    const firstPaymentDate = new Date('2026-12-08')
+    const disbursementDate = new Date('2026-11-10')
+    const result = await service().createContractFromDemand('demand', 'admin', {
+      amount: 300000, interestRate: 5, monthlyPaymentAmount: 315000,
+      duration: 2, durationUnit: 'WEEKS', firstPaymentDate,
+      totalAmount: 315000, disbursementDate,
+    })
+    expect(result.initialStartAt).toEqual(new Date('2026-11-24'))
+    expect(result.disbursementDate).toEqual(disbursementDate)
+    expect(result.firstPaymentDate).toEqual(firstPaymentDate)
+    expect(result.nextDueAt).toEqual(firstPaymentDate)
+  })
   it('bloque un paiement sur un ancien contrat INCONNU avant tout téléversement ou écriture', async () => {
     mocks.contract.mockResolvedValue({
       id: 'credit', creditType: 'SPECIALE', status: 'CLOSED',

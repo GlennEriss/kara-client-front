@@ -5,6 +5,7 @@ import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 const getFirestore = () => import('@/firebase/firestore')
 
 export class ProvinceRepository implements IRepository {
+  constructor(private readonly firestore: typeof getFirestore = getFirestore, private readonly strict = false) {}
   readonly name = 'ProvinceRepository'
 
   /**
@@ -12,7 +13,7 @@ export class ProvinceRepository implements IRepository {
    */
   async create(data: Omit<Province, 'id' | 'createdAt' | 'updatedAt'>): Promise<Province> {
     try {
-      const { collection, addDoc, db, serverTimestamp } = await getFirestore()
+      const { collection, addDoc, db, serverTimestamp } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.provinces || 'provinces')
 
       const docData: any = {
@@ -37,6 +38,7 @@ export class ProvinceRepository implements IRepository {
 
       return createdDoc
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la création de la province:', error)
       throw error
     }
@@ -47,7 +49,7 @@ export class ProvinceRepository implements IRepository {
    */
   async getById(id: string): Promise<Province | null> {
     try {
-      const { doc, getDoc, db } = await getFirestore()
+      const { doc, getDoc, db } = await this.firestore()
       const docRef = doc(db, firebaseCollectionNames.provinces || 'provinces', id)
       const snapshot = await getDoc(docRef)
 
@@ -66,6 +68,7 @@ export class ProvinceRepository implements IRepository {
         updatedBy: data.updatedBy ?? undefined,
       }
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la récupération de la province:', error)
       throw error
     }
@@ -76,7 +79,7 @@ export class ProvinceRepository implements IRepository {
    */
   async getAll(): Promise<Province[]> {
     try {
-      const { collection, query, orderBy, getDocs, db } = await getFirestore()
+      const { collection, query, orderBy, getDocs, db } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.provinces || 'provinces')
 
       const q = query(collectionRef, orderBy('name', 'asc'))
@@ -99,6 +102,7 @@ export class ProvinceRepository implements IRepository {
 
       return provinces
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la récupération des provinces:', error)
       throw error
     }
@@ -109,7 +113,7 @@ export class ProvinceRepository implements IRepository {
    */
   async update(id: string, data: Partial<Omit<Province, 'id' | 'createdAt'>>): Promise<Province> {
     try {
-      const { doc, updateDoc, db, serverTimestamp } = await getFirestore()
+      const { doc, updateDoc, db, serverTimestamp } = await this.firestore()
       const docRef = doc(db, firebaseCollectionNames.provinces || 'provinces', id)
 
       const updateData: any = {
@@ -133,6 +137,7 @@ export class ProvinceRepository implements IRepository {
 
       return updatedDoc
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la mise à jour de la province:', error)
       throw error
     }
@@ -143,10 +148,11 @@ export class ProvinceRepository implements IRepository {
    */
   async delete(id: string): Promise<void> {
     try {
-      const { doc, deleteDoc, db } = await getFirestore()
+      const { doc, deleteDoc, db } = await this.firestore()
       const docRef = doc(db, firebaseCollectionNames.provinces || 'provinces', id)
       await deleteDoc(docRef)
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la suppression de la province:', error)
       throw error
     }
@@ -157,7 +163,7 @@ export class ProvinceRepository implements IRepository {
    */
   async searchByName(searchTerm: string): Promise<Province[]> {
     try {
-      const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
+      const { collection, query, where, orderBy, getDocs, db } = await this.firestore()
       const collectionRef = collection(db, firebaseCollectionNames.provinces || 'provinces')
 
       // Recherche insensible à la casse (Firestore ne supporte pas directement, on filtre côté client)
@@ -187,9 +193,9 @@ export class ProvinceRepository implements IRepository {
 
       return provinces
     } catch (error) {
+      if (this.strict) throw error;
       console.error('Erreur lors de la recherche de provinces:', error)
       throw error
     }
   }
 }
-

@@ -1,6 +1,6 @@
 'use client'
+import { ContractCardActions } from '@/components/shared/ContractCardActions'
 
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
@@ -8,7 +8,7 @@ import { useMember } from '@/hooks/useMembers'
 import { cn } from '@/lib/utils'
 import type { Placement } from '@/types/types'
 import { roundFcfa, sumCommissionAmounts } from '@/utils/placementMoney'
-import { AlertCircle, CheckCircle, DollarSign, Edit, ExternalLink, Eye, FileText, Trash2, Upload } from 'lucide-react'
+import { AlertCircle, CheckCircle, DollarSign, Edit, Eye, FileText, Trash2, Upload } from 'lucide-react'
 
 interface PlacementCardProps {
   placement: Placement
@@ -197,105 +197,19 @@ export default function PlacementCard({
           )}
         </div>
 
-        {/* Actions : « Ouvrir » en primaire, secondaires en rangée compacte */}
-        <div className="mt-auto space-y-2 border-t border-gray-100 pt-3">
-          {onOpenClick && (
-            <Button
-              size="sm"
-              onClick={onOpenClick}
-              className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-xs font-semibold"
-            >
-              <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-              Ouvrir
-            </Button>
-          )}
-
-          <div className="flex flex-wrap gap-1.5">
-            {placement.status === 'Active' && nextDueCommission && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onPayCommissionClick(nextDueCommission.id)}
-                className="h-8 cursor-pointer rounded-lg border-emerald-300 px-3 text-xs text-emerald-700 hover:bg-emerald-600 hover:text-white"
-              >
-                <DollarSign className="mr-1.5 h-3.5 w-3.5" />
-                Payer {nextDueCommission.amount.toLocaleString('fr-FR')} F
-              </Button>
-            )}
-
-            {hasContract && onViewContractClick ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onViewContractClick}
-                className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
-              >
-                <Eye className="mr-1.5 h-3.5 w-3.5" />
-                Voir
-              </Button>
-            ) : !hasContract && onUploadContractClick ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onUploadContractClick}
-                className="h-8 cursor-pointer rounded-lg border-orange-300 px-3 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
-              >
-                <Upload className="mr-1.5 h-3.5 w-3.5" />
-                Téléverser
-              </Button>
-            ) : null}
-
-            {onDownloadContractClick && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onDownloadContractClick}
-                className="h-8 cursor-pointer rounded-lg border-gray-200 px-3 text-xs text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-              >
-                <FileText className="mr-1.5 h-3.5 w-3.5" />
-                Contrat
-              </Button>
-            )}
-
-            {placement.status === 'Active' && hasContract && onDetailsClick && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onDetailsClick}
-                className="h-8 cursor-pointer rounded-lg border-gray-200 px-3 text-xs text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-              >
-                Détails
-              </Button>
-            )}
-
-            {placement.status === 'Draft' && onEditClick && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onEditClick}
-                className="h-8 cursor-pointer rounded-lg border-blue-300 px-3 text-xs text-blue-700 hover:bg-blue-600 hover:text-white"
-              >
-                <Edit className="mr-1.5 h-3.5 w-3.5" />
-                Modifier
-              </Button>
-            )}
-
-            {/* La suppression n'est plus réservée aux brouillons : le parent
-                décide via `onDeleteClick` (permission), et la confirmation par
-                saisie de l'identifiant protège les placements actifs. */}
-            {onDeleteClick && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onDeleteClick}
-                className="h-8 cursor-pointer rounded-lg border-red-300 px-3 text-xs text-red-600 hover:bg-red-500 hover:text-white"
-              >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                Supprimer
-              </Button>
-            )}
-          </div>
-        </div>
+        <ContractCardActions
+          contractId={placement.id}
+          onOpen={onOpenClick}
+          actions={[
+            { id: 'info', label: 'Voir les informations', icon: Eye, onSelect: onDetailsClick, visible: placement.status === 'Active' && hasContract },
+            { id: 'pay', label: nextDueCommission ? `Payer la commission — ${nextDueCommission.amount.toLocaleString('fr-FR')} FCFA` : 'Payer la commission', icon: DollarSign, onSelect: nextDueCommission ? () => onPayCommissionClick(nextDueCommission.id) : undefined, visible: placement.status === 'Active', group: 'operations' },
+            { id: 'edit', label: 'Modifier le placement', icon: Edit, onSelect: onEditClick, visible: placement.status === 'Draft', group: 'operations' },
+            { id: 'view', label: 'Voir le contrat signé', icon: Eye, onSelect: onViewContractClick, visible: hasContract, group: 'documents' },
+            { id: 'upload', label: 'Téléverser le contrat signé', icon: Upload, onSelect: onUploadContractClick, visible: !hasContract, group: 'documents' },
+            { id: 'download', label: 'Consulter le contrat PDF', icon: FileText, onSelect: onDownloadContractClick, group: 'documents' },
+            { id: 'delete', label: 'Supprimer le placement', icon: Trash2, onSelect: onDeleteClick, destructive: true },
+          ]}
+        />
       </CardContent>
     </Card>
   )

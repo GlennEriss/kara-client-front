@@ -1,4 +1,13 @@
+import { serializeFinanceValue } from './serialization'
+import { decorateFinanceDetail } from './detail-extras'
+import { isCreditModule } from '../credit-module'
+import { hasCreditContractExtension } from '@/utils/credit-contract-documents'
+import {
+  contractActionAvailable,
+  contractDocumentGate,
+} from './contract-policy'
 import { z } from 'zod'
+import { settingsRow, enrichSettingsAuthors } from './settings-presentation'
 import { financeListSchema } from './list-query'
 import { NextResponse, type NextRequest } from 'next/server'
 import { mobileJson, type MobileCaller } from '@/domains/mobile/server/access'
@@ -55,8 +64,10 @@ const labels = {
   'caisse-speciale': 'Caisse spéciale',
   'caisse-imprevue': 'Caisse imprévue',
   'credit-speciale': 'Crédit spécial',
+  'credit-fixe': 'Crédit fixe',
+  'caisse-aide': 'Caisse aide',
 }
-const jsonValue = (value: unknown) => JSON.parse(JSON.stringify(value ?? null))
+const jsonValue = serializeFinanceValue
 function errorResponse(error: unknown) {
   if (error instanceof z.ZodError)
     return mobileJson(
@@ -91,6 +102,18 @@ function permittedActions(
     .filter((action) => {
       if (action.scope !== scope || !canFinanceAction(caller, action))
         return false
+      if (
+        scope === 'settings' &&
+        action.id === 'settings.activate' &&
+        record?.isActive
+      )
+        return false
+      if (
+        scope === 'contract' &&
+        record &&
+        !contractActionAvailable(module, record, action.id)
+      )
+        return false
       if (scope === 'demand' && record) {
         if (action.id === 'demand.convert')
           return record.status === 'APPROVED' && !record.contractId
@@ -112,7 +135,16 @@ function permittedActions(
       }
       return true
     })
-    .map(publicAction)
+    .map((action) => {
+      const result = publicAction(action)
+      if (record && ['credit-fixe', 'caisse-aide'].includes(module) && action.id === 'contract.missed-earnings') return { ...result, label: 'Payer les pénalités après terme' }
+      return record &&
+        isCreditModule(module) &&
+        hasCreditContractExtension(record) &&
+        action.id === 'document.upload'
+        ? { ...result, label: 'Téléverser un nouveau contrat signé' }
+        : result
+    })
 }
 async function access(request: NextRequest, moduleValue: string) {
   const module = moduleSchema.safeParse(moduleValue)
@@ -162,12 +194,41 @@ export async function getFinanceWorkspace(
         : await listFinanceRows(services, result.module, input)
     return mobileJson({
       ...jsonValue(data),
+      ...(input.kind === 'contracts'
+        ? {
+            items: data.items.map((row: Record<string, any>) => ({
+              ...jsonValue(row),
+              cardAccess: {
+                actions: permittedActions(
+                  result.caller,
+                  result.module,
+                  'contract',
+                  row,
+                )
+                  .map((item) => item.id)
+                  .filter((id) =>
+                    [
+                      'document.upload',
+                      'document.replace',
+                      'member-document.approve',
+                      'member-document.reject',
+                      'contract.delete',
+                    ].includes(id),
+                  ),
+                canDownload: canWithAccess(
+                  result.caller.access,
+                  'documents.download',
+                ),
+              },
+            })),
+          }
+        : {}),
       module: result.module,
       title: labels[result.module],
       kind: input.kind,
       actions: permittedActions(result.caller, result.module, 'workspace'),
       canSettings:
-        result.module !== 'credit-speciale' &&
+        !isCreditModule(result.module) &&
         canWithAccess(
           result.caller.access,
           `${financePermissionPrefix(result.module)}.settings`,
@@ -212,6 +273,11 @@ export async function getFinanceDetail(
               ])
             )[0],
           }
+    if (kind === 'settings')
+      detail.record = await enrichSettingsAuthors(
+        services,
+        settingsRow(result.module, detail.record),
+      )
     if (kind === 'contract')
       detail.record = await projectFinanceContract(
         services,
@@ -220,10 +286,14 @@ export async function getFinanceDetail(
         new Date(),
         detail,
       )
+    if (kind === 'contract') await decorateFinanceDetail(services, detail)
     return mobileJson({
       ...jsonValue(detail),
+      ...(kind === 'contract'
+        ? { documentGate: contractDocumentGate(result.module, detail.record) }
+        : {}),
       ...(kind === 'contract' &&
-      result.module !== 'credit-speciale' &&
+      !isCreditModule(result.module) &&
       'payments' in detail
         ? {
             installments: financeTimeline(

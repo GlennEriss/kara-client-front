@@ -1,5 +1,34 @@
+import { computePostTermPenaltyBalance } from '@/utils/credit-losses'
+import {
+  creditPaymentTimingMap,
+  creditPunctuality,
+} from '@/utils/credit-payment-timing'
+import { getInstallmentPunctuality } from '@/utils/credit-payment-punctuality'
+import { civilDayToTimestamp } from '@/domains/mobile/server/calendar-dates'
+/* eslint-disable no-restricted-imports -- Reprend le calcul officiel de bonus des fiches CS existantes. */
+import { buildCreditTimeline } from '@/utils/credit-timeline'
+import { presentCreditInstallments } from './credit-schedule-presentation'
+import { getCreditSpecialeInterestCollected } from '@/utils/credit-speciale-history'
+import { isFlatCredit } from '@/utils/credit-weekly'
+import {
+  settingsRow,
+  selectSettings,
+  settingsOverview,
+} from './settings-presentation'
+import { normalizeFinanceDates } from './serialization'
+import { findCreditPenaltyHistoryRow } from '@/utils/credit-penalty-history'
+import { getCreditPaymentCycleNumber } from '@/utils/credit-speciale-history'
+import { creditDetailExtras } from './detail-extras'
+import { isCreditModule, creditTypeForModule } from '../credit-module'
 import { firebaseCollectionNames as names } from '@/constantes/firebase-collection-names'
 import { fromFirestore } from '@/domains/mobile/server/calendar-service'
+import { creditContractSummary } from '@/utils/credit-contract-summary'
+import {
+  getCreditContractCycles,
+  getCreditPaymentMonthNumber,
+} from '@/utils/credit-speciale-history'
+import { getMonthPeriod } from '@/utils/caisse-imprevue-utils'
+import { contractBonusSummary } from '@/services/caisse/contractLabels'
 import { computeCreditInstallments } from '@/utils/credit-installments'
 import {
   withBusinessDates,
@@ -22,6 +51,10 @@ export function financeCollection(module: FinanceModule, scope: FinanceScope) {
       scope === 'demand' ? names.caisseImprevueDemands : names.contractsCI,
     'credit-speciale':
       scope === 'demand' ? names.creditDemands : names.creditContracts,
+    'credit-fixe':
+      scope === 'demand' ? names.creditDemands : names.creditContracts,
+    'caisse-aide':
+      scope === 'demand' ? names.creditDemands : names.creditContracts,
   }[module]
 }
 export async function readFinanceTarget(
@@ -39,8 +72,8 @@ export async function readFinanceTarget(
     ...(fromFirestore(snapshot.data()) as Record<string, any>),
     id: snapshot.id,
   }
-  if (module === 'credit-speciale' && row.creditType !== 'SPECIALE')
-    throw new Error('Ce dossier ne relève pas du crédit spécial.')
+  if (isCreditModule(module) && row.creditType !== creditTypeForModule(module))
+    throw new Error('Ce dossier ne relève pas de cette section de crédit.')
   return row
 }
 const fullName = (row: any) =>
@@ -73,6 +106,8 @@ export async function enrichFinanceRows(
       memberName: name || row.label || row.code || 'Dossier KARA',
       memberContacts:
         row.memberContacts || row.clientContacts || member?.contacts || [],
+      memberEmail: row.memberEmail || row.clientEmail || member?.email || null,
+      memberWhatsapp: row.memberWhatsapp || member?.whatsappNumber || null,
       memberPhotoUrl: row.memberPhotoUrl || member?.photoURL || null,
       module,
     }
@@ -86,6 +121,7 @@ export interface FinanceListInput {
   limit: number
   page: number
   type?: string
+  settingsSort?: 'recent' | 'effective' | 'nameAsc'
 }
 export async function listFinanceRows(
   services: FinanceServices,
@@ -98,8 +134,10 @@ export async function listFinanceRows(
       : input.kind === 'settings'
         ? 'settings'
         : 'contract'
-  if (module === 'credit-speciale' && scope === 'settings')
-    throw new Error('Le crédit spécial ne dispose pas de forfaits de caisse.')
+  if (isCreditModule(module) && scope === 'settings')
+    throw new Error(
+      'Cette section de crédit ne dispose pas de forfaits de caisse.',
+    )
   if (module === 'caisse-speciale' && scope === 'contract') {
     const result = await services.csContractService.getContractsWithFilters(
       {
@@ -150,17 +188,17 @@ export async function listFinanceRows(
   // Existing repositories perform the same search and business filters as the site.
   // Cursor slicing happens after those filters for repositories without cursor APIs.
   let rows: Record<string, any>[]
-  if (module === 'credit-speciale' && scope === 'demand')
+  if (isCreditModule(module) && scope === 'demand')
     rows = await services.creditSpeciale.getDemandsWithFilters({
       search: input.search,
       status: input.status as any,
-      creditType: 'SPECIALE',
+      creditType: creditTypeForModule(module),
     })
-  else if (module === 'credit-speciale')
+  else if (isCreditModule(module))
     rows = await services.creditSpeciale.getContractsWithFilters({
       search: input.search,
       status: input.status as any,
-      creditType: 'SPECIALE',
+      creditType: creditTypeForModule(module),
     })
   else if (scope === 'settings')
     rows =
@@ -176,6 +214,18 @@ export async function listFinanceRows(
       },
       { throwOnError: true },
     )
+  const settings =
+    scope === 'settings'
+      ? settingsOverview(
+          module,
+          rows.map((row) => settingsRow(module, row)),
+        )
+      : undefined
+  if (scope === 'settings')
+    rows = selectSettings(
+      rows.map((row) => settingsRow(module, row)),
+      input,
+    )
   const total = rows.length
   const start = input.cursor
     ? rows.findIndex((row) => row.id === input.cursor) + 1
@@ -186,6 +236,7 @@ export async function listFinanceRows(
   return {
     items: await enrichFinanceRows(services, module, page),
     total,
+    ...(settings ? { settings } : {}),
     nextCursor: start + input.limit < total ? String(page.at(-1)?.id) : null,
   }
 }
@@ -197,8 +248,8 @@ export async function financeContractDetail(
   const record = await readFinanceTarget(services, module, 'contract', id)
   if (module === 'caisse-speciale') {
     const [payments, refunds, documents, member, group] = await Promise.all([
-      services.csPayments.listPayments(id),
-      services.csRefunds.listRefunds(id),
+      services.csPayments.listPayments(id).then(normalizeFinanceDates),
+      services.csRefunds.listRefunds(id).then(normalizeFinanceDates),
       services.documents.getDocumentsByContractId(id),
       record.memberId ? services.members.getMemberById(record.memberId) : null,
       record.groupeId
@@ -217,14 +268,31 @@ export async function financeContractDetail(
       member,
       group,
       declarations: await services.csRefunds.listDeclaredVersementsCS(id),
+      bonusSummary: contractBonusSummary(
+        withBusinessDates(record) as any,
+        await services.csSettings.getActiveSettings(record.caisseType),
+        withBusinessDates(payments) as any,
+      ),
       contributions: payments.flatMap((payment: any) =>
-        (payment.contribs || payment.groupContributions || []).map(
-          (item: any) => ({
-            ...item,
-            paymentId: payment.id,
-            month: payment.dueMonthIndex + 1,
-          }),
-        ),
+        (payment.contribs?.length
+          ? payment.contribs
+          : payment.groupContributions?.length
+            ? payment.groupContributions
+            : Number(payment.accumulatedAmount ?? payment.amount) > 0 &&
+                payment.paidAt
+              ? [
+                  {
+                    ...payment,
+                    id: '__single__',
+                    amount: payment.amount ?? payment.accumulatedAmount,
+                  },
+                ]
+              : []
+        ).map((item: any) => ({
+          ...item,
+          paymentId: payment.id,
+          month: payment.dueMonthIndex + 1,
+        })),
       ),
     }
   }
@@ -244,6 +312,21 @@ export async function financeContractDetail(
       documents,
       stats,
       declarations: await services.csRefunds.listDeclaredVersementsCI(id),
+      periods:
+        record.paymentFrequency !== 'DAILY'
+          ? []
+          : Array.from(
+              {
+                length: Math.min(
+                  1200,
+                  Number(record.subscriptionCIDuration) || 0,
+                ),
+              },
+              (_, index) => ({
+                month: index + 1,
+                ...getMonthPeriod(index, record.firstPaymentDate),
+              }),
+            ),
       versements: payments.flatMap((payment) =>
         payment.versements.map((item) => ({
           ...item,
@@ -263,24 +346,109 @@ export async function financeContractDetail(
   ] = await Promise.all([
     services.creditSpeciale.getPaymentsByCreditId(id),
     services.creditSpeciale.getPenaltiesByCreditId(id),
-    services.creditSpeciale.getRemunerationsByCreditId(id),
-    services.creditSpeciale.getGuarantorPaymentsByCreditId(id),
+    module === 'credit-speciale'
+      ? services.creditSpeciale.getRemunerationsByCreditId(id)
+      : Promise.resolve([]),
+    module === 'credit-speciale'
+      ? services.creditSpeciale.getGuarantorPaymentsByCreditId(id)
+      : Promise.resolve([]),
     services.documents.getDocumentsByContractId(id),
-    services.creditSpeciale.checkExtensionEligibility(id),
+    module === 'credit-speciale'
+      ? services.creditSpeciale.checkExtensionEligibility(id)
+      : Promise.resolve(undefined),
   ])
+  const credit = withBusinessDates(record) as CreditContract
+  const paidRows = withBusinessDates(payments) as CreditPayment[]
+  const totals = creditContractSummary(credit, paidRows)
   const installments = computeCreditInstallments(
     withBusinessDates(record) as CreditContract,
     withBusinessDates(payments) as CreditPayment[],
     businessWallTime(new Date()),
   )
+  const history = buildCreditTimeline(credit, paidRows)
+  const paymentTimings = creditPaymentTimingMap(credit, paidRows, history)
   return {
     record: (await enrichFinanceRows(services, module, [record]))[0],
-    payments,
+    payments: payments.map((p) => {
+      const timing = paymentTimings.get(p.id)
+      return {
+        ...p,
+        dueDate: timing?.dueDate ? civilDayToTimestamp(timing.dueDate) : null,
+        punctuality: timing?.punctuality || null,
+      }
+    }),
     penalties,
-    remunerations,
-    guarantorPayments,
+    ...(module === 'credit-speciale'
+      ? {
+          remunerations,
+          guarantorPayments,
+          extensionEligibility: extensionEligibility
+            ? {
+                eligible: extensionEligibility.eligible,
+                reason: extensionEligibility.reason || null,
+                paymentsCount: extensionEligibility.paymentsCount,
+                unpaidPenaltiesCount: extensionEligibility.unpaidPenaltiesCount,
+              }
+            : null,
+        }
+      : {}),
     documents,
-    installments,
-    extensionEligibility,
+    installments: presentCreditInstallments(
+      credit,
+      paidRows,
+      installments,
+      payments as CreditPayment[],
+    ),
+    creditSummary: {
+      interestAmount:
+        credit.creditType === 'SPECIALE'
+          ? getCreditSpecialeInterestCollected(history, isFlatCredit(credit))
+          : Math.max(0, Math.round(credit.totalAmount - credit.amount)),
+      interestGenerated: history.reduce((sum, row) => sum + row.interest, 0),
+      unpaidPenalties: penalties
+        .filter((p) => !p.paid)
+        .reduce((sum, p) => sum + p.amount, computePostTermPenaltyBalance(credit, paidRows).net),
+      unpaidPenaltiesCount: penalties.filter((p) => !p.paid).length,
+      paidPeriods: installments.filter(
+        (p) => p.status === 'PAID' && p.paidAmount > 0,
+      ).length,
+      scheduledPeriods: installments.length,
+    },
+    ...creditDetailExtras(record, payments, remunerations, guarantorPayments),
+    history: history.map((row) => ({
+      ...row,
+      date: civilDayToTimestamp(row.date),
+      dueDate: civilDayToTimestamp(row.date),
+      paymentDate: row.paymentDate
+        ? payments.find(
+            (p, i) =>
+              new Date(paidRows[i]?.paymentDate ?? '').getTime() ===
+                row.paymentDate!.getTime() &&
+              getCreditPaymentCycleNumber(credit, paidRows[i]) ===
+                row.cycleNumber,
+          )?.paymentDate || row.paymentDate
+        : null,
+      punctuality: creditPunctuality(
+        getInstallmentPunctuality(row, businessWallTime(new Date())),
+      ),
+      penaltyAmount: penalties
+        .filter(
+          (p) =>
+            findCreditPenaltyHistoryRow(withBusinessDates(p) as any, history)
+              ?.key === row.key,
+        )
+        .reduce((sum, p) => sum + p.amount, 0),
+      paymentIds: paidRows
+        .filter(
+          (p) =>
+            getCreditPaymentCycleNumber(credit, p) === row.cycleNumber &&
+            getCreditPaymentMonthNumber(credit, p) === row.month &&
+            (p.amount > 0 ||
+              !p.comment?.includes('Paiement de pénalités uniquement')),
+        )
+        .map((p) => p.id),
+    })),
+    cycles: getCreditContractCycles(credit),
+    restMonths: totals.history.filter((row) => row.isRest),
   }
 }

@@ -37,7 +37,7 @@ export class EventsService {
   private static instance: EventsService
   private readonly repo: IEventsRepository
 
-  private constructor(repo?: IEventsRepository) {
+  constructor(repo?: IEventsRepository) {
     this.repo = repo ?? EventsRepository.getInstance()
   }
 

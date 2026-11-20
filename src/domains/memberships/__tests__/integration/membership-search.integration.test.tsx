@@ -17,7 +17,8 @@ vi.mock('@/firebase/app', () => ({
   app: {},
 }))
 
-vi.mock('@/firebase/firestore', () => ({
+vi.mock('@/firebase/firestore', async () => ({
+  ...(await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore')),
   db: {},
   collection: vi.fn(() => ({})),
   query: vi.fn(() => ({})),

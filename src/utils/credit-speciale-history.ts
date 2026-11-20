@@ -96,7 +96,7 @@ export function getCreditContractCycles(
     | 'monthlyPaymentAmount'
     | 'restMonths'
     | 'totalAmount'
-  > & Partial<Pick<CreditContract, 'disbursementDate' | 'initialStartAt'>>
+  > & Partial<Pick<CreditContract, 'disbursementDate' | 'initialStartAt' | 'durationUnit'>>
 ): CreditContractCycle[] {
   const initialStart = getCreditInitialStartDate(contract)
   if (contract.creditCycles && contract.creditCycles.length > 0) {

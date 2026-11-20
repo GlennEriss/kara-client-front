@@ -30,8 +30,11 @@ import {
   increment,
   Timestamp,
 } from '@/firebase/firestore'
+
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+
 import type { IEventsRepository } from './IEventsRepository'
+
 import type {
   Event,
   CreateEventInput,
@@ -39,6 +42,7 @@ import type {
   ConfirmLocationInput,
   CancelEventInput,
 } from '../entities/event.types'
+
 import type {
   EventFilters,
   EventsPaginationParams,
@@ -46,15 +50,22 @@ import type {
   PaginatedEvents,
   EventStats,
 } from '../entities/event-filters.types'
+
 import type {
   EventVote,
   CastVoteInput,
   EventVoter,
 } from '../entities/event-vote.types'
 
+const createEventsRepositoryDefaults = { db, collection, query, where, orderBy, fbLimit, startAfter, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, getCountFromServer, runTransaction, increment, Timestamp };
+export function createEventsRepository(overrides: Partial<typeof createEventsRepositoryDefaults> = {}) {
+const { db, collection, query, where, orderBy, fbLimit, startAfter, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, getCountFromServer, runTransaction, increment, Timestamp } = { ...createEventsRepositoryDefaults, ...overrides };
+
+
 const VOTES_SUBCOLLECTION = 'votes'
 
-export class EventsRepository implements IEventsRepository {
+
+class EventsRepository implements IEventsRepository {
   private static instance: EventsRepository
   private readonly collectionName = firebaseCollectionNames.events
 
@@ -540,3 +551,6 @@ export class EventsRepository implements IEventsRepository {
     })
   }
 }
+return { EventsRepository };
+}
+export const { EventsRepository } = createEventsRepository();

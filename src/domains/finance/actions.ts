@@ -6,11 +6,14 @@ export const financeModules = [
   'caisse-speciale',
   'caisse-imprevue',
   'credit-speciale',
+  'credit-fixe',
+  'caisse-aide',
 ] as const
 export type FinanceModule = (typeof financeModules)[number]
 export type FinanceScope = 'workspace' | 'demand' | 'contract' | 'settings'
 export type InputKind =
   | 'text'
+  | 'hidden'
   | 'multiline'
   | 'number'
   | 'money'
@@ -21,6 +24,7 @@ export type InputKind =
   | 'member'
   | 'group'
   | 'file'
+  | 'signature'
   | 'fields'
   | 'rows'
 export interface FinanceField {
@@ -34,6 +38,9 @@ export interface FinanceField {
   min?: number
   max?: number
   initial?: unknown
+  accept?: string[]
+  maxBytes?: number
+  keepEmpty?: boolean
   help?: string
 }
 export interface FieldDefinition extends FinanceField {
@@ -215,6 +222,8 @@ export function defineAction(
     'caisse-speciale': 'caisseSpeciale',
     'caisse-imprevue': 'caisseImprevue',
     'credit-speciale': 'creditSpeciale',
+    'credit-fixe': 'creditFixe',
+    'caisse-aide': 'creditAide',
   }[module]
   return {
     id,

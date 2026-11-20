@@ -23,7 +23,6 @@ import {
   CALL_OUTCOME_COLORS,
   CALL_OUTCOME_LABELS,
   CONTACT_CHANNEL_LABELS,
-  REACHED_OUTCOMES,
   type CallOutcome,
   type ContactChannel,
 } from '@/services/call-logs/callLog'
@@ -33,6 +32,8 @@ import { AlertTriangle, CalendarClock, Download, PhoneCall, RefreshCw, Search, T
 import { toast } from 'sonner'
 import { exportRowsToExcel } from '@/utils/excel-export'
 import { useShownAmount } from '@/components/calendrier/useShownAmount'
+
+import { callLogSummary } from '@/utils/call-log-summary'
 
 const PAGE_SIZE = 15
 
@@ -99,49 +100,8 @@ export default function CallLogPage() {
    * Le taux de joignabilité ne compte que les appels : un message WhatsApp
    * parti n'établit pas le contact et fausserait le ratio.
    */
-  const stats = useMemo(() => {
-    const calls = filtered.filter((l) => l.channel === 'call')
-    const reached = calls.filter((l) => REACHED_OUTCOMES.includes(l.outcome)).length
-    const reachRate = calls.length > 0 ? Math.round((reached / calls.length) * 100) : 0
-
-    // Promesses non tenues : échéance dépassée, sans « a déjà payé » enregistré
-    // après coup pour la même personne.
-    const now = Date.now()
-    const paidAfter = new Map<string, number>()
-    for (const l of logs) {
-      if (l.outcome !== 'paiement_effectue') continue
-      const prev = paidAfter.get(l.personKey) ?? 0
-      paidAfter.set(l.personKey, Math.max(prev, l.createdAt.getTime()))
-    }
-    const brokenPromises = filtered.filter((l) => {
-      if (l.outcome !== 'promesse_paiement' || !l.promiseToPayAt) return false
-      if (l.promiseToPayAt.getTime() > now) return false
-      const paidAt = paidAfter.get(l.personKey)
-      return !paidAt || paidAt < l.createdAt.getTime()
-    })
-
-    return {
-      total: filtered.length,
-      calls: calls.length,
-      reachRate,
-      brokenPromises: brokenPromises.length,
-      brokenAmount: brokenPromises.reduce((sum, l) => sum + (l.promiseAmount || l.totalOverdue || 0), 0),
-    }
-  }, [filtered, logs])
-
-  /** Activité par administrateur — c'est le tableau que la direction regarde. */
-  const byCaller = useMemo(() => {
-    const map = new Map<string, { name: string; total: number; reached: number; promises: number }>()
-    for (const l of filtered) {
-      const name = l.adminName
-      const row = map.get(name) ?? { name, total: 0, reached: 0, promises: 0 }
-      row.total += 1
-      if (REACHED_OUTCOMES.includes(l.outcome)) row.reached += 1
-      if (l.outcome === 'promesse_paiement') row.promises += 1
-      map.set(name, row)
-    }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total)
-  }, [filtered])
+  const stats = useMemo(() => callLogSummary(filtered, logs), [filtered, logs])
+  const byCaller = stats.byCaller
 
   const handleExportExcel = async () => {
     if (filtered.length === 0) {

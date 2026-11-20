@@ -31,6 +31,64 @@ const row = (
   },
 })
 describe('lecture financière pour les cartes natives', () => {
+  it('conserve le périmètre du membre pour les listes et exports de contrats', () => {
+    const rows = [
+      { ...row('C1'), memberId: 'A' },
+      { ...row('C2'), clientId: 'A' },
+      { ...row('C3'), memberId: 'B' },
+    ]
+    expect(
+      filterPresentedRows(rows, { memberId: 'A' }).map((r) => r.id),
+    ).toEqual(['C1', 'C2'])
+  })
+  it('conserve les périodes du site et les coordonnées des versements réels dans l’échéancier', () => {
+    const rows = financeTimeline(
+      'caisse-speciale',
+      {
+        monthsPlanned: 2,
+        monthlyAmount: 10000,
+        contractStartAt: '2026-01-31',
+        caisseType: 'STANDARD',
+        status: 'ACTIVE',
+      },
+      [
+        {
+          id: 'P1',
+          dueMonthIndex: 0,
+          status: 'PAID',
+          amount: 10000,
+          paidAt: '2026-02-01T09:00:00Z',
+          time: '10:00',
+          mode: 'airtel_money',
+          contribs: [
+            {
+              id: 'V1',
+              amount: 10000,
+              paidAt: '2026-02-01T09:00:00Z',
+              time: '10:00',
+              mode: 'airtel_money',
+            },
+          ],
+        },
+      ],
+    )
+    expect(rows[0].period).toEqual({
+      startDate: '2026-01-31T00:00:00.000Z',
+      endDate: '2026-02-27T00:00:00.000Z',
+    })
+    expect(rows[0].recordedPayments).toEqual([
+      {
+        id: 'V1',
+        amount: 10000,
+        date: '2026-02-01T09:00:00.000Z',
+        time: '10:00',
+        mode: 'airtel_money',
+        withFees: null,
+      },
+    ])
+    expect(rows[1].recordedPayments).toEqual([])
+    expect(rows[1].period?.startDate).toBe('2026-02-28T00:00:00.000Z')
+  })
   it('refuse une statistique tronquée si le plafond de lecture est dépassé', async () => {
     const services = {
       db: {
@@ -73,6 +131,39 @@ describe('lecture financière pour les cartes natives', () => {
     expect(presented.financeView).toMatchObject({
       overdue: false,
       penalties: 50,
+    })
+  })
+  it('conserve le nominal du forfait CI même si les cotisations historiques divergent', async () => {
+    const result = await projectFinanceContract(
+      {} as FinanceServices,
+      'caisse-imprevue',
+      {
+        id: 'ci',
+        status: 'ACTIVE',
+        paymentFrequency: 'MONTHLY',
+        firstPaymentDate: '2026-05-20',
+        subscriptionCIAmountPerMonth: 10000,
+        subscriptionCIDuration: 5,
+        subscriptionCINominal: 120000,
+      },
+      new Date('2026-11-18T12:00:00Z'),
+      {
+        payments: [
+          {
+            monthIndex: 0,
+            accumulatedAmount: 10000,
+            targetAmount: 10000,
+            status: 'PAID',
+          },
+        ],
+        refunds: [],
+      },
+    )
+    expect(result.financeView).toMatchObject({
+      total: 120000,
+      paid: 10000,
+      remaining: 110000,
+      paidPeriods: 1,
     })
   })
   it('calcule les indicateurs sur tous les dossiers, au-delà de la première page', () => {

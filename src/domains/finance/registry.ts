@@ -9,5 +9,9 @@ export function financeActions(module: FinanceModule) {
     ...paymentActions(module),
     ...contractActions(module),
     ...settingsActions(module),
-  ]
+  ].filter(
+    (action) =>
+      !['credit-fixe', 'caisse-aide'].includes(module) ||
+      !['rest.create', 'guarantor.pay', 'guarantor.delete'].includes(action.id),
+  )
 }
