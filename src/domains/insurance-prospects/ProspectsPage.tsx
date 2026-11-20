@@ -1,4 +1,7 @@
 'use client'
+import { VehicleLocationStats } from '@/components/vehicule/VehicleLocationStats'
+import { vehicleLocationStats } from '@/domains/vehicles/location'
+import { VehicleLocationFields } from '@/components/vehicule/VehicleLocationFields'
 
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -52,6 +55,9 @@ const empty: ProspectInput = {
   vehicleType: 'car',
   vehicleDescription: '',
   city: '',
+  communeId: '',
+  districtId: '',
+  quarterId: '',
   locationType: 'quarter',
   quarter: '',
   locationDetails: '',
@@ -230,6 +236,7 @@ export function ProspectsPage({
         const input = Object.fromEntries(
           Object.keys(empty).map((k) => [k, values[k] || '']),
         ) as ProspectInput
+        if (input.locationType === 'quarter' && !input.quarterId) throw Error('Sélectionnez un quartier de Géographie.')
         if (selection.op === 'create')
           await repository.create(input, values.sponsorMemberId, actor)
         else await repository.change(selection.row!.id, actor, 'edit', input)
@@ -287,6 +294,7 @@ export function ProspectsPage({
   )
   return (
     <div className="mx-auto max-w-7xl space-y-6">
+      <VehicleLocationStats locations={vehicleLocationStats(openRows)} title="Prospection par quartier" />
       <header className="rounded-2xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] p-6 text-white shadow-md">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -622,19 +630,7 @@ export function ProspectsPage({
                       'text',
                       true,
                     )}
-                  {input('city', 'Ville', 'text', true)}
-                  {choose('locationType', 'Localisation', {
-                    quarter: 'Quartier',
-                    other: 'Autre emplacement',
-                  })}
-                  {values.locationType === 'quarter'
-                    ? input('quarter', 'Quartier', 'text', true)
-                    : input(
-                        'locationDetails',
-                        'Précisez l’emplacement',
-                        'text',
-                        true,
-                      )}
+                  <VehicleLocationFields value={{ ...values, locationType: values.locationType === 'other' ? 'other' : 'quarter' }} allowOther onChange={location => setValues({ ...values, ...location })} />
                   {input('insuranceCompany', 'Assureur actuel', 'text', true)}
                   {input(
                     'endDate',

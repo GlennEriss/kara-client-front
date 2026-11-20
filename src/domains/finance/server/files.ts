@@ -1,3 +1,6 @@
+import type { CreditContract } from '@/types/types'
+import { withBusinessDates } from '@/domains/mobile/server/calendar-dates'
+import { getCreditContractElapsedInstallments } from '@/services/credit-speciale/creditContractDates'
 import { settingsExportRow, settingsRow } from './settings-presentation'
 /* eslint-disable no-restricted-imports -- Adaptateur temporaire vers les règles métier et modèles officiels existants. */
 import { financeAttachmentPath } from './attachment-path'
@@ -149,6 +152,7 @@ export async function getFinanceFile(
               Référence: row.id,
               Membre: row.memberName,
               Statut: row.status || '',
+              ...(module.data === 'credit-speciale' && kind === 'contracts' ? { 'Échéances passées (tous cycles)': getCreditContractElapsedInstallments(withBusinessDates(row) as CreditContract) } : {}),
               Montant:
                 row.monthlyAmount ||
                 row.amount ||

@@ -1,11 +1,12 @@
 'use client'
+import { ContractCardActions } from '@/components/shared/ContractCardActions'
 import { useCreditCardSummaries } from '@/hooks/credit-speciale/useCreditCardSummaries'
 import { isCreditContractLocked } from '@/utils/contract-lock'
 import { canUploadSignedCreditContract as canUploadSignedContract, hasCreditContractExtension, isCreditContractActivationUpload } from '@/utils/credit-contract-documents'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { ENDED_CREDIT_STATUSES } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
-import { getCreditContractEndDate, getCreditContractRemainingMonths, getCreditContractStartDates } from '@/services/credit-speciale/creditContractDates'
+import { getCreditContractEndDate, getCreditContractElapsedInstallments, getCreditContractRemainingMonths, getCreditContractStartDates } from '@/services/credit-speciale/creditContractDates'
 import { isWeeklyCredit } from '@/utils/credit-weekly'
 import { canCreditContractBeInFixedPhase, type CreditContractFixedPhase } from '@/utils/credit-speciale-history'
 
@@ -985,7 +986,7 @@ const ListContrats = ({
         'Statut',
         'Montant emprunté (FCFA)',
         'Montant total (FCFA)',
-        'Durée (mois)',
+        forcedCreditType === 'SPECIALE' || !forcedCreditType ? 'Durée — échéances passées (tous cycles)' : 'Durée (mois)',
         'Mensualité (FCFA)',
         'Montant versé (FCFA)',
         'Montant restant (FCFA)',
@@ -1109,7 +1110,7 @@ const ListContrats = ({
         'Statut',
         'Montant FCFA',
         'Total FCFA',
-        'Durée',
+        forcedCreditType === 'SPECIALE' || !forcedCreditType ? 'Échéances passées' : 'Durée',
         'Mensualité FCFA',
         'Versé FCFA',
         'Restant FCFA',
@@ -1418,7 +1419,7 @@ const ListContrats = ({
       getStatusLabel(contrat.status),
       formatAmount(contrat.amount),
       formatAmount(contrat.totalAmount),
-      contrat.duration,
+      contrat.creditType === 'SPECIALE' ? getCreditContractElapsedInstallments(contrat) : contrat.duration,
       formatAmount(contrat.monthlyPaymentAmount),
       formatAmount(contrat.amountPaid),
       formatAmount(contrat.amountRemaining),
@@ -1757,10 +1758,10 @@ const ListContrats = ({
                           )}
                         </div>
                         {remainingMonths !== null && (
-                          <div title="Mensualités prévues aujourd’hui ou à venir dans le cycle en cours">
-                            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mois restants</p>
+                          <div title="Échéances du cycle courant, à partir de la première date de paiement, et non du départ du calendrier">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Échéances à venir</p>
                             <p className="font-bold text-gray-900 tabular-nums text-sm">{remainingMonths} / {contract.duration}</p>
-                            <p className="mt-1 text-[10px] text-gray-500">Selon l&apos;échéancier actuel</p>
+                            <p className="mt-1 text-[10px] text-gray-500">1re échéance : {new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR')}</p>
                           </div>
                         )}
                         <div>
@@ -1840,115 +1841,22 @@ const ListContrats = ({
                         )}
                       </div>
 
-                      {/* Actions : « Ouvrir » en primaire, secondaires en rangée compacte */}
-                      <div className="mt-auto space-y-2 border-t border-gray-100 pt-3">
-                        <Button
-                          onClick={() => {
-                            if (!canOpenContractDetail(contract)) return
-                            router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
-                          }}
-                          disabled={!canOpenContractDetail(contract)}
-                          className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-xs font-semibold"
-                        >
-                          <Eye className="mr-1.5 h-3.5 w-3.5" />
-                          Ouvrir
-                        </Button>
-
-                        <div className="flex flex-wrap gap-1.5">
-                          {hasSignedContract ? (
-                            <Button
-                              onClick={() => openCreditDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE', 'Contrat signé')}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                            >
-                              <FileText className="mr-1.5 h-3.5 w-3.5" />
-                              Voir
-                            </Button>
-                          ) : canUploadSignedContract(contract) ? (
-                            <Button
-                              onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 cursor-pointer rounded-lg border-orange-300 px-3 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
-                            >
-                              <Upload className="mr-1.5 h-3.5 w-3.5" />
-                              Téléverser
-                            </Button>
-                          ) : null}
-
-                          {hasSignedContract && canUploadSignedContract(contract) && (
-                            <Button
-                              onClick={() => { setSelectedContractForUpload(contract); setContractFile(undefined); setShowUploadModal(true) }}
-                              variant="outline"
-                              size="sm"
-                              className="h-auto min-h-8 cursor-pointer whitespace-normal rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-blue-50"
-                            >
-                              <Upload className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                              Téléverser un nouveau contrat signé
-                            </Button>
-                          )}
-                          {hasSignedContract && canReplaceSignedContract(contract) && (
-                            <Button
-                              onClick={() => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 cursor-pointer rounded-lg border-amber-300 px-3 text-xs text-amber-700 hover:bg-amber-500 hover:text-white"
-                            >
-                              <FileText className="mr-1.5 h-3.5 w-3.5" />
-                              Remplacer
-                            </Button>
-                          )}
-
-                          {!isCreditContractLocked(contract.status) && (
-                            <Button
-                              onClick={contract.contractUrl
-                                ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat')
-                                : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 cursor-pointer rounded-lg border-gray-200 px-3 text-xs text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-                            >
-                              <Download className="mr-1.5 h-3.5 w-3.5" />
-                              Contrat
-                            </Button>
-                          )}
-
-                          {canViewRepaymentContract(contract) && (
-                            <Button
-                              onClick={() => openCreditDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE', 'Contrat de remboursement')}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 cursor-pointer rounded-lg border-blue-300 px-3 text-xs text-blue-700 hover:bg-blue-600 hover:text-white"
-                            >
-                              <Eye className="mr-1.5 h-3.5 w-3.5" />
-                              Remboursement
-                            </Button>
-                          )}
-
-                          <Button
-                            onClick={() => setSelectedContractForOverview(contract)}
-                            variant="outline"
-                            size="sm"
-                            className="h-8 cursor-pointer rounded-lg border-gray-200 px-3 text-xs text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-                          >
-                            <User className="mr-1.5 h-3.5 w-3.5" />
-                            Infos
-                          </Button>
-
-                          {!isCreditContractLocked(contract.status) && (
-                          <Button
-                            onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
-                            variant="outline"
-                            size="sm"
-                            className="h-8 cursor-pointer rounded-lg border-red-300 px-3 text-xs text-red-600 hover:bg-red-500 hover:text-white"
-                          >
-                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                            Supprimer
-                          </Button>
-                          )}
-                        </div>
-                      </div>
+                      <ContractCardActions
+                        contractId={contract.id}
+                        onOpen={() => {
+                          if (canOpenContractDetail(contract)) router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
+                        }}
+                        openDisabled={!canOpenContractDetail(contract)}
+                        actions={[
+                          { id: 'info', label: 'Voir les informations', icon: User, onSelect: () => setSelectedContractForOverview(contract) },
+                          { id: 'view', label: 'Voir le contrat signé', icon: Eye, onSelect: () => openCreditDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE', 'Contrat signé'), visible: hasSignedContract, group: 'documents' },
+                          { id: 'upload', label: hasSignedContract ? 'Téléverser un nouveau contrat signé' : 'Téléverser le contrat signé', icon: Upload, onSelect: () => { setSelectedContractForUpload(contract); setContractFile(undefined); setShowUploadModal(true) }, visible: canUploadSignedContract(contract), group: 'documents' },
+                          { id: 'replace', label: 'Remplacer le contrat signé', icon: FileText, onSelect: () => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }, visible: hasSignedContract && canReplaceSignedContract(contract), group: 'documents' },
+                          { id: 'pdf', label: contract.contractUrl ? 'Consulter le contrat PDF' : 'Générer le contrat PDF', icon: Download, onSelect: contract.contractUrl ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat') : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }, visible: !isCreditContractLocked(contract.status), group: 'documents' },
+                          { id: 'repayment', label: 'Contrat de remboursement', icon: FileText, onSelect: () => openCreditDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE', 'Contrat de remboursement'), visible: canViewRepaymentContract(contract), group: 'documents' },
+                          { id: 'delete', label: 'Supprimer le contrat', icon: Trash2, onSelect: () => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }, visible: !isCreditContractLocked(contract.status), destructive: true },
+                        ]}
+                      />
                     </CardContent>
                   </Card>
                 </div>
@@ -2024,8 +1932,8 @@ const ListContrats = ({
                       <td className="px-4 py-3 text-right text-gray-700">
                         {contract.nextDueAt ? (contract.nextDueAt instanceof Date ? contract.nextDueAt.toLocaleDateString('fr-FR') : new Date(contract.nextDueAt).toLocaleDateString('fr-FR')) : '—'}
                         {getCreditContractRemainingMonths(contract) !== null && (
-                          <p className="mt-1 text-xs text-gray-500" title="Mensualités prévues aujourd’hui ou à venir dans le cycle en cours">
-                            {getCreditContractRemainingMonths(contract)} mois restants sur {contract.duration}
+                          <p className="mt-1 text-xs text-gray-500" title="Échéances du cycle courant, à partir de la première date de paiement, et non du départ du calendrier">
+                            {getCreditContractRemainingMonths(contract)} échéances à venir sur {contract.duration}
                           </p>
                         )}
                       </td>
@@ -2326,7 +2234,7 @@ const ListContrats = ({
                             </div>
                             {remainingMonths !== null && (
                               <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
-                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Mois restants</p>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Échéances à venir</p>
                                 <p className="text-base font-semibold text-slate-900">{remainingMonths} sur {contract.duration}</p>
                                 <p className="mt-1 text-xs text-slate-500">Mensualités prévues aujourd&apos;hui ou à venir</p>
                               </div>

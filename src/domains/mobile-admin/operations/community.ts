@@ -23,6 +23,7 @@ import {
 } from '@/domains/finance/actions'
 import { agentRecouvrementFormSchema } from '@/schemas/agent-recouvrement.schema'
 import { createEventSchema } from '@/domains/community/events/schemas/event.schema'
+import { resolveVehicleLocation } from '@/domains/vehicles/location'
 import { vehicleInsuranceFormSchema } from '@/schemas/vehicule.schema'
 import { MESSAGE_TEMPLATES } from '@/domains/messaging/constants/message-templates'
 import {
@@ -166,6 +167,12 @@ const insuranceFields = [
   textField('nonMemberPhone1', 'Téléphone du non-membre', false),
   textField('nonMemberPhone2', 'Autre téléphone', false),
   textField('city', 'Ville'),
+  { ...selectField('locationType', 'Localisation', [
+    { value: 'quarter', label: 'Quartier' },
+    { value: 'other', label: 'Autre emplacement' },
+  ]), initial: 'quarter' },
+  idField('quarterId', 'Quartier du véhicule (si Quartier)', 'vehicleQuarters', false),
+  textField('locationDetails', 'Précisez l’emplacement (si Autre)', false),
   select('vehicleType', 'Bien assuré', [
     'car',
     'motorcycle',
@@ -784,7 +791,11 @@ export function communityActions(
               sponsorContacts: sponsor.contacts,
               sponsorMatricule: sponsor.matricule || sponsor.id,
             })
-            const data = vehicleInsuranceFormSchema.parse(payload)
+            const location = await resolveVehicleLocation(payload, async (collection, id) => {
+              const snapshot = await ctx.services.db.collection(collection).doc(id).get()
+              return snapshot.exists ? snapshot.data() ?? null : null
+            })
+            const data = vehicleInsuranceFormSchema.parse({ ...payload, ...location })
             const receipt = await asset(ctx, 'receipt')
             if (receipt)
               data.attachments = {

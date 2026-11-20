@@ -8,6 +8,7 @@ import { AlertTriangle, Ban, Car, Shield, TrendingUp, User, Users } from 'lucide
 import { useMemo } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import { InsuranceWhatsAppReminderButton } from './InsuranceWhatsAppReminderButton'
+import { VehicleLocationStats } from './VehicleLocationStats'
 
 interface Props {
   stats?: VehicleInsuranceStats
@@ -86,6 +87,7 @@ export function VehicleInsuranceStats({ stats, isLoading }: Props) {
 
   return (
     <div className="space-y-6">
+      <VehicleLocationStats locations={stats.locations} />
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-2">
         {statsData.map((card, index) => (
           <StatsCard key={index} {...card} />

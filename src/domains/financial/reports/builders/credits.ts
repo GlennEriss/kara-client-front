@@ -1,6 +1,6 @@
 import type { CreditContract, CreditPayment, CreditPenalty, CreditType } from '@/types/types'
 import { addContractMonths } from '@/utils/contract-months'
-import { buildSimpleCreditSchedule, SIMPLE_CREDIT_LOSS_RATE } from '@/utils/credit-losses'
+import { buildPostTermPenaltyHistory, simpleCreditUnreturnedAmount } from '@/utils/credit-losses'
 import {
   buildCreditSpecialeHistory,
   buildCreditSpecialeTimelineHistory,
@@ -174,10 +174,11 @@ function buildContractLedger(
       const dueDate = addContractMonths(new Date(currentCycle.firstPaymentDate), index)
       if (dueDate.getTime() <= now) ledger.expected.push({ month: monthKeyOf(dueDate), amount: installment })
     }
-    for (const row of buildSimpleCreditSchedule(contract, getCreditPaymentsForCurrentCycle(contract, payments))) {
-      if (row.month > contract.duration && row.principal > 0 && new Date(row.date).getTime() <= now) {
-        ledger.missedEarnings.push({ month: monthKeyOf(row.date), amount: Math.round(row.principal * SIMPLE_CREDIT_LOSS_RATE) })
-      }
+    for (const row of buildPostTermPenaltyHistory(contract, payments, context.now)) {
+      ledger.penaltiesCreated.push({ month: monthKeyOf(row.date), amount: row.lossAmount })
+    }
+    for (const payment of contract.missedEarningsPayments ?? []) {
+      ledger.penaltiesPaid.push({ month: monthKeyOf(payment.date), amount: toNumber(payment.amount) })
     }
   }
 
@@ -273,7 +274,7 @@ export function buildCreditModule(
     for (const recovery of contract.writeOffRecoveries ?? []) {
       all.recoveries.push({ month: monthKeyOf(recovery.date), amount: toNumber(recovery.amount) })
     }
-    for (const payment of contract.missedEarningsPayments ?? []) {
+    for (const payment of contract.creditType === 'SPECIALE' ? contract.missedEarningsPayments ?? [] : []) {
       all.missedEarningsPaid.push({ month: monthKeyOf(payment.date), amount: toNumber(payment.amount) })
     }
     if (ledger.writeOffMonth && contract.writeOff) {
@@ -294,7 +295,11 @@ export function buildCreditModule(
       month: monthKeyOf(payment.date),
       amount: toNumber(payment.amount),
     }))
-    const contractMissedEarningsOutstanding = subtractValues(
+    const contractMissedEarningsOutstanding = contract.creditType !== 'SPECIALE' ? months.map(month => {
+      const [year, number] = month.split('-').map(Number)
+      const monthEnd = new Date(Date.UTC(year, number, 1) - 3600000 - 1)
+      return simpleCreditUnreturnedAmount(contract, paymentsByContract.get(contract.id) ?? [], monthEnd < context.now ? monthEnd : context.now)
+    }) : subtractValues(
       stockValues(months, ledger.missedEarnings),
       stockValues(months, contractMissedEarningsPaid)
     ).map((value) => Math.max(0, value))
@@ -394,11 +399,11 @@ export function buildCreditModule(
           'Contrats dont le reste dû n’est pas soldé à la fin du mois.', { kind: 'stock', unit: 'count' }),
       ]),
       makeBlock('risks', [
-        makeLine('missed_earnings_outstanding', 'Manque à gagner généré restant à date', missedEarningsOutstanding,
-          'Manque à gagner déjà généré à la date du bilan, moins les montants encaissés à ce titre. L’estimation complète visible dans les contrats peut inclure des mois futurs.', { kind: 'stock', level: 'total' }),
-        makeLine('missed_earnings', 'Manque à gagner du mois', flowValues(months, all.missedEarnings), isSpeciale
+        makeLine('missed_earnings_outstanding', isSpeciale ? 'Manque à gagner généré restant à date' : 'Montant non remboursé après terme', missedEarningsOutstanding,
+          isSpeciale ? 'Manque à gagner déjà généré à la date du bilan, moins les montants encaissés à ce titre.' : 'Solde du prêt non remboursé après le terme, déjà compris dans le reste dû. Les paiements de pénalités ne le réduisent pas.', { kind: 'stock', level: 'total' }),
+        makeLine('missed_earnings', isSpeciale ? 'Manque à gagner du mois' : 'Montant non remboursé après terme', isSpeciale ? flowValues(months, all.missedEarnings) : missedEarningsOutstanding, isSpeciale
           ? 'Intérêts que l’association ne touche pas en partie fixe : le taux du contrat appliqué à la dette, pour chaque mois après le 7e.'
-          : '10 % du reste dû pour chaque mois au-delà de la durée prévue du contrat.'),
+          : 'Montant du prêt non remboursé après la dernière échéance prévue, hors pénalités. Il est déjà compris dans le reste dû ; ne pas les additionner.', isSpeciale ? {} : { kind: 'stock' }),
         makeLine('losses', 'Pertes constatées (clôtures en perte)', losses,
           'Reste dû abandonné lors des clôtures en perte du mois.'),
         makeLine('unpaid_penalties', 'Pénalités impayées', unpaidPenalties,

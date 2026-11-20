@@ -1,16 +1,18 @@
+import { vehicleLocationStats, type VehicleLocation } from '@/domains/vehicles/location'
 import type { SourceRecord } from '@/domains/financial/reports/entities/financial-report-sources.types'
 import type { DashboardRankingItem, DashboardTabPayload } from '../entities/dashboard.types'
 import { addRankingValue, rankingDate, rankingIdentity, rankingMoney, rankingText, sortedRanking, type RankingMember, type RankingRange } from './ranking-utils'
 
 /** Each insurance dossier is one introduction; renewal rewards never add vehicles.
  * The reward's beneficiary remains authoritative for each historical payment. */
-export function buildVehicleDashboard(insurances: SourceRecord[], rewards: SourceRecord[], members: RankingMember[], range: RankingRange, now: Date, memberIds?: Set<string>): DashboardTabPayload {
+export function buildVehicleDashboard(insurances: SourceRecord[], rewards: SourceRecord[], members: RankingMember[], range: RankingRange, now: Date, memberIds?: Set<string>, prospects: SourceRecord[] = []): DashboardTabPayload {
   const identify = rankingIdentity(members)
   const inScope = (id: unknown, matricule: unknown) => !memberIds || memberIds.has(rankingText(id)) || memberIds.has(rankingText(matricule))
   const introductions = new Map<string, DashboardRankingItem>()
   const paid = new Map<string, DashboardRankingItem>()
   const kara = new Map<string, DashboardRankingItem>()
   const seenInsurances = new Set<string>(), seenRewards = new Set<string>()
+  const locatedInsurances: VehicleLocation[] = []
   let introduced = 0, receivedTotal = 0, paidTotal = 0, karaTotal = 0, payable = 0
   for (const insurance of insurances) {
     if (seenInsurances.has(insurance.id) || (insurance.declarationStatus && insurance.declarationStatus !== 'validated')
@@ -18,6 +20,7 @@ export function buildVehicleDashboard(insurances: SourceRecord[], rewards: Sourc
       || !rankingDate(insurance.validatedAt ?? insurance.createdAt, range, now)) continue
     seenInsurances.add(insurance.id)
     introduced++
+    locatedInsurances.push(insurance as VehicleLocation)
     addRankingValue(introductions, identify(insurance.sponsorMemberId, rankingText(insurance.sponsorName), insurance.sponsorMatricule), 1)
   }
   for (const reward of rewards) {
@@ -43,6 +46,8 @@ export function buildVehicleDashboard(insurances: SourceRecord[], rewards: Sourc
       addRankingValue(paid, person, share)
     }
   }
+  const locations = vehicleLocationStats(locatedInsurances)
+  const prospectiveLocations = vehicleLocationStats(prospects.filter(row => !['converted', 'lost'].includes(String(row.status)) && inScope(row.sponsorMemberId, row.sponsorMatricule) && rankingDate(row.createdAt, range, now)) as VehicleLocation[])
   return {
     title: 'Véhicules', subtitle: 'Apports des parrains, commissions effectivement reçues et reversements confirmés.',
     kpis: [
@@ -51,6 +56,11 @@ export function buildVehicleDashboard(insurances: SourceRecord[], rewards: Sourc
       { key: 'sponsors_paid', label: 'Commissions remises aux parrains', value: paidTotal, format: 'currency', subtitle: 'Remises datées et confirmées dans la période' },
       { key: 'kara_income', label: 'Part acquise à KARA', value: karaTotal, format: 'currency', subtitle: 'Commissions reçues moins parts réservées aux parrains', tone: 'success' },
       { key: 'sponsors_payable', label: 'Reste à reverser aux parrains', value: payable, format: 'currency', subtitle: 'Situation à ce jour, depuis l’origine', tone: 'warning' },
+    ],
+    distributions: [
+      { key: 'vehicle_quarters', title: 'Véhicules assurés par quartier', chartType: 'bar', unit: 'véhicules', items: [...locations.quarters.map(row => ({ label: `${row.label} · ${row.city}`, value: row.count })), { label: 'Quartier à renseigner', value: locations.missing }, { label: 'Autre emplacement', value: locations.other }].filter(row => row.value > 0) },
+      { key: 'vehicle_cities', title: 'Véhicules assurés par ville', chartType: 'bar', unit: 'véhicules', items: locations.cities.map(row => ({ label: row.label, value: row.count })) },
+      { key: 'prospect_quarters', title: 'Prospects à suivre par quartier', chartType: 'bar', unit: 'prospects', items: [...prospectiveLocations.quarters.map(row => ({ label: `${row.label} · ${row.city}`, value: row.count })), { label: 'Quartier à renseigner', value: prospectiveLocations.missing }, { label: 'Autre emplacement', value: prospectiveLocations.other }].filter(row => row.value > 0) },
     ],
     rankings: [
       { key: 'top_vehicle_sponsors', title: 'Top 10 des parrains — Véhicules apportés', unit: 'véhicules', items: sortedRanking([...introductions.values()]),
@@ -61,7 +71,7 @@ export function buildVehicleDashboard(insurances: SourceRecord[], rewards: Sourc
         description: 'Commission réellement reçue de l’assureur moins la part réservée au parrain, à la date de réception. Le paiement ultérieur du parrain ne crée pas une seconde charge.' },
     ],
     notes: [
-      'Dans cet onglet, les filtres de type de membre et de zone concernent les parrains, y compris pour les véhicules de non-membres.',
+      'Dans cet onglet, les filtres de type de membre et de zone concernent les parrains, y compris pour les véhicules de non-membres. Les répartitions par quartier et par ville décrivent le lieu du véhicule, après application de ce périmètre.',
       'Les classements excluent le compte INCONNU. Les primes et commissions prévisionnelles ne sont pas des gains reçus.',
       'Les nouvelles assurances suivent leur date de validation, sinon de création. Les flux suivent leurs dates effectives ; le reste à reverser est un stock à ce jour.',
     ],

@@ -55,6 +55,9 @@ export const publicAdminAction = (
     const initial = (fields: any[], record: any): any[] =>
       fields.map((f) => ({
         ...f,
+        ...(f.key === 'quarterId' && record?.quarterId && record?.quarter
+          ? { options: [{ value: record.quarterId, label: [record.quarter, record.district, record.city].filter(Boolean).join(' · ') }] }
+          : {}),
         ...(!f.required && ['text', 'multiline'].includes(f.kind)
           ? { keepEmpty: true }
           : {}),

@@ -137,6 +137,7 @@ function permittedActions(
     })
     .map((action) => {
       const result = publicAction(action)
+      if (record && ['credit-fixe', 'caisse-aide'].includes(module) && action.id === 'contract.missed-earnings') return { ...result, label: 'Payer les pénalités après terme' }
       return record &&
         isCreditModule(module) &&
         hasCreditContractExtension(record) &&

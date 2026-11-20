@@ -132,7 +132,7 @@ import RestMonthModal from './RestMonthModal'
 import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
 import SwitchToFixedPhaseModal from './SwitchToFixedPhaseModal'
 import { addContractMonths } from '@/utils/contract-months'
-import { buildSimpleCreditSchedule, missedEarningsPaid } from '@/utils/credit-losses'
+import { buildSimpleCreditSchedule, missedEarningsPaid, buildPostTermPenaltyHistory, computePostTermPenaltyBalance, simpleCreditUnreturnedAmount } from '@/utils/credit-losses'
 
 interface CreditContractDetailProps {
   contract: CreditContract
@@ -190,11 +190,11 @@ interface DueItem {
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
 // Statistiques du contrat — grille statique (même design que la liste des contrats)
-const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, totalLosses = 0, historyInterestTotal = 0, historyInterestCollected = 0, missedEarningsCollected = 0, hasManualFixedTransition = false }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; totalLosses?: number; historyInterestTotal?: number; historyInterestCollected?: number; missedEarningsCollected?: number; hasManualFixedTransition?: boolean }) => {
+const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, totalLosses = 0, historyInterestTotal = 0, historyInterestCollected = 0, missedEarningsCollected = 0, hasManualFixedTransition = false, postTermPenaltiesRemaining = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; totalLosses?: number; historyInterestTotal?: number; historyInterestCollected?: number; missedEarningsCollected?: number; hasManualFixedTransition?: boolean; postTermPenaltiesRemaining?: number }) => {
   // Calculer la somme des pénalités impayées
   const unpaidPenaltiesTotal = penalties
     .filter(p => !p.paid)
-    .reduce((sum, p) => sum + p.amount, 0)
+    .reduce((sum, p) => sum + p.amount, postTermPenaltiesRemaining)
   const unpaidPenaltiesCount = penalties.filter(p => !p.paid).length
   const paidPenaltiesTotal = penalties.filter(p => p.paid).reduce((sum, p) => sum + p.amount, 0)
 
@@ -253,7 +253,7 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
       title: 'Pénalités impayées',
       value: fcfa(unpaidPenaltiesTotal),
       subtitle: unpaidPenaltiesTotal > 0
-        ? `${unpaidPenaltiesCount} pénalité${unpaidPenaltiesCount > 1 ? 's' : ''}`
+        ? isSimpleCredit ? 'Pénalités après terme et pénalités enregistrées' : `${unpaidPenaltiesCount} pénalité${unpaidPenaltiesCount > 1 ? 's' : ''}`
         : paidPenaltiesTotal > 0
           ? `${fcfa(paidPenaltiesTotal)} de pénalités déjà réglées`
           : 'Aucune pénalité impayée',
@@ -261,7 +261,7 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
     },
     ...(totalLosses > 0 && showMissedEarnings
       ? [{
-          title: 'Manque à gagner',
+          title: isSimpleCredit ? 'Montant non remboursé' : 'Manque à gagner',
           value: fcfa(Math.max(0, totalLosses - missedEarningsCollected)),
           subtitle: missedEarningsCollected > 0
             ? `Restant · ${fcfa(missedEarningsCollected)} déjà encaissé`
@@ -818,16 +818,7 @@ export default function CreditContractDetail({
     const asOfTime = Date.now()
 
     if (contract.creditType === 'FIXE' || contract.creditType === 'AIDE') {
-      const FIXED_LOSS_RATE = 0.1
-
-      return actualSchedule
-        .filter((row) => row.month > contract.duration && row.principal > 0 && row.date.getTime() <= asOfTime)
-        .map((row) => ({
-          month: row.month,
-          date: row.date,
-          echeance: `${creditPeriodLabel(contract, row.month)} - ${format(row.date, 'dd/MM/yyyy')}`,
-          lossAmount: customRound(row.principal * FIXED_LOSS_RATE),
-        }))
+      return buildPostTermPenaltyHistory(contract, payments).map(row => ({ ...row, echeance: `Cycle ${row.cycleNumber} · M${row.month} - ${format(row.date, 'dd/MM/yyyy')}` }))
     }
 
     if (contract.creditType !== 'SPECIALE') return []
@@ -843,31 +834,32 @@ export default function CreditContractDetail({
         echeance: `${cyclePrefix}${creditPeriodLabel(contract, row.month)} - ${format(row.date, 'dd/MM/yyyy')}`,
         lossAmount: customRound(row.capitalStart * monthlyRate),
       }))
-  }, [actualSchedule, contract.creditType, contract.duration, contract.interestRate, currentCycle, specialHistory])
+  }, [contract, payments, currentCycle, specialHistory])
 
+  const postTermPenaltyBalance = React.useMemo(() => computePostTermPenaltyBalance(contract, payments), [contract, payments])
   const totalLosses = React.useMemo(
-    () => customRound(lossHistoryRows.reduce((sum, row) => sum + row.lossAmount, 0)),
-    [lossHistoryRows]
+    () => isSimpleCredit ? simpleCreditUnreturnedAmount(contract, payments) : customRound(lossHistoryRows.reduce((sum, row) => sum + row.lossAmount, 0)),
+    [isSimpleCredit, contract, payments, lossHistoryRows]
   )
   // Manque à gagner encaissé après la fin du contrat (le contrat reste terminé).
   const missedEarningsCollectedTotal = missedEarningsPaid(contract)
-  const missedEarningsRemaining = Math.max(0, totalLosses - missedEarningsCollectedTotal)
+  const missedEarningsRemaining = isSimpleCredit ? postTermPenaltyBalance.net : Math.max(0, totalLosses - missedEarningsCollectedTotal)
   // Versement après clôture : manque à gagner, ou pénalité impayée d'un contrat
   // soldé ou clos (en perte, les pénalités passent par les récupérations).
   const afterClosurePenalties =
     contract.status === 'DISCHARGED' || contract.status === 'CLOSED' ? penalties.filter((penalty) => !penalty.paid) : []
   const afterClosurePenaltiesTotal = afterClosurePenalties.reduce((sum, penalty) => sum + penalty.amount, 0)
   const canPayAfterClosure =
-    isCreditContractEnded(contract.status) &&
+    (isSimpleCredit || isCreditContractEnded(contract.status)) &&
     (missedEarningsRemaining > 0 || afterClosurePenalties.length > 0) &&
     (isSuperAdmin || can('creditSpeciale.payment'))
   const shouldShowLossesTab =
     contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
-      ? lossHistoryRows.length > 0
+      ? totalLosses > 0
       : hasEnteredFixedPhase && lossHistoryRows.length > 0
   const lossesTabDescription =
     contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
-      ? 'Manque à gagner généré après la durée contractuelle, tant que le montant restant n’est pas à 0.'
+      ? 'Pénalités de 10 % du montant non remboursé à chaque échéance mensuelle après le terme, sans capitalisation des pénalités.'
       : 'Manque à gagner généré à partir du passage en partie fixe.'
   // Mobile : les onglets défilent horizontalement ; grille à partir de md.
   const tabsGridClassName = isSimpleCredit
@@ -1392,29 +1384,30 @@ export default function CreditContractDetail({
 
   const handleExportLossHistoryExcel = async () => {
     if (!lossHistoryRows.length) {
-      toast.error('Aucune perte à exporter')
+      toast.error(isSimpleCredit ? 'Aucune pénalité après terme à exporter' : 'Aucune perte à exporter')
       return
     }
 
     try {
       setIsExportingLossHistoryExcel(true)
       const XLSX = await import('xlsx')
+      const amountLabel = isSimpleCredit ? 'Pénalités (FCFA)' : 'Pertes (FCFA)'
       const rows = [
         ...lossHistoryRows.map((row) => ({
           'Echéance': row.echeance,
-          'Pertes (FCFA)': row.lossAmount,
+          [amountLabel]: row.lossAmount,
         })),
         {
-          'Echéance': 'TOTAL DES PERTES',
-          'Pertes (FCFA)': totalLosses,
+          'Echéance': isSimpleCredit ? 'TOTAL DES PENALITES APRES TERME' : 'TOTAL DES PERTES',
+          [amountLabel]: isSimpleCredit ? postTermPenaltyBalance.gross : totalLosses,
         },
       ]
 
       const worksheet = XLSX.utils.json_to_sheet(rows)
       const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Pertes')
-      XLSX.writeFile(workbook, `historique_pertes_${contract.id}_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`)
-      toast.success('Historique du manque à gagner exporté en Excel')
+      XLSX.utils.book_append_sheet(workbook, worksheet, isSimpleCredit ? 'Pénalités après terme' : 'Pertes')
+      XLSX.writeFile(workbook, `historique_${isSimpleCredit ? 'penalites' : 'pertes'}_${contract.id}_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`)
+      toast.success(isSimpleCredit ? 'Pénalités après terme exportées en Excel' : 'Historique du manque à gagner exporté en Excel')
     } catch (error) {
       console.error('Erreur lors de l’export Excel des pertes:', error)
       toast.error('Erreur lors de l’export Excel des pertes')
@@ -1425,7 +1418,7 @@ export default function CreditContractDetail({
 
   const handleOpenLossHistoryPdf = async () => {
     if (!lossHistoryRows.length) {
-      toast.error('Aucune perte à exporter')
+      toast.error(isSimpleCredit ? 'Aucune pénalité après terme à exporter' : 'Aucune perte à exporter')
       return
     }
 
@@ -1440,7 +1433,7 @@ export default function CreditContractDetail({
 
     try {
       setIsGeneratingLossHistoryPdf(true)
-      toast.info('Génération du PDF des pertes en cours...')
+      toast.info(isSimpleCredit ? 'Génération du PDF des pénalités après terme…' : 'Génération du PDF des pertes en cours...')
 
       await generateCreditSpecialLossHistoryPDF({
         contractId: contract.id,
@@ -1449,14 +1442,15 @@ export default function CreditContractDetail({
           echeance: row.echeance,
           lossAmount: row.lossAmount,
         })),
-        totalLosses,
+        totalLosses: isSimpleCredit ? postTermPenaltyBalance.gross : totalLosses,
+        penaltyHistory: isSimpleCredit,
         descriptionText: lossesTabDescription,
         outputMode: 'open',
-        filename: `historique_pertes_${contract.id}.pdf`,
+        filename: `historique_${isSimpleCredit ? 'penalites' : 'pertes'}_${contract.id}.pdf`,
         targetWindow: previewWindow,
       })
 
-      toast.success('Historique du manque à gagner PDF généré avec succès')
+      toast.success(isSimpleCredit ? 'PDF des pénalités après terme généré' : 'Historique du manque à gagner PDF généré avec succès')
     } catch (error) {
       if (previewWindow && !previewWindow.closed) {
         previewWindow.close()
@@ -1631,7 +1625,142 @@ export default function CreditContractDetail({
     cycleNumber: selectedReceiptCycleNumber,
   })
 
-  const renderPenaltiesContent = () => {
+  const renderAccrualHistory = () => (
+<div className="space-y-6">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5" />
+                          {isSimpleCredit ? 'Pénalités mensuelles après terme' : 'Historique du manque à gagner'}
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {lossesTabDescription}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                          onClick={handleExportLossHistoryExcel}
+                          disabled={isExportingLossHistoryExcel}
+                        >
+                          {isExportingLossHistoryExcel ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Export...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="mr-2 h-4 w-4" />
+                              Exporter Excel
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                          onClick={handleOpenLossHistoryPdf}
+                          disabled={isGeneratingLossHistoryPdf}
+                        >
+                          {isGeneratingLossHistoryPdf ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Génération...
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Voir le PDF
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Echéance</TableHead>
+                            <TableHead className="text-right">{isSimpleCredit ? 'Pénalités (FCFA)' : 'Pertes (FCFA)'}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lossHistoryRows.map((row) => (
+                            <TableRow key={`${row.month}-${row.date.toISOString()}`}>
+                              <TableCell className="font-medium">{row.echeance}</TableCell>
+                              <TableCell className="text-right text-red-700 font-semibold">
+                                {row.lossAmount.toLocaleString('fr-FR')}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow className="bg-slate-50">
+                            <TableCell className="font-semibold">{isSimpleCredit ? 'Total des pénalités après terme' : 'Total du manque à gagner'}</TableCell>
+                            <TableCell className="text-right font-bold text-red-700">
+                              {(isSimpleCredit ? postTermPenaltyBalance.gross : totalLosses).toLocaleString('fr-FR')}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Encaissements après la fin du contrat */}
+                    <div className="space-y-3 rounded-lg border p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{isSimpleCredit ? 'Encaissements des pénalités après terme' : 'Encaissements du manque à gagner'}</h4>
+                          <p className="text-sm text-gray-500">
+                            Encaissé : <b>{missedEarningsCollectedTotal.toLocaleString('fr-FR')} FCFA</b>
+                            {' · '}Restant : <b className="text-red-700">{missedEarningsRemaining.toLocaleString('fr-FR')} FCFA</b>
+                          </p>
+                          {!isSimpleCredit && !isCreditContractEnded(contract.status) && (
+                            <p className="mt-1 text-xs text-gray-400">
+                              Le manque à gagner s’encaisse une fois le contrat terminé (soldé, clos ou en perte).
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {(contract.missedEarningsPayments?.length ?? 0) > 0 && (
+                        <div className="rounded-lg border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead className="text-right">Montant (FCFA)</TableHead>
+                                <TableHead>Enregistré par</TableHead>
+                                <TableHead className="text-right">Facture</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {contract.missedEarningsPayments!.map((payment) => (
+                                <TableRow key={payment.id}>
+                                  <TableCell>{formatDate(payment.date)}</TableCell>
+                                  <TableCell className="text-right font-semibold text-emerald-700">
+                                    {payment.amount.toLocaleString('fr-FR')}
+                                  </TableCell>
+                                  <TableCell>{payment.recordedByName || payment.recordedBy}</TableCell>
+                                  <TableCell className="text-right">
+                                    <Button type="button" size="sm" variant="outline" onClick={() => setMissedEarningsReceipt(payment)}>
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      Voir la facture
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+  )
+  const renderPenaltiesContent = () => <>
+    {isSimpleCredit && renderAccrualHistory()}
+    {(!isSimpleCredit || penalties.length > 0) && renderStoredPenaltiesContent()}
+  </>
+  const renderStoredPenaltiesContent = () => {
     if (penalties.length === 0) {
       return (
         <div className="text-center py-8 text-gray-500 border rounded-lg">
@@ -2035,7 +2164,8 @@ export default function CreditContractDetail({
             totalLosses={totalLosses}
             historyInterestTotal={historyInterestTotal}
             historyInterestCollected={historyInterestCollected}
-            missedEarningsCollected={missedEarningsCollectedTotal}
+            missedEarningsCollected={isSimpleCredit ? 0 : missedEarningsCollectedTotal}
+            postTermPenaltiesRemaining={postTermPenaltyBalance.net}
             hasManualFixedTransition={hasManualFixedNotice}
           />
         </div>
@@ -2045,9 +2175,9 @@ export default function CreditContractDetail({
           <Card className="border border-amber-200 bg-amber-50/60 shadow-sm">
             <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div className="text-sm text-amber-900">
-                <p className="font-semibold">Contrat terminé : sommes encore dues</p>
+                <p className="font-semibold">{isSimpleCredit ? 'Pénalités mensuelles après terme' : 'Contrat terminé : sommes encore dues'}</p>
                 <p>
-                  Manque à gagner restant : <b>{missedEarningsRemaining.toLocaleString('fr-FR')} FCFA</b>
+                  {isSimpleCredit ? 'Pénalités après terme restantes' : 'Manque à gagner restant'} : <b>{missedEarningsRemaining.toLocaleString('fr-FR')} FCFA</b>
                   {afterClosurePenalties.length > 0 && (
                     <>
                       {' · '}Pénalités impayées : <b>{afterClosurePenaltiesTotal.toLocaleString('fr-FR')} FCFA</b>
@@ -2062,7 +2192,7 @@ export default function CreditContractDetail({
                 onClick={() => setShowMissedEarningsModal(true)}
               >
                 <HandCoins className="mr-2 h-4 w-4" />
-                Versement après clôture
+                {isSimpleCredit ? 'Payer les pénalités après terme' : 'Versement après clôture'}
               </Button>
             </CardContent>
           </Card>
@@ -2121,7 +2251,7 @@ export default function CreditContractDetail({
                 {shouldShowLossesTab && (
                   <TabsTrigger value="losses" className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4" />
-                    Manque à gagner
+                    {isSimpleCredit ? 'Montant non remboursé' : 'Manque à gagner'}
                   </TabsTrigger>
                 )}
                 {!isSimpleCredit && (
@@ -2747,135 +2877,7 @@ export default function CreditContractDetail({
 
               {shouldShowLossesTab && (
                 <TabsContent value="losses" className="p-6 space-y-6 m-0">
-                  <div className="space-y-6">
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div>
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                          <TrendingUp className="h-5 w-5" />
-                          Historique du manque à gagner
-                        </h3>
-                        <p className="mt-1 text-sm text-gray-500">
-                          {lossesTabDescription}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
-                          onClick={handleExportLossHistoryExcel}
-                          disabled={isExportingLossHistoryExcel}
-                        >
-                          {isExportingLossHistoryExcel ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Export...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="mr-2 h-4 w-4" />
-                              Exporter Excel
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
-                          onClick={handleOpenLossHistoryPdf}
-                          disabled={isGeneratingLossHistoryPdf}
-                        >
-                          {isGeneratingLossHistoryPdf ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Génération...
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Voir le PDF
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Echéance</TableHead>
-                            <TableHead className="text-right">Pertes (FCFA)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {lossHistoryRows.map((row) => (
-                            <TableRow key={`${row.month}-${row.date.toISOString()}`}>
-                              <TableCell className="font-medium">{row.echeance}</TableCell>
-                              <TableCell className="text-right text-red-700 font-semibold">
-                                {row.lossAmount.toLocaleString('fr-FR')}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                          <TableRow className="bg-slate-50">
-                            <TableCell className="font-semibold">Total du manque à gagner</TableCell>
-                            <TableCell className="text-right font-bold text-red-700">
-                              {totalLosses.toLocaleString('fr-FR')}
-                            </TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </div>
-
-                    {/* Encaissements après la fin du contrat */}
-                    <div className="space-y-3 rounded-lg border p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <h4 className="font-semibold text-gray-900">Encaissements du manque à gagner</h4>
-                          <p className="text-sm text-gray-500">
-                            Encaissé : <b>{missedEarningsCollectedTotal.toLocaleString('fr-FR')} FCFA</b>
-                            {' · '}Restant : <b className="text-red-700">{missedEarningsRemaining.toLocaleString('fr-FR')} FCFA</b>
-                          </p>
-                          {!isCreditContractEnded(contract.status) && (
-                            <p className="mt-1 text-xs text-gray-400">
-                              Le manque à gagner s’encaisse une fois le contrat terminé (soldé, clos ou en perte).
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {(contract.missedEarningsPayments?.length ?? 0) > 0 && (
-                        <div className="rounded-lg border overflow-hidden">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead className="text-right">Montant (FCFA)</TableHead>
-                                <TableHead>Enregistré par</TableHead>
-                                <TableHead className="text-right">Facture</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {contract.missedEarningsPayments!.map((payment) => (
-                                <TableRow key={payment.id}>
-                                  <TableCell>{formatDate(payment.date)}</TableCell>
-                                  <TableCell className="text-right font-semibold text-emerald-700">
-                                    {payment.amount.toLocaleString('fr-FR')}
-                                  </TableCell>
-                                  <TableCell>{payment.recordedByName || payment.recordedBy}</TableCell>
-                                  <TableCell className="text-right">
-                                    <Button type="button" size="sm" variant="outline" onClick={() => setMissedEarningsReceipt(payment)}>
-                                      <Eye className="mr-2 h-4 w-4" />
-                                      Voir la facture
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {isSimpleCredit ? <div className="space-y-3 rounded-xl border border-slate-200 p-5"><h3 className="font-semibold">Montant non remboursé après le terme</h3><p className="text-2xl font-bold text-red-700">{totalLosses.toLocaleString('fr-FR')} FCFA</p><p className="text-sm text-slate-500">Le montant dû qui n’a pas été remboursé. Les pénalités mensuelles sont suivies séparément dans l’onglet Pénalité ; leur paiement ne réduit pas ce solde.</p></div> : renderAccrualHistory()}
                 </TabsContent>
               )}
 
@@ -4126,6 +4128,7 @@ export default function CreditContractDetail({
         onClose={() => setShowMissedEarningsModal(false)}
         contractId={contract.id}
         maxAmount={missedEarningsRemaining}
+        postTermPenalties={isSimpleCredit}
         unpaidPenalties={afterClosurePenalties}
       />
       <MissedEarningsReceiptModal

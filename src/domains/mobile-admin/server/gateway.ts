@@ -157,6 +157,9 @@ export const listSchema = z
         'profession',
         'insuranceCompany',
         'quarter',
+        'quarterId',
+        'communeId',
+        'locationMissing',
         'vehicleType',
         'holderType',
         'declarationStatus',
@@ -1023,6 +1026,7 @@ export async function getAdminChoices(request: NextRequest, key: string) {
         communes: 'communes',
         districts: 'districts',
         quarters: 'quarters',
+        vehicleQuarters: 'quarters',
         companies: 'companies',
         professions: 'professions',
         charities: 'charity-events',
@@ -1036,6 +1040,19 @@ export async function getAdminChoices(request: NextRequest, key: string) {
       const snap = await access.services.db.collection(col).limit(10001).get()
       if (snap.size > 10000) throw Error('Trop de résultats.')
       rows = snap.docs.map((d) => ({ ...plain(d.data()), id: d.id }))
+      if (input.source === 'vehicleQuarters') {
+        const [districtSnapshot, communeSnapshot] = await Promise.all([
+          access.services.db.collection('districts').get(),
+          access.services.db.collection('communes').get(),
+        ])
+        const districts = new Map(districtSnapshot.docs.map(doc => [doc.id, doc.data()]))
+        const communes = new Map(communeSnapshot.docs.map(doc => [doc.id, doc.data()]))
+        rows = rows.map(quarter => {
+          const district = districts.get(quarter.districtId)
+          const commune = district && communes.get(district.communeId)
+          return { ...quarter, communeId: district?.communeId, city: commune?.name, name: [quarter.name, district?.name, commune?.name].filter(Boolean).join(' · ') }
+        })
+      }
       if (input.source === 'prospectInsurances') {
         if (!record || key !== 'vehicles' || dataset.key !== 'prospects') throw Error('Prospect requis')
         rows = rows.filter(r => insuranceMatchesProspect(record as any, r))
@@ -1060,6 +1077,7 @@ export async function getAdminChoices(request: NextRequest, key: string) {
         .slice(0, 100)
         .map((r) => ({
           value: r.id,
+          ...(input.source === 'vehicleQuarters' ? { meta: { values: { city: r.city || '', communeId: r.communeId || '', districtId: r.districtId || '', quarter: r.name.split(' · ')[0] } } } : {}),
           label: `${title(r)}${r.amount ? ` · ${Number(r.amount).toLocaleString('fr-FR')} FCFA` : ''}${r.matricule ? ` · ${r.matricule}` : ''}`,
         })),
     })

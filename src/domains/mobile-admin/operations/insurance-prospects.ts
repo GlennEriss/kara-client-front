@@ -31,7 +31,7 @@ const fields = [
     { value: 'quarter', label: 'Quartier' },
     { value: 'other', label: 'Autre emplacement' },
   ]),
-  textField('quarter', 'Quartier (si Quartier)', false),
+  idField('quarterId', 'Quartier de Géographie (si Quartier)', 'vehicleQuarters', false),
   textField('locationDetails', 'Précisez l’emplacement (si Autre)', false),
   textField('insuranceCompany', 'Assureur actuel'),
   dateField('endDate', 'Fin de l’assurance actuelle'),

@@ -21,11 +21,16 @@ Définir la création et le suivi des contrats Crédit Fixe jusqu'au rembourseme
 - `totalAmount = amount + interetUnique`
 - `monthlyPaymentAmount` de référence = `totalAmount / duration`
 
-## Gestion post-échéance (après 14 mois)
+## Gestion après le terme prévu (clarification du 20 novembre 2026)
 
-- Si `amountRemaining > 0`, calculer chaque mois :
-- `perteDuMois = amountRemaining * 0.15`
-- Historiser la perte mensuelle pour le reporting.
+- Le terme est la dernière échéance de la durée réellement convenue (14 mois au maximum).
+- Si le prêt reste impayé, une pénalité de 10 % du solde non remboursé naît à chaque échéance mensuelle suivante : la première un mois après le terme.
+- La base se reconstruit avec les versements réels, jamais avec les mensualités seulement prévues ; les pénalités ne sont pas capitalisées.
+- Le manque à gagner désigne ici le montant du prêt non remboursé, distinct de ces pénalités.
+- Le paiement des pénalités n'augmente pas `amountPaid` et ne réduit pas `amountRemaining`.
+- Les anciens encaissements `missedEarningsPayments` du fixe/aide conservent leurs identifiants et preuves ; ils sont désormais présentés comme paiements des pénalités après terme.
+- Aucun rattrapage ni écriture automatique de pénalités n'est exécuté en base : historique et solde sont calculés à la lecture.
+- Le Crédit aide suit la même séparation. Une transformation effectivement datée arrête les nouvelles pénalités de son ancien contrat.
 
 ## Impacts techniques
 

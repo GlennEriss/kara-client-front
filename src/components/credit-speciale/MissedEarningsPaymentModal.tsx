@@ -34,6 +34,7 @@ interface MissedEarningsPaymentModalProps {
   contractId: string
   /** Manque à gagner restant : on ne peut pas encaisser plus. */
   maxAmount: number
+  postTermPenalties?: boolean
   /** Pénalités impayées réglables par ce versement (contrat soldé ou clos). */
   unpaidPenalties?: CreditPenalty[]
 }
@@ -53,6 +54,7 @@ export default function MissedEarningsPaymentModal({
   onClose,
   contractId,
   maxAmount,
+  postTermPenalties = false,
   unpaidPenalties = [],
 }: MissedEarningsPaymentModalProps) {
   const { recordMissedEarningsPayment } = useCreditContractMutations()
@@ -164,8 +166,8 @@ export default function MissedEarningsPaymentModal({
       <ModalContent size="lg">
         <ModalHeader
           icon={DollarSign}
-          title="Versement après clôture"
-          description="Le contrat est terminé : ce versement rembourse soit le manque à gagner, soit une pénalité impayée."
+          title={postTermPenalties ? "Payer les pénalités après terme" : "Versement après clôture"}
+          description={postTermPenalties ? "Ce paiement règle uniquement les pénalités mensuelles après terme. Il ne réduit pas le montant du prêt restant à rembourser." : "Le contrat est terminé : ce versement rembourse soit le manque à gagner, soit une pénalité impayée."}
         />
 
         <ModalBody>
@@ -211,7 +213,7 @@ export default function MissedEarningsPaymentModal({
                   onChange={() => setTarget('missedEarnings')}
                 />
                 <span>
-                  <span className="block font-medium text-gray-900">Le manque à gagner</span>
+                  <span className="block font-medium text-gray-900">{postTermPenalties ? 'Les pénalités après terme' : 'Le manque à gagner'}</span>
                   <span className="block text-xs text-gray-500">Restant : {maxAmount.toLocaleString('fr-FR')} FCFA</span>
                 </span>
               </label>
@@ -273,8 +275,8 @@ export default function MissedEarningsPaymentModal({
               />
               <p className={`text-xs mt-1 ${value > maxAmount ? 'text-red-600' : 'text-muted-foreground'}`}>
                 {value > maxAmount
-                  ? 'Le montant dépasse le manque à gagner restant.'
-                  : `Au plus ${maxAmount.toLocaleString('fr-FR')} FCFA (manque à gagner restant).`}
+                  ? `Le montant dépasse ${postTermPenalties ? 'les pénalités restantes' : 'le manque à gagner restant'}.`
+                  : `Au plus ${maxAmount.toLocaleString('fr-FR')} FCFA (${postTermPenalties ? 'pénalités restantes' : 'manque à gagner restant'}).`}
               </p>
             </div>
           )}

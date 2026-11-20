@@ -34,7 +34,7 @@ import {
 } from "@/utils/credit-speciale-history";
 import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion";
 import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from "@/utils/credit-write-off";
-import { computeMissedEarningsBalance } from "@/utils/credit-losses";
+import { computeMissedEarningsBalance, computePostTermPenaltyBalance } from "@/utils/credit-losses";
 import { getMonthPenaltyReferenceDate } from "@/utils/credit-penalty-due-date";
 import { WEEKLY_CREDIT_MAX_WEEKS, applyShopPartnerTerms, clampShopCreditInstallments, getWeeklyCreditStartDate, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from "@/utils/credit-weekly";
 import { getCreditPeriodDueDate, getCreditPeriodIndex } from '@/utils/credit-periods';
@@ -675,9 +675,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // retenus par les filtres, pas la collection entière.
         const creditIds = new Set(contracts.map((contract) => contract.id));
         const penalties = await this.creditPenaltyRepository.getAllPenalties();
+        const postTerm = await Promise.all(contracts.filter(contract => ['FIXE', 'AIDE'].includes(contract.creditType)).map(async contract =>
+            computePostTermPenaltyBalance(contract, await this.getPaymentsByCreditId(contract.id)).gross
+        ));
         return penalties.reduce(
             (sum, penalty) => (creditIds.has(penalty.creditId) ? sum + (Number(penalty.amount) || 0) : sum),
-            0,
+            postTerm.reduce((sum, amount) => sum + amount, 0),
         );
     }
 
@@ -2824,8 +2827,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         for (const contract of finishedContracts) {
             const unpaidPenalties = await this.creditPenaltyRepository.getUnpaidPenaltiesByCreditId(contract.id);
-            if (unpaidPenalties.length > 0) {
-                const totalUnpaidPenalties = unpaidPenalties.reduce((sum, p) => sum + p.amount, 0);
+            const postTermBalance = ['FIXE', 'AIDE'].includes(contract.creditType)
+                ? computePostTermPenaltyBalance(contract, await this.creditPaymentRepository.getPaymentsByCreditId(contract.id)).net : 0;
+            if (unpaidPenalties.length > 0 || postTermBalance > 0) {
+                const totalUnpaidPenalties = unpaidPenalties.reduce((sum, p) => sum + p.amount, postTermBalance);
                 return {
                     eligible: false,
                     reason: `Le client a des pénalités impayées (${totalUnpaidPenalties.toLocaleString('fr-FR')} FCFA) sur un contrat précédent. Veuillez régulariser ces pénalités avant de créer une nouvelle demande.`,
@@ -3373,17 +3378,19 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
-        if (!isCreditContractEnded(contract.status)) {
+        const simple = contract.creditType === 'FIXE' || contract.creditType === 'AIDE';
+        if (!simple && !isCreditContractEnded(contract.status)) {
             throw new Error('Le manque à gagner ne s\'encaisse qu\'une fois le contrat terminé');
         }
+        if (!Number.isFinite(new Date(data.date).getTime()) || new Date(data.date) > new Date()) throw new Error('La date de paiement doit être valide et ne peut pas être future');
         const amount = Math.round(Number(data.amount) || 0);
         if (amount <= 0) {
             throw new Error('Le montant doit être strictement positif');
         }
         const payments = await this.creditPaymentRepository.getPaymentsByCreditId(contractId);
-        const { net } = computeMissedEarningsBalance(contract, payments);
+        const { net } = simple ? computePostTermPenaltyBalance(contract, payments, data.date) : computeMissedEarningsBalance(contract, payments);
         if (amount > net) {
-            throw new Error(`Le montant dépasse le manque à gagner restant (${net.toLocaleString('fr-FR')} FCFA)`);
+            throw new Error(`Le montant dépasse ${simple ? 'les pénalités après terme restantes' : 'le manque à gagner restant'} (${net.toLocaleString('fr-FR')} FCFA)`);
         }
 
         const isMobileMoney = data.mode === 'airtel_money' || data.mode === 'mobicash';
@@ -3453,8 +3460,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             throw new Error('Le motif doit contenir entre 10 et 500 caractères');
         }
 
+        const postTermPenalties = ['FIXE', 'AIDE'].includes(contract.creditType)
+            ? computePostTermPenaltyBalance(contract, await this.creditPaymentRepository.getPaymentsByCreditId(contractId)).net : 0;
         const unpaidPenalties = (await this.creditPenaltyRepository.getUnpaidPenaltiesByCreditId(contractId))
-            .reduce((sum, penalty) => sum + (Number(penalty.amount) || 0), 0);
+            .reduce((sum, penalty) => sum + (Number(penalty.amount) || 0), postTermPenalties);
         const writtenOffAt = new Date();
         const effectiveRemaining = isWeeklyCredit(contract)
             ? this.computeContractTotalsAfterPaymentRemoval(contract, await this.creditPaymentRepository.getPaymentsByCreditId(contractId), data.adminId).amountRemaining ?? contract.amountRemaining
@@ -3772,10 +3781,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
             // Récupérer les pénalités impayées
             const unpaidPenalties = await this.creditPenaltyRepository.getUnpaidPenaltiesByCreditId(contractId);
-            const unpaidPenaltiesCount = unpaidPenalties.length;
+            const postTermPenalties = computePostTermPenaltyBalance(contract, payments);
+            const unpaidPenaltiesCount = unpaidPenalties.length + (postTermPenalties.net > 0 ? 1 : 0);
 
             // Si des échéances ont été payées, vérifier qu'il n'y a pas de pénalités impayées
-            if (paymentsCount > 0 && unpaidPenaltiesCount > 0) {
+            if ((paymentsCount > 0 || postTermPenalties.net > 0) && unpaidPenaltiesCount > 0) {
                 return {
                     eligible: false,
                     reason: `Le client a ${unpaidPenaltiesCount} pénalité(s) impayée(s). Il doit d'abord les rembourser avant de demander une augmentation.`,

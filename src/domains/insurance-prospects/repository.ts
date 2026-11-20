@@ -1,3 +1,4 @@
+import { pickVehicleLocation, resolveVehicleLocation, type VehicleLocation } from '@/domains/vehicles/location'
 import {
   prospectSchema,
   PROSPECT_COLLECTION,
@@ -12,6 +13,14 @@ const firestore = () => import('@/firebase/firestore')
 type Actor = { id: string; name: string; memberId?: string; admin: boolean }
 export class InsuranceProspectRepository {
   constructor(private readonly getFirestore: typeof firestore = firestore) {}
+  private async location(input: VehicleLocation) {
+    if (input.locationType === 'quarter' && !input.quarterId) throw Error('Sélectionnez un quartier de Géographie.');
+    const f = await this.getFirestore()
+    return resolveVehicleLocation(pickVehicleLocation(input), async (collection, id) => {
+      const snapshot = await f.getDoc(f.doc(f.db, collection, id))
+      return snapshot.exists() ? snapshot.data() : null
+    })
+  }
   async list(memberId?: string | string[]): Promise<InsuranceProspect[]> {
     const f = await this.getFirestore()
     const ref = f.collection(f.db, PROSPECT_COLLECTION)
@@ -30,8 +39,9 @@ export class InsuranceProspectRepository {
       .sort((a, b) => a.endDate.localeCompare(b.endDate))
   }
   async create(input: ProspectInput, sponsorMemberId: string, actor: Actor) {
-    const data = prospectSchema.parse(input),
-      f = await this.getFirestore()
+    const parsed = prospectSchema.parse(input)
+    const data = { ...parsed, ...await this.location(parsed) }
+    const f = await this.getFirestore()
     const sponsor = actor.admin
       ? sponsorMemberId || KARA_SPONSOR_ID
       : actor.memberId!
@@ -105,7 +115,10 @@ export class InsuranceProspectRepository {
         updatedBy: actor.id,
         updatedAt: f.serverTimestamp(),
       }
-      if (kind === 'edit') Object.assign(patch, prospectSchema.parse(payload))
+      if (kind === 'edit') {
+        const data = prospectSchema.parse(payload)
+        Object.assign(patch, data, await this.location(data))
+      }
       if (kind === 'contacted' || kind === 'quote_requested') {
         patch.status = kind
         patch.followUpDate = payload.followUpDate

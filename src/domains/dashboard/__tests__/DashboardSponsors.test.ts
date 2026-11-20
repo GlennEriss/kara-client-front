@@ -88,3 +88,23 @@ describe('parrains véhicules', () => {
     expect(all.rankings!.every(r => !r.items.length)).toBe(true)
   })
 })
+
+describe('véhicules et prospection par quartier', () => {
+  it('applique la période et le périmètre des parrains avant la répartition géographique', () => {
+    const result = buildVehicleDashboard([
+      { ...insurance('v1'), quarterId: 'q1', quarter: 'Centre', communeId: 'c1', city: 'Ville 1' },
+      { ...insurance('v2'), quarterId: 'q2', quarter: 'Centre', communeId: 'c2', city: 'Ville 2' },
+      insurance('legacy'),
+      { ...insurance('pending'), declarationStatus: 'pending', quarterId: 'q1' },
+      { ...insurance('old'), createdAt: '2025-01-01', quarterId: 'q1' },
+      { ...insurance('other', 'g2'), quarterId: 'q1' },
+    ], [], members, range, now, new Set(['g1']), [
+      { id: 'p1', sponsorMemberId: 'g1', status: 'tracking', createdAt: '2026-11-03', quarterId: 'q1', quarter: 'Centre', city: 'Ville 1' },
+      { id: 'p2', sponsorMemberId: 'g1', status: 'converted', createdAt: '2026-11-03', quarterId: 'q1' },
+    ])
+    expect(result.distributions?.find(row => row.key === 'vehicle_quarters')?.items).toEqual([
+      { label: 'Centre · Ville 1', value: 1 }, { label: 'Centre · Ville 2', value: 1 }, { label: 'Quartier à renseigner', value: 1 },
+    ])
+    expect(result.distributions?.find(row => row.key === 'prospect_quarters')?.items).toEqual([{ label: 'Centre · Ville 1', value: 1 }])
+  })
+})

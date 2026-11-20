@@ -50,8 +50,8 @@ export default function MissedEarningsReceiptModal({
     <Dialog open={!!payment} onOpenChange={(open) => !open && onClose()}>
       <ModalContent size="sm">
         <ModalHeader
-          title="Facture — manque à gagner"
-          description="Somme versée par le membre après la fin du contrat."
+          title={['FIXE', 'AIDE'].includes(contract.creditType) ? 'Facture — pénalités après terme' : 'Facture — manque à gagner'}
+          description={['FIXE', 'AIDE'].includes(contract.creditType) ? 'Paiement des pénalités mensuelles après terme, séparé du remboursement du prêt.' : 'Somme versée par le membre après la fin du contrat.'}
         />
         <ModalBody>
           <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">

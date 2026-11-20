@@ -24,6 +24,12 @@ vi.mock('../repository', () => ({
     history = f.history
   },
 }))
+vi.mock('@/factories/ServiceFactory', () => ({ ServiceFactory: { getGeographieService: () => ({
+  getAllCommunes: async () => [{ id: 'C1', name: 'Libreville' }],
+  getDistrictsByCommuneId: async () => [{ id: 'D1', name: '3e' }],
+  getQuartersByDistrictId: async () => [{ id: 'Q1', name: 'Awendjé' }],
+}) } }))
+Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
 const input = {
   ownerName: 'Contact fictif',
   phone: '077000000',
@@ -102,14 +108,15 @@ describe('parcours web de prospection', () => {
       'Nom du contact': 'Nouveau contact',
       Téléphone: '077111111',
       Immatriculation: 'TEST-456',
-      Ville: 'Libreville',
       'Assureur actuel': 'Autre assureur',
       'Fin de l’assurance actuelle': '2050-12-20',
     }))
       fireEvent.change(screen.getByLabelText(label), { target: { value } })
-    fireEvent.change(screen.getByLabelText('Localisation'), {
-      target: { value: 'other' },
-    })
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Ville' })).not.toBeDisabled())
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Ville' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('option', { name: 'Libreville' }))
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Localisation' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('option', { name: 'Autre emplacement' }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Précisez où')
     fireEvent.change(screen.getByLabelText('Précisez l’emplacement'), {

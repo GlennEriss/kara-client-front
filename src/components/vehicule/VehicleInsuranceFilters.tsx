@@ -13,9 +13,10 @@ interface Props {
   onChange: (filters: VehicleInsuranceFilters) => void
   onReset?: () => void
   companies?: string[]
+  quarters?: { id: string; label: string; city: string }[]
 }
 
-export function VehicleInsuranceFilters({ filters, onChange, onReset, companies }: Props) {
+export function VehicleInsuranceFilters({ filters, onChange, onReset, companies, quarters = [] }: Props) {
   const uniqueCompanies = useMemo(() => {
     if (!companies || companies.length === 0) return []
     return Array.from(new Set(companies)).sort((a, b) => a.localeCompare(b))
@@ -31,6 +32,13 @@ export function VehicleInsuranceFilters({ filters, onChange, onReset, companies 
 
   return (
     <div className="grid gap-4 lg:grid-cols-4 bg-white border rounded-2xl shadow-sm p-4">
+      <div className="space-y-2">
+        <Label>Quartier du véhicule</Label>
+        <Select value={filters.locationMissing ? 'missing' : filters.quarterId || 'all'} onValueChange={value => updateFilter({ quarterId: value === 'all' || value === 'missing' ? undefined : value, locationMissing: value === 'missing' })}>
+          <SelectTrigger aria-label="Quartier du véhicule"><SelectValue placeholder="Tous les quartiers" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">Tous les quartiers</SelectItem><SelectItem value="missing">À rattacher à Géographie</SelectItem>{quarters.map(row => <SelectItem key={row.id} value={row.id}>{row.label} · {row.city}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
       <div className="space-y-2 lg:col-span-2">
         <Label htmlFor="search">Recherche</Label>
         <Input

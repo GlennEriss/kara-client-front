@@ -1,5 +1,5 @@
 import { projectContractCard } from './contract-card'
-import { computeMissedEarningsBalance } from '@/utils/credit-losses'
+import { computeMissedEarningsBalance, computePostTermPenaltyBalance } from '@/utils/credit-losses'
 import {
   isCreditContractEnded,
   computeWriteOffLoss,
@@ -532,7 +532,7 @@ export async function projectFinanceContract(
         ? {
             unpaidPenalties: unpaid.reduce(
               (sum, p) => sum + number(p.amount),
-              0,
+              computePostTermPenaltyBalance(contract, normalized, wallNow).net,
             ),
             unpaidPenaltiesCount: unpaid.length,
             missedEarnings: computeMissedEarningsBalance(

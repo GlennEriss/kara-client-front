@@ -4,6 +4,7 @@ import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsur
 import { NotificationService } from '@/services/notifications/NotificationService'
 import { VehicleDeclarationCorrection, VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult, VehicleInsuranceStats, VehicleInsuranceStatus } from '@/types/types'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
+import { pickVehicleLocation } from '@/domains/vehicles/location'
 
 type CreatePayload = VehicleInsuranceFormValues & {
   memberContacts?: string[]
@@ -43,6 +44,7 @@ export class VehicleInsuranceService {
     const entity: any = {
       holderType: payload.holderType,
       city: payload.city,
+      ...pickVehicleLocation(payload),
       primaryPhone: primaryPhone || null,
       // Champs pour membre
       memberId: payload.holderType === 'member' ? payload.memberId : undefined,

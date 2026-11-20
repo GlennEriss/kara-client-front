@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { actionSchema, publicAdminAction } from '@/domains/mobile-admin/server/registry'
 import { getAdminModule } from '@/domains/mobile-admin/catalog'
 import { adminActions } from '@/domains/mobile-admin/operations'
 import { sectionMetrics } from '@/domains/mobile-admin/server/filters'
@@ -61,5 +62,35 @@ describe('prospection dans l’API mobile', () => {
       dataset: 'prospects',
       id: 'p1',
     })
+  })
+})
+
+describe('assurance mobile : quartier officiel lors de la modification', () => {
+  it('enregistre la ville et le quartier officiels après validation du formulaire natif', async () => {
+    const module = getAdminModule('vehicles')!, dataset = module.datasets.find(item => item.key === 'insurance')!
+    const action = adminActions(module, dataset).find(item => item.id === 'insurance.update')!
+    expect(action.fields.find(field => field.key === 'quarterId')?.source).toBe('vehicleQuarters')
+    expect(publicAdminAction(action, { quarterId: 'Q1', quarter: 'Awendjé', city: 'Libreville' }).fields.find(field => field.key === 'quarterId')?.options).toEqual([{ value: 'Q1', label: 'Awendjé · Libreville' }])
+    const geography: Record<string, object> = {
+      'quarters/Q1': { name: 'Awendjé', districtId: 'D1' },
+      'districts/D1': { name: '3e arrondissement', communeId: 'C1' },
+      'communes/C1': { name: 'Libreville', departmentId: 'DEPT1' },
+      'departments/DEPT1': { name: 'Komo-Mondah', provinceId: 'P1' },
+      'provinces/P1': { name: 'Estuaire' },
+    }
+    const update = vi.fn(async () => ({}))
+    const ctx = { id: 'INS1', files: {}, caller: { claims: { uid: 'ADMIN' } }, services: {
+      db: { collection: (collection: string) => ({ doc: (id: string) => ({ get: async () => ({ exists: !!geography[`${collection}/${id}`], data: () => geography[`${collection}/${id}`] }) }) }) },
+      members: { getMemberById: async () => ({ id: 'SPONSOR', firstName: 'Alice', lastName: 'Ondo', contacts: [] }) },
+      vehicles: { updateInsurance: update },
+    } }
+    const input = actionSchema(action).parse({ holderType: 'non-member', nonMemberFirstName: 'Paul', nonMemberLastName: 'Test', nonMemberPhone1: '+24177000000',
+      city: 'Ancien texte', locationType: 'quarter', quarterId: 'Q1', vehicleType: 'car', plateNumber: 'TEST-123', insuranceCompany: 'Assurance test', policyNumber: 'POL-TEST',
+      warrantyMonths: 12, premiumAmount: 100000, sponsorMemberId: 'SPONSOR', startDate: '2026-01-01', endDate: '2027-01-01',
+    }) as Record<string, unknown>
+    await action.run(ctx as never, input)
+    expect(update).toHaveBeenCalledWith('INS1', expect.objectContaining({ city: 'Libreville', quarterId: 'Q1', quarter: 'Awendjé', communeId: 'C1', districtId: 'D1' }), 'ADMIN')
+    await expect(action.run(ctx as never, { ...input, quarterId: 'ABSENT' })).rejects.toThrow('Quartier introuvable')
+    expect(update).toHaveBeenCalledTimes(1)
   })
 })

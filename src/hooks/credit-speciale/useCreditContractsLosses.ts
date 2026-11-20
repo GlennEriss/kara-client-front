@@ -2,7 +2,7 @@
 
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import type { CreditContract } from '@/types/types'
-import { computeMissedEarningsBalance } from '@/utils/credit-losses'
+import { computeMissedEarningsBalance, computePostTermPenaltyBalance } from '@/utils/credit-losses'
 import { useQuery } from '@tanstack/react-query'
 
 export interface CreditContractLoss {
@@ -36,7 +36,7 @@ export function useCreditContractsLosses(contracts: CreditContract[], enabled = 
           return [
             contract.id,
             {
-              unpaidPenalties: penalties.reduce((sum, penalty) => sum + (Number(penalty.amount) || 0), 0),
+              unpaidPenalties: penalties.reduce((sum, penalty) => sum + (Number(penalty.amount) || 0), computePostTermPenaltyBalance(contract, payments).net),
               unpaidPenaltiesCount: penalties.length,
               missedEarnings: computeMissedEarningsBalance(contract, payments).net,
             },

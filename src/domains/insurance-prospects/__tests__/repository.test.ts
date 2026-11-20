@@ -8,6 +8,7 @@ const input = {
   plateNumber: 'AB-123-CD',
   vehicleType: 'car' as const,
   city: 'Libreville',
+  quarterId: 'Q1',
   locationType: 'quarter' as const,
   quarter: 'Awendjé',
   insuranceCompany: 'Assureur externe',
@@ -79,6 +80,12 @@ describe('droits et transitions de prospection', () => {
   const admin = { id: 'manager', name: 'Administration', admin: true }
   beforeEach(() => {
     store = memory()
+    store.data.set('quarters/Q1', { name: 'Awendjé', districtId: 'D1' });
+    store.data.set('districts/D1', { name: '3e', communeId: 'C1' });
+    store.data.set('communes/C1', { name: 'Libreville', departmentId: 'DEP1' });
+    store.data.set('departments/DEP1', { name: 'Komo-Mondah', provinceId: 'P1' });
+    store.data.set('provinces/P1', { name: 'Estuaire' });
+
     store.data.set('insurance-prospects/p1', {
       ...prospectSchema.parse(input),
       status: 'tracking',

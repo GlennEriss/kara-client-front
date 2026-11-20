@@ -1,4 +1,5 @@
 'use client'
+import { ContractCardActions } from '@/components/shared/ContractCardActions'
 import { isCaisseSpecialeContractLocked } from '@/utils/contract-lock'
 import dynamic from 'next/dynamic'
 import { resolveContractEndAt } from '@/services/caisse/contractDates'
@@ -1148,72 +1149,20 @@ function ContractCSGridCard({
           )}
         </div>
 
-        {/* Actions */}
-        <div className="mt-auto space-y-2 border-t border-gray-100 pt-3">
-          <Button size="sm" onClick={onView}
-            className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-xs font-semibold">
-            <Eye className="mr-1.5 h-3.5 w-3.5" />Ouvrir
-          </Button>
-          <div className="flex flex-wrap gap-1.5">
-
-          {(isSigned || hasPdf) ? (
-            <Button variant="outline" size="sm" onClick={onViewPdf}
-              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
-              <FileText className="mr-1.5 h-3.5 w-3.5" />Voir
-            </Button>
-          ) : isPendingValidation ? (
-            <Button variant="outline" size="sm" onClick={onValidate}
-              className="h-8 cursor-pointer rounded-lg border-blue-300 px-3 text-xs text-blue-700 hover:bg-blue-600 hover:text-white">
-              <CheckCircle className="mr-1.5 h-3.5 w-3.5" />Valider
-            </Button>
-          ) : isLocked ? null : (
-            <Button variant="outline" size="sm" onClick={onUpload}
-              className="h-8 cursor-pointer rounded-lg border-orange-300 px-3 text-xs text-orange-600 hover:bg-orange-500 hover:text-white">
-              <Plus className="mr-1.5 h-3.5 w-3.5" />Téléverser
-            </Button>
-          )}
-
-          {isPendingValidation && (hasPdf || isSigned) && (
-            <Button variant="outline" size="sm" onClick={onValidate}
-              className="h-8 cursor-pointer rounded-lg border-blue-300 px-3 text-xs text-blue-700 hover:bg-blue-600 hover:text-white">
-              <CheckCircle className="mr-1.5 h-3.5 w-3.5" />Valider sig.
-            </Button>
-          )}
-
-          <Button variant="outline" size="sm" onClick={onDownload}
-            className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
-            <Download className="mr-1.5 h-3.5 w-3.5" />Télécharger
-          </Button>
-
-          {canReplace && (
-            <Button variant="outline" size="sm" onClick={onReplace}
-              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
-              <FileEdit className="mr-1.5 h-3.5 w-3.5" />Modifier
-            </Button>
-          )}
-
-          {hasRefundFinal && (
-            <Button variant="outline" size="sm" onClick={onViewRefundFinal}
-              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
-              <Eye className="mr-1.5 h-3.5 w-3.5" />Remboursement
-            </Button>
-          )}
-
-          {hasRefundEarly && (
-            <Button variant="outline" size="sm" onClick={onViewRefundEarly}
-              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
-              <Eye className="mr-1.5 h-3.5 w-3.5" />Clôture anticipée
-            </Button>
-          )}
-
-          {!isLocked && (
-          <Button variant="outline" size="sm" onClick={onDelete}
-            className="h-8 cursor-pointer rounded-lg border-red-200 px-3 text-xs text-red-600 hover:bg-red-600 hover:text-white">
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" />Supprimer
-          </Button>
-          )}
-          </div>
-        </div>
+        <ContractCardActions
+          contractId={contract.id}
+          onOpen={onView}
+          actions={[
+            { id: 'view', label: 'Voir le contrat', icon: FileText, onSelect: onViewPdf, visible: isSigned || hasPdf, group: 'documents' },
+            { id: 'validate', label: 'Valider la signature membre', icon: CheckCircle, onSelect: onValidate, visible: isPendingValidation, group: 'documents' },
+            { id: 'upload', label: 'Téléverser le contrat signé', icon: Upload, onSelect: onUpload, visible: !isSigned && !hasPdf && !isPendingValidation && !isLocked, group: 'documents' },
+            { id: 'download', label: 'Télécharger le contrat PDF', icon: Download, onSelect: onDownload, group: 'documents' },
+            { id: 'replace', label: 'Remplacer le contrat signé', icon: FileEdit, onSelect: onReplace, visible: canReplace, group: 'documents' },
+            { id: 'refund-final', label: 'Document de remboursement final', icon: Eye, onSelect: onViewRefundFinal, visible: hasRefundFinal, group: 'documents' },
+            { id: 'refund-early', label: 'Document de clôture anticipée', icon: Eye, onSelect: onViewRefundEarly, visible: hasRefundEarly, group: 'documents' },
+            { id: 'delete', label: 'Supprimer le contrat', icon: Trash2, onSelect: onDelete, visible: !isLocked, destructive: true },
+          ]}
+        />
       </CardContent>
     </Card>
   )

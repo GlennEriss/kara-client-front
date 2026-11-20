@@ -10,6 +10,11 @@ before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-kara-prospects', firestore: { host: '127.0.0.1', port: 8088, rules: readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8') } })
   await env.withSecurityRulesDisabled(async ctx => {
     const db = ctx.firestore()
+    await Promise.all([
+      setDoc(doc(db, 'quarters/Q1'), { name: 'Awendjé', districtId: 'D1' }),
+      setDoc(doc(db, 'districts/D1'), { name: '3e', communeId: 'C1' }),
+      setDoc(doc(db, 'communes/C1'), { name: 'Libreville', departmentId: 'DEP1' }),
+    ])
     await Promise.all([setDoc(doc(db, 'users/alice'), { matricule: 'M001' }), setDoc(doc(db, 'users/bob'), { matricule: 'M002' }),
       setDoc(doc(db, 'admins/manager'), { roles: ['Admin'] }), setDoc(doc(db, 'insurance-prospects/own'), row()),
       setDoc(doc(db, 'insurance-prospects/other'), row('M002')), setDoc(doc(db, 'insurance-prospects/closed'), { ...row(), status: 'converted', insuranceId: 'i1' })])
@@ -62,4 +67,12 @@ test('l’admin voit et réattribue les prospects ; un visiteur anonyme ne les v
   await assertSucceeds(getDocs(collection(db('manager'), 'insurance-prospects')))
   await assertSucceeds(updateDoc(doc(db('manager'), 'insurance-prospects/other'), { sponsorMemberId: '2548.MK.290126', sponsorName: 'LE KARA — Inconnu' }))
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'insurance-prospects/own')))
+})
+
+test('un quartier rattaché doit correspondre au référentiel et au bon parent', async () => {
+  const location = { quarterId: 'Q1', quarter: 'Awendjé', districtId: 'D1', communeId: 'C1', city: 'Libreville' }
+  await assertSucceeds(setDoc(doc(db(), 'insurance-prospects/geography'), { ...row(), ...location }))
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/bad-geography'), { ...row(), ...location, quarterId: 'absent' }))
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/bad-parent'), { ...row(), ...location, communeId: 'other-city' }))
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/bad-label'), { ...row(), ...location, quarter: 'Faux nom' }))
 })

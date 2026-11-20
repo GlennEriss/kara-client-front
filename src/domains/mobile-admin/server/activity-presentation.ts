@@ -1,3 +1,4 @@
+import { vehicleLocationStats } from '@/domains/vehicles/location'
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 import { prospectPhase, daysToExpiry, type InsuranceProspect } from '@/domains/insurance-prospects/model'
 import { roundFcfa, sumCommissionAmounts } from '@/utils/placementMoney'
@@ -107,6 +108,9 @@ export async function activityRows(
   })
 }
 export function activityMatches(row: Row, input: Row, module: string) {
+  if (input.quarterId && row.quarterId !== input.quarterId) return false
+  if (input.communeId && row.communeId !== input.communeId) return false
+  if (input.locationMissing === 'true' && (row.quarterId || row.locationType === 'other')) return false
   if (module === 'vehicles' && row.source && row.endDate) {
     if (input.nextFrom && row.endDate < input.nextFrom) return false
     if (input.nextTo && row.endDate > input.nextTo) return false
@@ -257,6 +261,12 @@ export function activityInsights(module: string, dataset: string, rows: Row[]) {
         .sort((a, b) => b.value - a.value)
         .slice(0, 5),
     })
+  }
+  if (module === 'vehicles' && ['insurance', 'prospects'].includes(dataset)) {
+    const valid = rows.filter(row => dataset === 'insurance' ? !row.declarationStatus || row.declarationStatus === 'validated' : !['converted', 'lost'].includes(row.status))
+    const locations = vehicleLocationStats(valid)
+    groups.push({ title: 'Répartition par quartier', items: [...locations.quarters.map(row => ({ label: `${row.label} · ${row.city}`, value: row.count })), { label: 'Quartier à renseigner', value: locations.missing }, { label: 'Autre emplacement', value: locations.other }].filter(row => row.value > 0) })
+    groups.push({ title: 'Répartition par ville', items: locations.cities.map(row => ({ label: row.label, value: row.count })) })
   }
   if (module === 'vehicles' && dataset === 'insurance') {
     const valid = rows.filter(

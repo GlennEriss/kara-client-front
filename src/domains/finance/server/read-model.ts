@@ -1,3 +1,4 @@
+import { computePostTermPenaltyBalance } from '@/utils/credit-losses'
 import {
   creditPaymentTimingMap,
   creditPunctuality,
@@ -406,7 +407,7 @@ export async function financeContractDetail(
       interestGenerated: history.reduce((sum, row) => sum + row.interest, 0),
       unpaidPenalties: penalties
         .filter((p) => !p.paid)
-        .reduce((sum, p) => sum + p.amount, 0),
+        .reduce((sum, p) => sum + p.amount, computePostTermPenaltyBalance(credit, paidRows).net),
       unpaidPenaltiesCount: penalties.filter((p) => !p.paid).length,
       paidPeriods: installments.filter(
         (p) => p.status === 'PAID' && p.paidAmount > 0,

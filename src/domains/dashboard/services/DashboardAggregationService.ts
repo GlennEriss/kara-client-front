@@ -2512,12 +2512,13 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
 
     snapshot = buildPlacementsPayload(demands, placements, commissions)
   } else if (activeTab === 'vehicules') {
-    const [insurances, rewards] = await Promise.all([
+    const [insurances, rewards, prospects] = await Promise.all([
       readCollection('vehicle-insurances'),
       readCollection(firebaseCollectionNames.vehicleInsuranceRewards),
+      readCollection('insurance-prospects'),
     ])
     snapshot = buildVehicleDashboard(insurances, rewards, memberScope.allMembers, dateRange, new Date(),
-      memberScope.hasMemberScope ? memberScope.scopedMemberIds : undefined)
+      memberScope.hasMemberScope ? memberScope.scopedMemberIds : undefined, prospects)
   } else if (activeTab === 'administration') {
     const [adminsRaw, membershipRequestsRaw, csDemandsRaw, ciDemandsRaw, creditDemandsRaw, placementDemandsRaw] = await Promise.all([
       readCollection(firebaseCollectionNames.admins),

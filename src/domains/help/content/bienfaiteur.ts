@@ -175,7 +175,7 @@ export const vehiculesHelp: HelpTopic = {
           items: [
             'Sur le site, ouvrez Véhicules puis « Prospection assurance ». Dans l’app mobile, ouvrez l’onglet « Prospection » du module Véhicules.',
             'Choisissez « Nouveau prospect » puis renseignez le contact, son téléphone, la plaque, le type de véhicule, l’assureur actuel et la fin de l’assurance.',
-            'Indiquez la ville et le quartier. Si vous choisissez « Autre emplacement », précisez le lieu, par exemple un parking ou un garage. Si le véhicule est de type « Autre », décrivez-le aussi.',
+            'Sélectionnez la ville, l’arrondissement et le quartier dans le référentiel Géographie. Pour un véhicule déjà enregistré, ouvrez Modifier pour compléter ce rattachement ; les anciens noms libres ne sont pas devinés. Les statistiques Véhicules et du tableau de bord regroupent les dossiers par identifiant de quartier et par ville. Si vous choisissez « Autre emplacement », précisez le lieu, par exemple un parking ou un garage. Si le véhicule est de type « Autre », décrivez-le aussi.',
             'L’administration choisit le parrain ou « LE KARA — Inconnu » pour une prospection de l’association. Le membre enregistre ses propres prospects depuis Mes véhicules ; il ne peut pas les attribuer à quelqu’un d’autre.',
             'Pour changer le parrain, l’administration utilise « Attribuer le parrainage » avec un motif. Le nouveau parrain retrouve le dossier dans sa liste.',
           ],

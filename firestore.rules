@@ -1528,12 +1528,25 @@ service cloud.firestore {
     // Page /vehicules, /vehicules/[id], /vehicules/[id]/edit
     // Gestion complète des assurances véhicules (CRUD, renouvellement, stats)
     // La prospection reste séparée des assurances réellement souscrites.
+    function validVehicleGeography(data) {
+      return !('quarterId' in data) || data.quarterId == '' || (
+        data.quarterId is string &&
+        exists(/databases/$(database)/documents/quarters/$(data.quarterId)) &&
+        data.districtId == get(/databases/$(database)/documents/quarters/$(data.quarterId)).data.districtId &&
+        data.quarter == get(/databases/$(database)/documents/quarters/$(data.quarterId)).data.name &&
+        exists(/databases/$(database)/documents/districts/$(data.districtId)) &&
+        data.communeId == get(/databases/$(database)/documents/districts/$(data.districtId)).data.communeId &&
+        exists(/databases/$(database)/documents/communes/$(data.communeId)) &&
+        data.city == get(/databases/$(database)/documents/communes/$(data.communeId)).data.name
+      );
+    }
+
     match /insurance-prospects/{prospectId} {
       function ownsProspect(data) {
         return isAuthenticated() && data.sponsorMemberId is string && isMemberOwner(data.sponsorMemberId);
       }
       function validProspect(data) {
-        return data.ownerName is string && data.ownerName.size() >= 2 && data.ownerName.size() <= 150 &&
+        return validVehicleGeography(data) && data.ownerName is string && data.ownerName.size() >= 2 && data.ownerName.size() <= 150 &&
           data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 30 &&
           data.plateNumber is string && data.plateNumber.size() >= 2 && data.plateNumber.size() <= 30 &&
           data.vehicleType in ['car', 'motorcycle', 'truck', 'bus', 'other'] &&
@@ -1548,7 +1561,7 @@ service cloud.firestore {
       }
       allow read: if isAdmin() || ownsProspect(resource.data);
       allow create: if isAdmin() || (ownsProspect(request.resource.data) && validProspect(request.resource.data) &&
-        request.resource.data.keys().hasOnly(['ownerName','phone','whatsapp','plateNumber','vehicleType','vehicleDescription','city','locationType','quarter','locationDetails','insuranceCompany','endDate','notes','status','sponsorMemberId','sponsorName','source','createdBy','updatedBy','createdAt','updatedAt']) &&
+        request.resource.data.keys().hasOnly(['ownerName','phone','whatsapp','plateNumber','vehicleType','vehicleDescription','provinceId','province','departmentId','department','communeId','districtId','district','quarterId','city','locationType','quarter','locationDetails','insuranceCompany','endDate','notes','status','sponsorMemberId','sponsorName','source','createdBy','updatedBy','createdAt','updatedAt']) &&
         request.resource.data.source == 'member' && request.resource.data.status == 'tracking' &&
         request.resource.data.createdBy == request.auth.uid && request.resource.data.updatedBy == request.auth.uid &&
         request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time);
@@ -1556,7 +1569,7 @@ service cloud.firestore {
         !(resource.data.status in ['converted','lost']) &&
         request.resource.data.status in ['tracking','contacted','quote_requested','lost'] &&
         request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerName','phone','whatsapp','plateNumber','vehicleType','vehicleDescription','city','locationType','quarter','locationDetails','insuranceCompany','endDate','notes','status','followUpDate','updatedBy','updatedAt']));
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerName','phone','whatsapp','plateNumber','vehicleType','vehicleDescription','provinceId','province','departmentId','department','communeId','districtId','district','quarterId','city','locationType','quarter','locationDetails','insuranceCompany','endDate','notes','status','followUpDate','updatedBy','updatedAt']));
       allow delete: if false;
       match /activities/{activityId} {
         function parent() { return get(/databases/$(database)/documents/insurance-prospects/$(prospectId)).data; }
@@ -1585,6 +1598,7 @@ service cloud.firestore {
         request.resource.data.memberId is string &&
         isMemberOwner(request.resource.data.memberId) &&
         request.resource.data.declarationStatus == 'draft' &&
+        validVehicleGeography(request.resource.data) &&
         request.resource.data.status == 'active'
       );
       // Le membre modifie son brouillon (ou sa déclaration refusée) et l'envoie à
@@ -1594,10 +1608,11 @@ service cloud.firestore {
         resource.data.memberId is string &&
         isMemberOwner(resource.data.memberId) &&
         resource.data.declarationStatus in ['draft', 'rejected'] &&
+        validVehicleGeography(request.resource.data) &&
         request.resource.data.declarationStatus in ['draft', 'pending'] &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'vehicleType', 'vehicleBrand', 'vehicleModel', 'vehicleYear', 'plateNumber',
-          'energySource', 'city', 'fiscalPower', 'insuranceCompany', 'policyNumber',
+          'energySource', 'provinceId', 'province', 'departmentId', 'department', 'communeId', 'districtId', 'district', 'quarterId', 'quarter', 'locationType', 'locationDetails', 'city', 'fiscalPower', 'insuranceCompany', 'policyNumber',
           'warrantyMonths', 'premiumAmount', 'startDate', 'endDate', 'notes', 'attachments',
           'declarationStatus', 'declaredValues', 'submittedAt', 'updatedAt'
         ])

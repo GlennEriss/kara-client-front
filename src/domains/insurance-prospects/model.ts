@@ -42,6 +42,9 @@ export const prospectSchema = z
     vehicleType: z.enum(['car', 'motorcycle', 'truck', 'bus', 'other']),
     vehicleDescription: optionalText,
     city: z.string().trim().min(2, 'Ville requise').max(100),
+    communeId: z.string().optional(),
+    districtId: z.string().optional(),
+    quarterId: z.string().optional(),
     locationType: z.enum(['quarter', 'other']),
     quarter: z.string().trim().max(150).optional().default(''),
     locationDetails: optionalText,
@@ -55,7 +58,7 @@ export const prospectSchema = z
   })
   .strict()
   .superRefine((v, ctx) => {
-    if (v.locationType === 'quarter' && !v.quarter)
+    if (v.locationType === 'quarter' && !v.quarter && !v.quarterId)
       ctx.addIssue({
         code: 'custom',
         path: ['quarter'],

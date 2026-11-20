@@ -101,8 +101,11 @@ export function sectionFilters(
     )
   }
   if (module.key === 'vehicles') {
+    if (['prospects', 'insurance'].includes(dataset.key)) {
+      pick('city', 'Ville')
+      list.push(idField('quarterId', 'Quartier du véhicule', 'vehicleQuarters', false))
+    }
     if (dataset.key === 'prospects') {
-      pick('city', 'Ville'); pick('quarter', 'Quartier')
       list.push({ ...dateField('nextFrom', 'Fin d’assurance depuis'), required: false }, { ...dateField('nextTo', 'Fin d’assurance jusqu’au'), required: false })
     }
     list.push(select('sort', 'Tri alphabétique', ['nameAsc', 'nameDesc'], true))

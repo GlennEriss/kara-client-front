@@ -7,6 +7,7 @@ import {
 import {
   buildCreditLossHistory,
   computeMissedEarningsBalance,
+  computePostTermPenaltyBalance,
 } from '@/utils/credit-losses'
 import type { CreditContract, CreditPayment } from '@/types/types'
 import type { FinanceServices } from './services'
@@ -33,6 +34,7 @@ export function creditDetailExtras(
       : []
   return {
     lossHistory: buildCreditLossHistory(contract, paidRows),
+    ...(['FIXE', 'AIDE'].includes(contract.creditType) ? { postTermPenaltyBalance: computePostTermPenaltyBalance(contract, paidRows) } : {}),
     commissions,
     commissionBalance: buildGuarantorCommissionBalance(
       commissions,

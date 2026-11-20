@@ -95,7 +95,7 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                 const holderLabel = item.holderType === 'member' ? 'Membre LE KARA' : 'Non-membre'
                 const holderReference = item.holderType === 'member' ? (item.memberMatricule || 'Matricule inconnu') : 'Externe'
                 const phone = item.primaryPhone || item.memberContacts?.[0] || item.nonMemberPhone1 || ''
-                const city = item.city || ''
+                const city = [item.city, item.quarterId ? item.quarter : item.locationType === 'other' ? item.locationDetails : 'Quartier à renseigner'].filter(Boolean).join(' · ')
                 const vehicleTypeLabel = VEHICLE_TYPE_LABELS[item.vehicleType] || item.vehicleType
                 const energyLabel = item.energySource ? (ENERGY_LABELS[item.energySource] || item.energySource) : ''
                 return (

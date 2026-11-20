@@ -336,7 +336,7 @@ export default function CreditPaymentModal({
     return referenceDate ? daysLateBetween(referenceDate, watchedPaymentDate) : 0
   }, [contract, recordedPayments, currentPaymentMonth, defaultPaymentDate, watchedPaymentDate])
 
-  const isLateButNoPenalty = penaltyDaysLate > 0 && penaltyDaysLate <= LATE_TOLERANCE_DAYS
+  const isLateButNoPenalty = contract?.creditType === 'SPECIALE' && penaltyDaysLate > 0 && penaltyDaysLate <= LATE_TOLERANCE_DAYS
 
   // Calculer la pénalité potentielle du versement courant selon la règle officielle :
   // intérêt du mois * nombre de jours de retard / 30.
