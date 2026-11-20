@@ -85,3 +85,9 @@ describe('prérequis des contrats natifs', () => {
     ).toBe(false)
   })
 })
+
+it.each(['caisse-speciale','caisse-imprevue'] as const)('%s : propose le remboursement final selon le droit calculé et les signatures',module=>{
+ const row=module==='caisse-speciale'?{status:'ACTIVE',contractPdf:{fileSize:1,originalFileName:'c.pdf',path:'c',uploadedAt:'2026-01-01',url:'https://example.test/c'}}:{status:'ACTIVE',contractStartId:'doc'}
+ expect(contractActionAvailable(module,{...row,finalRefundEligibility:{eligible:true,reachedTerm:true}},'refund.final')).toBe(true)
+ expect(contractActionAvailable(module,{...row,finalRefundEligibility:{eligible:false}},'refund.final')).toBe(false)
+})

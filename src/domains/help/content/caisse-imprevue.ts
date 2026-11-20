@@ -64,7 +64,7 @@ export const caisseImprevueHelp: HelpTopic = {
           title: 'Retrait anticipé ou remboursement final',
           items: [
             'Retrait anticipé : le contrat doit être actif, avec au moins un versement.',
-            'Remboursement final : toutes les échéances doivent être payées.',
+            'Remboursement final : disponible au terme du contrat même avec des échéances incomplètes, ou lorsque toutes les échéances sont soldées. La remise correspond au total réellement cotisé, acomptes compris. Le contrat apparaît dans les remises à venir et y reste après son terme jusqu’au paiement effectif.',
             'Cliquez sur « Générer le procès-verbal de liquidation » : l’aperçu PDF s’ouvre immédiatement. Complétez les champs manquants, contrôlez le montant nominal rendu, puis téléchargez le document pour signature.',
             'Après validation d’un retrait anticipé, la remise est attendue sous 30 jours. Un compte à rebours indique la date limite.',
             'À l’échéance, un admin peut finaliser la remise. Le superadmin peut le faire plus tôt. Il faut renseigner la date, l’heure et le moyen de remise, ajouter la preuve, puis confirmer. Cette confirmation clôture le contrat.',

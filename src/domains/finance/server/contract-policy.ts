@@ -41,6 +41,7 @@ export function contractActionAvailable(
   row: Row,
   actionId: string,
 ) {
+  if (actionId === 'refund.final' && row.finalRefundEligibility && !row.finalRefundEligibility.eligible) return false
   const hasDocument =
     module === 'caisse-speciale'
       ? !!row.contractPdf

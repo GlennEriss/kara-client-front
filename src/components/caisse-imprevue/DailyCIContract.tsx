@@ -1,4 +1,6 @@
 'use client'
+
+import { caisseImprevueFinalRefundEligibility } from '@/services/refunds/final-refund-policy'
 import { latestCaisseImprevueVersement } from '@/utils/payment-deletion-order'
 import dynamic from 'next/dynamic'
 
@@ -636,7 +638,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const totalMonths = contract.subscriptionCIDuration || 0
   const allPaid = totalMonths > 0 && paidCount >= totalMonths
   const canEarly = paidCount >= 1 && !allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
-  const canFinal = allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
+  const canFinal = caisseImprevueFinalRefundEligibility(contract, payments).eligible
 
   // Calculer la progression des mois payés
   const progress = totalMonths > 0 ? Math.min(100, (paidCount / totalMonths) * 100) : 0

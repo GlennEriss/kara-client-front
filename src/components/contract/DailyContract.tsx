@@ -1,4 +1,6 @@
 "use client"
+
+import { caisseSpecialeFinalRefundEligibility } from '@/services/refunds/final-refund-policy'
 import { latestCaisseSpecialePayment } from '@/utils/payment-deletion-order'
 import dynamic from 'next/dynamic'
 import { StatStrip } from '@/components/ui/stat-strip'
@@ -959,7 +961,7 @@ export default function DailyContract({ id }: Props) {
                 <Button
                       variant="outline"
                       className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
-                  disabled={isClosed || isRefunding || !allPaid || hasFinalRefund}
+                  disabled={isClosed || isRefunding || !caisseSpecialeFinalRefundEligibility(data, payments).eligible || hasFinalRefund}
                   onClick={() => {
                     setRefundType('FINAL')
                     setRefundReasonInput('')

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { pay, payGroup, updatePaymentContribution } from '../mutations'
+import { pay, payGroup, updatePaymentContribution, requestFinalRefund, createCaisseMutations } from '../mutations'
 import { CaisseContractsService } from '@/domains/financial/caisse-speciale/contrats/services/CaisseContractsService'
+import { addRefund, listRefunds } from '@/db/caisse/refunds.db'
 import { updateContract } from '@/db/caisse/contracts.db'
 
 const state = vi.hoisted(() => ({
@@ -52,6 +53,7 @@ describe('recalcul global du bonus après modification des versements', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-11-03T12:00:00'))
     vi.clearAllMocks()
+    vi.mocked(listRefunds).mockResolvedValue([])
     state.contract = {
       id: 'contract-test', memberId: 'member-test', contractType: 'INDIVIDUAL',
       status: 'LATE_WITH_PENALTY', caisseType: 'STANDARD_CHARITABLE', monthlyAmount: 100_000,
@@ -115,4 +117,31 @@ describe('recalcul global du bonus après modification des versements', () => {
       nominalPaid: 800_000, bonusAccrued: 80_000, currentMonthIndex: 8,
     }))
   })
+  it('demande le remboursement au terme avec trois échéances impayées et conserve le vrai nominal', async () => {
+    vi.setSystemTime(new Date('2026-12-22T12:00:00'))
+    await requestFinalRefund('contract-test','Terme du contrat')
+    expect(addRefund).toHaveBeenCalledWith('contract-test',expect.objectContaining({type:'FINAL',status:'PENDING',amountNominal:900000,amountBonus:108000,deadlineAt:new Date('2026-12-22T00:00:00')}))
+    expect(state.contract.status).toBe('FINAL_REFUND_PENDING')
+  })
+  it('refuse encore une cotisation incomplète avant terme sans modifier le contrat', async () => {
+    await expect(requestFinalRefund('contract-test','Trop tôt')).rejects.toThrow('au terme')
+    expect(addRefund).not.toHaveBeenCalled()
+    expect(updateContract).not.toHaveBeenCalled()
+  })
+  it('refuse une seconde demande finale avant toute nouvelle écriture', async () => {
+    vi.setSystemTime(new Date('2026-12-22T12:00:00'))
+    vi.mocked(listRefunds).mockResolvedValue([{type:'FINAL',status:'PENDING'}] as any)
+    await expect(requestFinalRefund('contract-test')).rejects.toThrow('déjà en cours')
+    expect(addRefund).not.toHaveBeenCalled()
+    expect(updateContract).not.toHaveBeenCalled()
+  })
+
+  it('ne verrouille pas le contrat si le calcul du remboursement échoue', async () => {
+    vi.setSystemTime(new Date('2026-12-22T12:00:00'))
+    const service=createCaisseMutations({getActiveSettings:async()=>{throw new Error('Barème indisponible')}})
+    await expect(service.requestFinalRefund('contract-test')).rejects.toThrow('Barème indisponible')
+    expect(addRefund).not.toHaveBeenCalled()
+    expect(updateContract).not.toHaveBeenCalled()
+  })
+
 })

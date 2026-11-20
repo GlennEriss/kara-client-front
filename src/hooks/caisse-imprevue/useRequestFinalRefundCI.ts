@@ -34,6 +34,7 @@ export function useRequestFinalRefundCI() {
       // Invalider les caches liés au contrat
       queryClient.invalidateQueries({ queryKey: ['contractCI', variables.contractId] })
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
+      queryClient.invalidateQueries({ queryKey: ['upcoming-payouts'] })
       queryClient.invalidateQueries({ queryKey: ['contract-payment-stats', variables.contractId] })
       
       toast.success('Demande de remboursement final créée avec succès')

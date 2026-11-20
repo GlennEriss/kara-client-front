@@ -61,7 +61,7 @@ export const caisseSpecialeHelp: HelpTopic = {
           type: 'steps',
           title: 'Rendre l’épargne',
           items: [
-            'Remboursement final : quand toutes les échéances sont payées, demandez le remboursement final, faites-le valider, puis confirmez la remise avec sa date, son moyen et sa preuve.',
+            'Remboursement final : dès le terme du contrat, même si les cotisations sont incomplètes, ou dès que toutes les échéances sont soldées. Le montant reprend les sommes réellement versées et le bonus applicable. Faites valider la demande, puis confirmez la remise avec sa date, son moyen et sa preuve.',
             'Retrait anticipé : après validation, un délai maximal de 30 jours commence. Le compte à rebours reste visible tant que l’argent n’a pas été remis.',
             'À l’échéance, un admin peut confirmer la remise. Le superadmin peut la confirmer avant la fin des 30 jours. Le contrat n’est clôturé qu’après saisie de la remise effective et téléversement de la preuve.',
             'Dans la liste des contrats, le filtre « Retrait anticipé » distingue les dossiers en cours (argent non remis) des retraits finalisés (remise effectuée).',
@@ -86,7 +86,7 @@ export const caisseSpecialeHelp: HelpTopic = {
               text: 'À partir de 4 mois complets, le taux retenu selon le barème actif s’applique au total versé. Il dépend des mois complets écoulés et réellement payés, et reste figé au dernier mois payé à l’heure après un impayé. Le bonus est calculé globalement pour le contrat : les anciens bonus mensuels enregistrés ne doivent pas être additionnés pour déterminer la remise. La fiche, les versements et le calendrier utilisent ce même calcul.',
             },
             { term: 'Pénalités et bonus', text: 'Les pénalités sont retirées du bonus, jamais de l’épargne elle-même.' },
-            { term: 'Remboursement final', text: 'Possible seulement quand toutes les échéances prévues sont payées ; une seule demande à la fois.' },
+            { term: 'Remboursement final', text: 'Disponible au terme du contrat même si des cotisations restent impayées, ou lorsque toutes les échéances sont soldées. Seules les sommes versées et le bonus applicable sont remboursés ; une seule demande à la fois.' },
             { term: 'Retrait anticipé', text: 'Possible dès qu’au moins un versement a été fait ; le contrat est alors clos.' },
             {
               term: 'Procès-verbal de liquidation',

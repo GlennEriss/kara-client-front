@@ -1,3 +1,4 @@
+import { caisseImprevueFinalRefundEligibility, sumCINominalPaid } from '@/services/refunds/final-refund-policy'
 import { User, Admin, ContractCI, PaymentCI, VersementCI, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI, CaisseImprevueDemand, CaisseImprevueDemandFilters, CaisseImprevueDemandStats } from "@/types/types";
 import { getCaisseImprevueVersementDeletionBlocker } from '@/utils/payment-deletion-order'
 import { assertContractUnlocked, isCaisseImprevueContractLocked } from '@/utils/contract-lock'
@@ -784,7 +785,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 this.paymentCIRepository.getPaymentsByContractId(contractId),
                 this.getSupportHistory(contractId),
             ])
-            const totalAmountPaid = payments.reduce((sum, payment) => sum + (payment.accumulatedAmount || 0), 0)
+            const totalAmountPaid = sumCINominalPaid(payments)
             const paymentCount = payments.length
             const paidMonthsCount = payments.filter(p => p.status === 'PAID').length
             const supportCount = supports.length
@@ -849,10 +850,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             }
 
             // 4. Calculer le montant nominal (somme des accumulatedAmount des paiements)
-            const totalAmountPaid = payments.reduce(
-                (sum, payment) => sum + (payment.accumulatedAmount || 0),
-                0
-            )
+            const totalAmountPaid = sumCINominalPaid(payments)
 
             // 5. Calculer le montant bonus (pour l'instant à 0, peut être implémenté selon les règles métier)
             const amountBonus = 0
@@ -1006,13 +1004,10 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 throw new Error('Le contrat doit être actif pour effectuer un remboursement final')
             }
 
-            // 2. Vérifier que tous les mois/jours sont payés
             const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
-            const paidCount = payments.filter(p => p.status === 'PAID').length
-            const allPaid = payments.length > 0 && paidCount === payments.length
-
-            if (!allPaid) {
-                throw new Error('Remboursement final indisponible : toutes les échéances doivent être payées')
+            const eligibility = caisseImprevueFinalRefundEligibility(contract, payments)
+            if (!eligibility.eligible) {
+                throw new Error(eligibility.totalPaid <= 0 ? 'Aucune cotisation à rembourser pour ce contrat' : 'Le remboursement final est disponible au terme du contrat ou lorsque toutes les échéances sont payées')
             }
 
             // 3. Vérifier qu'aucune demande de remboursement final n'existe déjà
@@ -1020,7 +1015,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             const hasActiveFinal = existingRefunds.some(
                 (r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED'
             )
-            if (hasActiveFinal) {
+            if (hasActiveFinal || existingRefunds.some(refund => ['PENDING', 'APPROVED', 'PAID'].includes(refund.status))) {
                 throw new Error('Une demande de remboursement final est déjà en cours pour ce contrat')
             }
 
@@ -1028,10 +1023,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             const adminName = admin ? `${admin.firstName} ${admin.lastName}` : data.userId
 
             // 4. Calculer le montant total versé (non modifiable)
-            const totalAmountPaid = payments.reduce(
-                (sum, payment) => sum + (payment.accumulatedAmount || 0),
-                0
-            )
+            const totalAmountPaid = sumCINominalPaid(payments)
 
             // 5. Calculer le montant bonus (pour l'instant à 0, peut être implémenté selon les règles métier)
             const amountBonus = 0
@@ -1072,7 +1064,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             // 9. Créer la demande de remboursement final
             const withdrawalDate = new Date(data.withdrawalDate)
             const withdrawalRecordedAt = new Date(`${data.withdrawalDate}T${data.withdrawalTime}:00`)
-            const deadlineAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // 45 jours après création
+            const deadlineAt = eligibility.endAt ?? new Date()
 
             const finalRefundData: Omit<FinalRefundCI, 'id' | 'createdAt' | 'updatedAt'> = {
                 contractId,

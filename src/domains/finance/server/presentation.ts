@@ -1,3 +1,4 @@
+import { caisseSpecialeFinalRefundEligibility, caisseImprevueFinalRefundEligibility } from '@/services/refunds/final-refund-policy'
 import { projectContractCard } from './contract-card'
 import { computeMissedEarningsBalance, computePostTermPenaltyBalance } from '@/utils/credit-losses'
 import {
@@ -399,12 +400,14 @@ export async function projectFinanceContract(
   let overdueSummary = null
   let creditRemaining: number | undefined
   let refunds: Row[] = []
+  let finalRefundEligibility: ReturnType<typeof caisseSpecialeFinalRefundEligibility> | undefined
   if (module === 'caisse-speciale') {
     const payments: Row[] =
       loaded.payments || (await services.csPayments.listPayments(row.id))
+    finalRefundEligibility = caisseSpecialeFinalRefundEligibility(contract, payments, now)
     monthly = number(row.monthlyAmount)
     duration = number(row.monthsPlanned)
-    paid = number(row.nominalPaid)
+    paid = number(finalRefundEligibility.totalPaid)
     total = monthly * duration
     paidPeriods = payments.filter(
       (p: any) =>
@@ -430,6 +433,7 @@ export async function projectFinanceContract(
     const payments: Row[] =
       loaded.payments ||
       (await services.caisseImprevue.getPaymentsByContractId(row.id))
+    finalRefundEligibility = caisseImprevueFinalRefundEligibility(contract, payments, now)
     monthly = number(row.subscriptionCIAmountPerMonth)
     duration = number(row.subscriptionCIDuration)
     paid = payments.reduce((s, p) => s + number(p.accumulatedAmount), 0)
@@ -549,6 +553,7 @@ export async function projectFinanceContract(
   }
   return {
     ...row,
+    ...(finalRefundEligibility ? { finalRefundEligibility: { ...finalRefundEligibility, eligible: finalRefundEligibility.eligible && !refunds.some(refund => ['PENDING','APPROVED','PAID'].includes(refund.status)) } } : {}),
     contractCard: projectContractCard(module, row, {
       refunds,
       overdueSummary,
