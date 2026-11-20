@@ -7,7 +7,7 @@ const row = (sponsorMemberId = 'M001') => ({ ownerName: 'Contact fictif', phone:
   city: 'Libreville', locationType: 'quarter', quarter: 'Awendjé', locationDetails: '', insuranceCompany: 'Autre assureur', endDate: '2026-12-20', notes: '',
   status: 'tracking', sponsorMemberId, sponsorName: 'Fictif', source: 'member', createdBy: 'alice', updatedBy: 'alice', createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
 before(async () => {
-  env = await initializeTestEnvironment({ projectId: 'demo-kara-prospects', firestore: { host: '127.0.0.1', port: 8088, rules: readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8') } })
+  env = await initializeTestEnvironment({ projectId: 'demo-kara-prospects', firestore: { host: '127.0.0.1', port: 8088, rules: readFileSync(process.env.KARA_FIRESTORE_RULES_PATH || new URL('../../firestore.rules', import.meta.url), 'utf8') } })
   await env.withSecurityRulesDisabled(async ctx => {
     const db = ctx.firestore()
     await Promise.all([
