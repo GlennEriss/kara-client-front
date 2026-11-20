@@ -237,6 +237,7 @@ export class VehicleInsuranceRepository implements IRepository {
   private mapDocToEntity(id: string, data: FirestoreVehicleInsurance): VehicleInsurance {
     return {
       id,
+      prospectId: data.prospectId,
       city: data.city,
       primaryPhone: data.primaryPhone || data.nonMemberPhone1 || data.memberContacts?.[0],
       holderType: data.holderType || (data.memberId ? 'member' : 'non-member'), // Rétrocompatibilité

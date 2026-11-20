@@ -26,6 +26,7 @@ import {
   placementFields,
 } from '../operations/placement-documents'
 import { sectionFilters, sectionMetrics } from './filters'
+import { prospectStatuses, insuranceMatchesProspect } from '@/domains/insurance-prospects/model'
 import { z } from 'zod'
 import { NextResponse, type NextRequest } from 'next/server'
 import {
@@ -155,6 +156,7 @@ export const listSchema = z
         'companyName',
         'profession',
         'insuranceCompany',
+        'quarter',
         'vehicleType',
         'holderType',
         'declarationStatus',
@@ -398,7 +400,7 @@ export async function getAdminWorkspace(request: NextRequest, key: string) {
         actions,
         statuses: [...counts].map(([value, count]) => ({
           value,
-          label: value,
+          label: key === 'vehicles' && dataset.key === 'prospects' ? prospectStatuses[value as keyof typeof prospectStatuses] || value : value,
           count,
         })),
         metrics: sectionMetrics(access.module, dataset, all, selected),
@@ -467,6 +469,8 @@ export function visibleActions(
   return adminActions(module, dataset)
     .filter((a) => a.scope === 'contract' && canAction(caller, a))
     .filter((a) => {
+      if (dataset.key === 'prospects' && module.key === 'vehicles')
+        return !['converted', 'lost'].includes(row.status)
       if (a.id === 'request.payment') return !row.isPaid
       if (a.id === 'request.approve')
         return !!row.isPaid && ['pending', 'under_review'].includes(row.status)
@@ -1025,12 +1029,18 @@ export async function getAdminChoices(request: NextRequest, key: string) {
         creditDemands: 'creditDemands',
         creditContracts: 'creditContracts',
         callLogs: 'callLogs',
+        prospectInsurances: 'vehicle-insurances',
       }
       const col = collections[input.source]
       if (!col) throw Error('Recherche inconnue.')
       const snap = await access.services.db.collection(col).limit(10001).get()
       if (snap.size > 10000) throw Error('Trop de résultats.')
       rows = snap.docs.map((d) => ({ ...plain(d.data()), id: d.id }))
+      if (input.source === 'prospectInsurances') {
+        if (!record || key !== 'vehicles' || dataset.key !== 'prospects') throw Error('Prospect requis')
+        rows = rows.filter(r => insuranceMatchesProspect(record as any, r))
+        rows = rows.map(r => ({ ...r, name: `${r.plateNumber} · ${r.insuranceCompany} · ${r.policyNumber}` }))
+      }
       if (input.source === 'members')
         rows = rows.filter(
           (r) =>

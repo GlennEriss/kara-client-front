@@ -113,6 +113,8 @@ export function notificationTarget(access: ResolvedAdminAccess, row: Row) {
     )
   }
   if (row.module === 'vehicule' && canWithAccess(access, 'vehicules.view'))
+    if (meta.prospectId) return record('vehicles', 'prospects', meta.prospectId)
+    else
     return {
       ...section('vehicles'),
       declarationView: row.type === 'vehicle_declared' ? 'pending' : 'approved',

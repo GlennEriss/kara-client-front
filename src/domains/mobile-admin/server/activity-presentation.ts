@@ -1,4 +1,5 @@
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
+import { prospectPhase, daysToExpiry, type InsuranceProspect } from '@/domains/insurance-prospects/model'
 import { roundFcfa, sumCommissionAmounts } from '@/utils/placementMoney'
 import type { AdminServices } from './context'
 type Row = Record<string, any>
@@ -51,6 +52,8 @@ export async function activityRows(
     return actors.get(id)!
   }
   return mapWithConcurrency(rows, 6, async (row) => {
+    if (module === 'vehicles' && dataset === 'prospects')
+      return { ...row, phase: prospectPhase(row as InsuranceProspect), daysUntil: daysToExpiry(row.endDate), displayName: row.plateNumber }
     if (module === 'vehicles' && dataset === 'rewards')
       return {
         ...row,
@@ -104,6 +107,10 @@ export async function activityRows(
   })
 }
 export function activityMatches(row: Row, input: Row, module: string) {
+  if (module === 'vehicles' && row.source && row.endDate) {
+    if (input.nextFrom && row.endDate < input.nextFrom) return false
+    if (input.nextTo && row.endDate > input.nextTo) return false
+  }
   if (
     module === 'vehicles' &&
     input.declarationView &&

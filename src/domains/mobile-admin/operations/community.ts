@@ -609,6 +609,7 @@ export function communityActions(
     ]
   }
   if (module.key === 'vehicles') {
+    if (dataset.key === 'prospects') return []
     if (dataset.key === 'partners')
       return [
         ...[true, false].map((create) =>

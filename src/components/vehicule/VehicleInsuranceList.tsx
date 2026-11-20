@@ -2,6 +2,7 @@
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { PageHero } from '@/components/ui/page-hero'
@@ -386,6 +387,7 @@ export function VehicleInsuranceList() {
         }
         action={
           <div className="flex flex-wrap gap-2 md:gap-3">
+            <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20"><Link href="/vehicules/prospection">Prospection assurance</Link></Button>
             {canExport && (
               <Button
                 type="button"

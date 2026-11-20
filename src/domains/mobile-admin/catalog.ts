@@ -222,6 +222,7 @@ export const adminModules: AdminModule[] = [
         collection: 'vehicle-insurances',
         fields: [],
       },
+      { key: 'prospects', label: 'Prospection', collection: 'insurance-prospects', fields: [] },
       {
         key: 'partners',
         label: 'Taux assureurs',

@@ -235,6 +235,7 @@ function resolveBreadcrumbs(pathname: string): BreadcrumbSegment[] {
   if (pathname === '/bienfaiteur') return [TB, { label: 'Bienfaiteur' }]
 
   // ── Véhicules ────────────────────────────────────────────────────────────
+  if (pathname === '/vehicules/prospection') return [TB, VEHICULES, { label: 'Prospection assurance' }]
   if (/^\/vehicules\/[^/]+\/edit$/.test(pathname)) {
     const id = pathname.split('/')[2]
     return [TB, VEHICULES, { label: 'Détails', href: `/vehicules/${id}` }, { label: 'Modifier' }]

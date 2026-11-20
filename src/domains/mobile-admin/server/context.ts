@@ -45,6 +45,7 @@ import { createVehicleRewardsRepository } from '@/db/vehicle-rewards.db'
 import { createEventsRepository } from '@/domains/community/events/repositories/EventsRepository'
 import { EventsService } from '@/domains/community/events/services/EventsService'
 import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsuranceRepository'
+import { InsuranceProspectRepository } from '@/domains/insurance-prospects/repository'
 import { VehicleInsuranceService } from '@/services/vehicule/VehicleInsuranceService'
 import { PlacementRepository } from '@/repositories/placement/PlacementRepository'
 import { PlacementDemandRepository } from '@/repositories/placement/PlacementDemandRepository'
@@ -306,6 +307,7 @@ export function createAdminServices(caller: MobileCaller) {
     rewards,
     events,
     vehicles,
+    insuranceProspects: new InsuranceProspectRepository(finance.firestore),
   }
 }
 export type AdminServices = ReturnType<typeof createAdminServices>

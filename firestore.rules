@@ -1527,6 +1527,49 @@ service cloud.firestore {
     // ==========================================
     // Page /vehicules, /vehicules/[id], /vehicules/[id]/edit
     // Gestion complète des assurances véhicules (CRUD, renouvellement, stats)
+    // La prospection reste séparée des assurances réellement souscrites.
+    match /insurance-prospects/{prospectId} {
+      function ownsProspect(data) {
+        return isAuthenticated() && data.sponsorMemberId is string && isMemberOwner(data.sponsorMemberId);
+      }
+      function validProspect(data) {
+        return data.ownerName is string && data.ownerName.size() >= 2 && data.ownerName.size() <= 150 &&
+          data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 30 &&
+          data.plateNumber is string && data.plateNumber.size() >= 2 && data.plateNumber.size() <= 30 &&
+          data.vehicleType in ['car', 'motorcycle', 'truck', 'bus', 'other'] &&
+          (data.vehicleType != 'other' || (data.vehicleDescription is string && data.vehicleDescription.size() > 0)) &&
+          data.city is string && data.city.size() >= 2 && data.city.size() <= 100 &&
+          data.locationType in ['quarter', 'other'] &&
+          (data.locationType != 'quarter' || (data.quarter is string && data.quarter.size() > 0)) &&
+          (data.locationType != 'other' || (data.locationDetails is string && data.locationDetails.size() > 0)) &&
+          data.insuranceCompany is string && data.insuranceCompany.size() >= 2 &&
+          data.endDate is string && data.endDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+          data.notes is string && data.notes.size() <= 2000;
+      }
+      allow read: if isAdmin() || ownsProspect(resource.data);
+      allow create: if isAdmin() || (ownsProspect(request.resource.data) && validProspect(request.resource.data) &&
+        request.resource.data.keys().hasOnly(['ownerName','phone','whatsapp','plateNumber','vehicleType','vehicleDescription','city','locationType','quarter','locationDetails','insuranceCompany','endDate','notes','status','sponsorMemberId','sponsorName','source','createdBy','updatedBy','createdAt','updatedAt']) &&
+        request.resource.data.source == 'member' && request.resource.data.status == 'tracking' &&
+        request.resource.data.createdBy == request.auth.uid && request.resource.data.updatedBy == request.auth.uid &&
+        request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time);
+      allow update: if isAdmin() || (ownsProspect(resource.data) && validProspect(request.resource.data) &&
+        !(resource.data.status in ['converted','lost']) &&
+        request.resource.data.status in ['tracking','contacted','quote_requested','lost'] &&
+        request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerName','phone','whatsapp','plateNumber','vehicleType','vehicleDescription','city','locationType','quarter','locationDetails','insuranceCompany','endDate','notes','status','followUpDate','updatedBy','updatedAt']));
+      allow delete: if false;
+      match /activities/{activityId} {
+        function parent() { return get(/databases/$(database)/documents/insurance-prospects/$(prospectId)).data; }
+        function nextParent() { return getAfter(/databases/$(database)/documents/insurance-prospects/$(prospectId)).data; }
+        allow read: if isAdmin() || ownsProspect(parent());
+        allow create: if isAdmin() || (ownsProspect(nextParent()) &&
+          request.resource.data.by == request.auth.uid && request.resource.data.at == request.time &&
+          request.resource.data.kind in ['created','edit','contacted','quote_requested','renewed_elsewhere','lost'] &&
+          request.resource.data.note is string && request.resource.data.note.size() <= 2000 &&
+          request.resource.data.keys().hasOnly(['kind','note','by','byName','at','previousEndDate','endDate','insuranceCompany']));
+        allow update, delete: if false;
+      }
+    }
     match /vehicle-insurances/{insuranceId} {
       // Lecture : admin OU le membre propriétaire du véhicule
       allow read: if isAdmin() || (

@@ -81,6 +81,15 @@ describe('centre d’aide et périmètre mobile', () => {
       rows.length,
     )
   })
+  it('transmet la fiche de prospection recherchable avec les mêmes consignes que le site', () => {
+    const rows = mobileHelpRows(superAdmin)
+    const result = filterHelpRows(rows, { search: 'prospection assurance' })
+    const topic = result.find(t => t.key === 'vehicules')!
+    expect(topic.pages.some((p: { path: string }) => p.path === '/vehicules/prospection')).toBe(true)
+    expect(topic.sections).toEqual(HELP_TOPICS.find(t => t.key === 'vehicules')!.sections)
+    expect(JSON.stringify(topic.sections)).toContain('J−15')
+    expect(JSON.stringify(topic.sections)).toContain('LE KARA — Inconnu')
+  })
   it('partage exactement les trois leçons et vingt gestes pédagogiques du site', () => {
     const topic = mobileHelpRows(superAdmin).find((t) => t.key === 'groupes')!
     expect(topic.tutorial!.lessons.map((l) => l.id)).toEqual(

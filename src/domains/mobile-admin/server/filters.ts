@@ -6,6 +6,7 @@ import {
 } from '@/domains/finance/actions'
 import { select, type AdminModule, type Dataset } from '../catalog'
 import { communityMetrics } from './community-presentation'
+import { daysToExpiry } from '@/domains/insurance-prospects/model'
 export function sectionFilters(
   module: AdminModule,
   dataset: Dataset,
@@ -100,6 +101,10 @@ export function sectionFilters(
     )
   }
   if (module.key === 'vehicles') {
+    if (dataset.key === 'prospects') {
+      pick('city', 'Ville'); pick('quarter', 'Quartier')
+      list.push({ ...dateField('nextFrom', 'Fin d’assurance depuis'), required: false }, { ...dateField('nextTo', 'Fin d’assurance jusqu’au'), required: false })
+    }
     list.push(select('sort', 'Tri alphabétique', ['nameAsc', 'nameDesc'], true))
     pick('insuranceCompany', 'Assureur')
     pick('vehicleType', 'Bien assuré')
@@ -308,6 +313,12 @@ export function sectionMetrics(
         ),
       ]
     if (dataset.key === 'partners') return [metric('Assureurs', rows.length)]
+    if (dataset.key === 'prospects') return [
+      metric('Prospects', rows.length),
+      metric('À contacter', rows.filter(r => !['converted', 'lost'].includes(r.status) && daysToExpiry(r.endDate) <= 30).length),
+      metric('Demandes LE KARA', count('status', ['quote_requested'])),
+      metric('Assurés chez LE KARA', count('status', ['converted'])),
+    ]
     rows = rows.filter(
       (r) => !r.declarationStatus || r.declarationStatus === 'validated',
     )

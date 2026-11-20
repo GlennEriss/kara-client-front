@@ -11,6 +11,7 @@ import { baseActions } from '../server/registry'
 import { groupActions } from './groups'
 import { placementActions } from './placements'
 import { communityActions } from './community'
+import { insuranceProspectActions } from './insurance-prospects'
 export const adminActions = (module: AdminModule, dataset: Dataset) => [
   ...baseActions(module, dataset),
   ...messageActions(module),
@@ -18,6 +19,7 @@ export const adminActions = (module: AdminModule, dataset: Dataset) => [
   ...groupActions(module),
   ...placementActions(module, dataset),
   ...communityActions(module, dataset),
+  ...insuranceProspectActions(module, dataset),
   ...memberActions(module, dataset),
   ...charityActions(module),
   ...administrationActions(module, dataset),

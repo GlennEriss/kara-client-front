@@ -232,6 +232,10 @@ export function filterRows(
             ? [row.summary, row.steps, row.faq, row.rules, row.pages]
             : []),
           row.phone,
+          row.ownerName,
+          row.quarter,
+          row.locationDetails,
+          row.sponsorName,
           row.tel1,
           row.plateNumber,
           row.policyNumber,
@@ -258,6 +262,7 @@ export function filterRows(
       'companyName',
       'profession',
       'insuranceCompany',
+      'quarter',
       'vehicleType',
       'holderType',
       'declarationStatus',
@@ -569,6 +574,10 @@ export async function relatedRows(
     }))
   }
   if (module.key === 'vehicles' && row.plateNumber) {
+    if (row.sponsorMemberId && typeof row.endDate === 'string' && row.source) {
+      const history = await services.insuranceProspects.history(row.id)
+      groups.push({ key: 'prospectHistory', label: 'Historique de prospection', items: plain(history) })
+    }
     await read(
       'rewards',
       'Reversements',

@@ -7,6 +7,7 @@ import { checkAndNotifyOverdueCommissions } from './scheduled/overdueCommissions
 import { checkAndNotifyCreditPaymentDue } from './scheduled/creditPaymentDue'
 import { checkAndNotifyCIPaymentDue } from './scheduled/ciPaymentDue'
 import { checkAndNotifyVehicleInsuranceExpiring } from './scheduled/vehicleInsuranceExpiring'
+import { notifyInsuranceProspects } from './scheduled/insuranceProspects'
 import { generateAgentRecouvrementNotifications } from './scheduled/agentRecouvrementNotifications'
 import { transformCreditSpecialeToFixe } from './scheduled/transformCreditSpeciale'
 import { remindPendingCaisseSpecialeDemands, remindApprovedNotConvertedCaisseSpecialeDemands } from './scheduled/caisseSpecialeDemandReminders'
@@ -120,7 +121,8 @@ export const dailyVehicleInsuranceExpiring = onSchedule(
   },
   async (event) => {
     console.log('Démarrage du job quotidien pour les assurances véhicules qui expirent')
-    await checkAndNotifyVehicleInsuranceExpiring()
+    const results = await Promise.allSettled([checkAndNotifyVehicleInsuranceExpiring(), notifyInsuranceProspects()])
+    if (results.some(result => result.status === 'rejected')) throw Error('Une vérification des assurances ou prospects a échoué.')
     console.log('Job terminé avec succès')
   }
 )

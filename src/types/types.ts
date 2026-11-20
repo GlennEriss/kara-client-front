@@ -2379,6 +2379,8 @@ export type VehicleEnergySource = 'essence' | 'diesel' | 'electrique' | 'hybride
 export type VehicleInsuranceHolderType = 'member' | 'non-member'
 
 export interface VehicleInsurance {
+  /** Prospect converti, rattaché après validation de l’assurance. */
+  prospectId?: string
   id: string
   holderType: VehicleInsuranceHolderType
   city?: string

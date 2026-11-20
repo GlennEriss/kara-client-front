@@ -1,0 +1,65 @@
+import { before, after, test } from 'node:test'
+import { readFileSync } from 'node:fs'
+import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing'
+import { doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore'
+let env
+const row = (sponsorMemberId = 'M001') => ({ ownerName: 'Contact fictif', phone: '077000000', whatsapp: '', plateNumber: 'TEST-123', vehicleType: 'car', vehicleDescription: '',
+  city: 'Libreville', locationType: 'quarter', quarter: 'Awendjé', locationDetails: '', insuranceCompany: 'Autre assureur', endDate: '2026-12-20', notes: '',
+  status: 'tracking', sponsorMemberId, sponsorName: 'Fictif', source: 'member', createdBy: 'alice', updatedBy: 'alice', createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+before(async () => {
+  env = await initializeTestEnvironment({ projectId: 'demo-kara-prospects', firestore: { host: '127.0.0.1', port: 8088, rules: readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8') } })
+  await env.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore()
+    await Promise.all([setDoc(doc(db, 'users/alice'), { matricule: 'M001' }), setDoc(doc(db, 'users/bob'), { matricule: 'M002' }),
+      setDoc(doc(db, 'admins/manager'), { roles: ['Admin'] }), setDoc(doc(db, 'insurance-prospects/own'), row()),
+      setDoc(doc(db, 'insurance-prospects/other'), row('M002')), setDoc(doc(db, 'insurance-prospects/closed'), { ...row(), status: 'converted', insuranceId: 'i1' })])
+  })
+})
+after(async () => { await env?.cleanup() })
+const db = (uid = 'alice') => env.authenticatedContext(uid).firestore()
+test('un membre crée son prospect et son historique dans un même lot', async () => {
+  const f = db(), batch = writeBatch(f)
+  batch.set(doc(f, 'insurance-prospects/new'), row())
+  batch.set(doc(f, 'insurance-prospects/new/activities/created'), { kind: 'created', note: 'Création', by: 'alice', byName: 'Fictif', at: serverTimestamp() })
+  await assertSucceeds(batch.commit())
+})
+test('les données des autres parrains et les requêtes sans filtre sont interdites', async () => {
+  await assertSucceeds(getDoc(doc(db(), 'insurance-prospects/own')))
+  await assertFails(getDoc(doc(db(), 'insurance-prospects/other')))
+  await assertFails(getDocs(collection(db(), 'insurance-prospects')))
+  await assertSucceeds(getDocs(query(collection(db(), 'insurance-prospects'), where('sponsorMemberId', '==', 'M001'))))
+  await assertSucceeds(getDocs(query(collection(db(), 'insurance-prospects'), where('sponsorMemberId', 'in', ['alice', 'M001']))))
+})
+test('un membre ne peut ni attribuer à autrui ni créer une assurance confirmée', async () => {
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/spoofed'), row('M002')))
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/converted'), { ...row(), status: 'converted', insuranceId: 'fake' }))
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/spoof-admin'), { ...row(), source: 'admin' }))
+})
+test('un quartier ou un autre emplacement précis est obligatoire', async () => {
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/no-quarter'), { ...row(), quarter: '' }))
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/no-location'), { ...row(), locationType: 'other' }))
+  await assertSucceeds(setDoc(doc(db(), 'insurance-prospects/other-location'), { ...row(), locationType: 'other', locationDetails: 'Parking marché' }))
+})
+test('les relances sont permises mais le parrain, le créateur et la conversion sont protégés', async () => {
+  await assertSucceeds(updateDoc(doc(db(), 'insurance-prospects/own'), { status: 'contacted', updatedAt: serverTimestamp(), updatedBy: 'alice' }))
+  await assertFails(updateDoc(doc(db(), 'insurance-prospects/own'), { sponsorMemberId: 'M002', updatedAt: serverTimestamp(), updatedBy: 'alice' }))
+  await assertFails(updateDoc(doc(db(), 'insurance-prospects/own'), { createdBy: 'bob', updatedAt: serverTimestamp(), updatedBy: 'alice' }))
+  await assertFails(updateDoc(doc(db(), 'insurance-prospects/own'), { status: 'converted', insuranceId: 'fake', updatedAt: serverTimestamp(), updatedBy: 'alice' }))
+})
+test('l’historique est personnel, attribué au bon auteur et immuable', async () => {
+  const ref = doc(db(), 'insurance-prospects/own/activities/call')
+  await assertSucceeds(setDoc(ref, { kind: 'contacted', note: 'Appel effectué', by: 'alice', byName: 'Fictif', at: serverTimestamp() }))
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/own/activities/spoof'), { kind: 'contacted', note: 'Test', by: 'bob', at: serverTimestamp() }))
+  await assertFails(updateDoc(ref, { note: 'Effacé' }))
+  await assertFails(deleteDoc(ref))
+  await assertFails(getDocs(collection(db('bob'), 'insurance-prospects/own/activities')))
+})
+test('un suivi clôturé ne peut plus être modifié par son membre', async () => {
+  await assertFails(updateDoc(doc(db(), 'insurance-prospects/closed'), { status: 'tracking', updatedAt: serverTimestamp(), updatedBy: 'alice' }))
+  await assertFails(deleteDoc(doc(db(), 'insurance-prospects/closed')))
+})
+test('l’admin voit et réattribue les prospects ; un visiteur anonyme ne les voit pas', async () => {
+  await assertSucceeds(getDocs(collection(db('manager'), 'insurance-prospects')))
+  await assertSucceeds(updateDoc(doc(db('manager'), 'insurance-prospects/other'), { sponsorMemberId: '2548.MK.290126', sponsorName: 'LE KARA — Inconnu' }))
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'insurance-prospects/own')))
+})
