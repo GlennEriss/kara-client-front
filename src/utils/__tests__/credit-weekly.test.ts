@@ -5,6 +5,7 @@ import { getCreditPaymentDeletionBlocker } from '@/utils/credit-payment-deletion
 import { buildWeeklyCreditSimulation, formatCreditDuration } from '@/utils/credit-weekly'
 import { getCreditPeriodDueDate, getCreditPeriodIndex, getWeeklyInterestEndDate } from '@/utils/credit-periods'
 import { getMonthPenaltyReferenceDate } from '@/utils/credit-penalty-due-date'
+import { getCreditContractStartDates, getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
 
 const weeklyContract = {
   id: 'credit-w',
@@ -24,6 +25,30 @@ const weeklyContract = {
 
 const payment = (id: string, amount: number, date: string) =>
   ({ id, creditId: 'credit-w', amount, paymentDate: new Date(date) }) as CreditPayment
+
+describe('cohérence des dates du forfait hebdomadaire', () => {
+  const target = {
+    ...weeklyContract, amount: 300000, interestRate: 5, monthlyPaymentAmount: 315000,
+    totalAmount: 315000, duration: 2,
+    firstPaymentDate: new Date('2026-12-08'),
+    initialStartAt: new Date('2026-11-10'), disbursementDate: new Date('2026-11-10'),
+  }
+  it('aligne le départ affiché sur le forfait enregistré sans déplacer une échéance existante', () => {
+    expect(getCreditContractStartDates(target).startDate).toEqual(new Date('2026-11-24'))
+    expect(target.firstPaymentDate).toEqual(new Date('2026-12-08'))
+    expect(target.disbursementDate).toEqual(new Date('2026-11-10'))
+  })
+  it('respecte le départ confirmé du 10 novembre lorsque la première échéance est corrigée au 24', () => {
+    const corrected = { ...target, firstPaymentDate: new Date('2026-11-24') }
+    expect(getCreditContractStartDates(corrected).startDate).toEqual(new Date('2026-11-10'))
+    expect(getCreditContractEndDate(corrected)?.toDateString()).toBe(corrected.firstPaymentDate.toDateString())
+    expect(getWeeklyInterestEndDate(corrected)).toEqual(new Date('2026-12-10'))
+    expect([2,3,4].map(n => getCreditPeriodDueDate(corrected,n))).toEqual([
+      new Date('2026-12-01'), new Date('2026-12-08'), new Date('2026-12-15'),
+    ])
+    expect(buildCreditSpecialeHistory(corrected, [])[0]).toMatchObject({ date: new Date('2026-11-24'), interest: 15000, amountDue: 315000 })
+  })
+})
 
 describe('simulation d’un crédit en semaines', () => {
   it('fixe l’échéance unique à la date de début + N semaines, intérêts appliqués une fois', () => {

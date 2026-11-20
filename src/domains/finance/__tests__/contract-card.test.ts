@@ -8,6 +8,53 @@ import {
 import type { FinanceServices } from '../server/services'
 
 describe('cartes contractuelles par module', () => {
+  it.each(['2026-11-24T00:00:00Z', '2026-11-23T23:00:00Z'])(
+    'expose le même forfait hebdomadaire et ses jours civils pour %s',
+    async (firstPaymentDate) => {
+      const result = await projectFinanceContract(
+        {} as FinanceServices,
+        'credit-speciale',
+        {
+          id: 'weekly-test',
+          creditType: 'SPECIALE',
+          durationUnit: 'WEEKS',
+          repaymentModel: 'DEGRESSIVE',
+          status: 'ACTIVE',
+          amount: 300000,
+          interestRate: 5,
+          totalAmount: 315000,
+          monthlyPaymentAmount: 315000,
+          amountPaid: 0,
+          amountRemaining: 315000,
+          duration: 2,
+          firstPaymentDate,
+          initialStartAt: '2026-11-10',
+          disbursementDate: '2026-11-10',
+          createdAt: '2026-11-11',
+        },
+        new Date('2026-11-20T12:00:00Z'),
+        { payments: [], penalties: [] },
+      )
+      expect(result.contractCard.credit.startAt).toBe(
+        '2026-11-10T12:00:00.000Z',
+      )
+      expect(result.contractCard.credit.weekly).toEqual({
+        weeks: 2,
+        firstDueAt: '2026-11-24T12:00:00.000Z',
+        interestEndAt: '2026-12-10T12:00:00.000Z',
+        initialInterestAmount: 15000,
+        initialDueAmount: 315000,
+        recurring: true,
+        periodDays: 7,
+      })
+      expect(result.financeView).toMatchObject({
+        total: 315000,
+        paid: 0,
+        remaining: 315000,
+        durationUnit: 'WEEKS',
+      })
+    },
+  )
   it('ne confond pas un PDF CS préparé avec une signature membre validée', () => {
     expect(
       contractSignature('caisse-speciale', { contractPdf: { url: 'pdf' } }),
@@ -76,7 +123,13 @@ describe('cartes contractuelles par module', () => {
     ).toMatchObject({ date: '2026-10-01T00:00:00.000Z', dateKind: 'ACTUAL' })
   })
   it('conserve le document de remboursement historique même sans ligne de remboursement chargée', () => {
-    expect(projectContractCard('caisse-imprevue', { finalRefundDocumentId: 'legacy-document' }, { refunds: [], duration: 1, paidPeriods: 1 }).refundTypes).toEqual(['FINAL'])
+    expect(
+      projectContractCard(
+        'caisse-imprevue',
+        { finalRefundDocumentId: 'legacy-document' },
+        { refunds: [], duration: 1, paidPeriods: 1 },
+      ).refundTypes,
+    ).toEqual(['FINAL'])
   })
   it('reconstruit les retards CI même en absence de documents de versement', async () => {
     const row = await projectFinanceContract(

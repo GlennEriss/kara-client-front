@@ -1,6 +1,7 @@
 'use client'
 import { useCreditCardSummaries } from '@/hooks/credit-speciale/useCreditCardSummaries'
 import { isCreditContractLocked } from '@/utils/contract-lock'
+import { canUploadSignedCreditContract as canUploadSignedContract, hasCreditContractExtension, isCreditContractActivationUpload } from '@/utils/credit-contract-documents'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { ENDED_CREDIT_STATUSES } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
@@ -161,12 +162,6 @@ function canReplaceSignedContract(contract: CreditContract): boolean {
 /** L'accès au détail n'est autorisé qu'après téléversement du contrat signé */
 function canOpenContractDetail(contract: CreditContract): boolean {
   return Boolean(contract.signedContractUrl)
-}
-
-/** Autoriser le téléversement du contrat signé pour l'activation initiale ou après augmentation */
-function canUploadSignedContract(contract: CreditContract): boolean {
-  const uploadableStatuses: CreditContractStatus[] = ['PENDING', 'ACTIVE', 'PARTIAL', 'OVERDUE', 'BLOCKED']
-  return !contract.signedContractUrl && uploadableStatuses.includes(contract.status)
 }
 
 /** Contrat de remboursement disponible quand la quittance signée a été téléversée */
@@ -909,7 +904,7 @@ const ListContrats = ({
   const [showDeleteContractModal, setShowDeleteContractModal] = useState(false)
   const [selectedContractForDelete, setSelectedContractForDelete] = useState<CreditContract | null>(null)
   const [viewerDoc, setViewerDoc] = useState<ViewerDoc | null>(null)
-  const isUploadActivationFlow = selectedContractForUpload?.status === 'PENDING'
+  const isUploadActivationFlow = !!selectedContractForUpload && isCreditContractActivationUpload(selectedContractForUpload)
 
   // Ouvre la modale d'aperçu/téléchargement (mécanisme mobile unifié).
   const openCreditDocument = (contract: CreditContract, url: string | undefined | null, label: string, title: string) => {
@@ -1882,6 +1877,17 @@ const ListContrats = ({
                             </Button>
                           ) : null}
 
+                          {hasSignedContract && canUploadSignedContract(contract) && (
+                            <Button
+                              onClick={() => { setSelectedContractForUpload(contract); setContractFile(undefined); setShowUploadModal(true) }}
+                              variant="outline"
+                              size="sm"
+                              className="h-auto min-h-8 cursor-pointer whitespace-normal rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-blue-50"
+                            >
+                              <Upload className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                              Téléverser un nouveau contrat signé
+                            </Button>
+                          )}
                           {hasSignedContract && canReplaceSignedContract(contract) && (
                             <Button
                               onClick={() => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }}
@@ -2076,7 +2082,7 @@ const ListContrats = ({
                               {canUploadSignedContract(contract) && (
                                 <DropdownMenuItem onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }} className="cursor-pointer">
                                   <Upload className="h-4 w-4 mr-2" />
-                                  {contract.status === 'PENDING' ? 'Téléverser contrat signé' : 'Téléverser nouveau contrat signé'}
+                                  {hasCreditContractExtension(contract) ? 'Téléverser un nouveau contrat signé' : 'Téléverser le contrat signé'}
                                 </DropdownMenuItem>
                               )}
                               {canReplaceSignedContract(contract) && (
@@ -2374,11 +2380,11 @@ const ListContrats = ({
         <ModalContent size="sm">
           <ModalHeader
             icon={Upload}
-            title="Téléverser le contrat signé"
+            title={selectedContractForUpload && hasCreditContractExtension(selectedContractForUpload) ? 'Téléverser un nouveau contrat signé' : 'Téléverser le contrat signé'}
             description={
               isUploadActivationFlow
                 ? 'Téléversez le contrat signé par le client. Le contrat sera automatiquement activé après l\'upload.'
-                : 'Téléversez le nouveau contrat signé par le client après augmentation du crédit.'
+                : 'Ajoutez le contrat signé. Les versions précédentes sont conservées ; le statut et la date de remise des fonds restent inchangés.'
             }
           />
 

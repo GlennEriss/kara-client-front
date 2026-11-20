@@ -1,6 +1,7 @@
 import { serializeFinanceValue } from './serialization'
 import { decorateFinanceDetail } from './detail-extras'
 import { isCreditModule } from '../credit-module'
+import { hasCreditContractExtension } from '@/utils/credit-contract-documents'
 import {
   contractActionAvailable,
   contractDocumentGate,
@@ -134,7 +135,15 @@ function permittedActions(
       }
       return true
     })
-    .map(publicAction)
+    .map((action) => {
+      const result = publicAction(action)
+      return record &&
+        isCreditModule(module) &&
+        hasCreditContractExtension(record) &&
+        action.id === 'document.upload'
+        ? { ...result, label: 'Téléverser un nouveau contrat signé' }
+        : result
+    })
 }
 async function access(request: NextRequest, moduleValue: string) {
   const module = moduleSchema.safeParse(moduleValue)

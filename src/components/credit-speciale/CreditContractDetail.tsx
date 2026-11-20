@@ -5,6 +5,7 @@ import { buildCreditTimeline } from '@/utils/credit-timeline'
 
 import { creditContractSummary } from '@/utils/credit-contract-summary'
 import { isCreditContractLocked } from '@/utils/contract-lock'
+import { canUploadSignedCreditContract as canUploadSignedContract, hasCreditContractExtension, isCreditContractActivationUpload } from '@/utils/credit-contract-documents'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { PunctualityBadge, PunctualityLegend } from './PaymentPunctuality'
 import { PUNCTUALITY_META, getInstallmentPunctuality } from '@/utils/credit-payment-punctuality'
@@ -19,7 +20,7 @@ import { useMyAccess } from '@/hooks/useMyAccess'
 import { canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate, getCreditContractRemainingMonths, getCreditContractStartDates } from '@/services/credit-speciale/creditContractDates'
-import { computeWeeklyCreditTotals, formatCreditDuration, getFlatInstallmentCount, getWeeklyCreditStartDate, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from '@/utils/credit-weekly'
+import { computeWeeklyCreditTotals, formatCreditDuration, getFlatInstallmentCount, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from '@/utils/credit-weekly'
 import { creditPeriodLabel, getCreditPeriodIndex, getWeeklyInterestEndDate } from '@/utils/credit-periods'
 
 import { backOr } from '@/lib/backNavigation'
@@ -206,9 +207,7 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
 
   // Même présentation compacte que le contrat Caisse imprévue, montants en FCFA.
   const fcfa = (value: number) => `${Math.round(value).toLocaleString('fr-FR')} FCFA`
-  const startDate = isWeeklyCredit(contract)
-    ? getWeeklyCreditStartDate(contract.firstPaymentDate, contract.duration)
-    : getCreditContractStartDates(contract).startDate
+  const startDate = getCreditContractStartDates(contract).startDate
   const remainingMonths = getCreditContractRemainingMonths(contract)
   const endDate = getCreditContractEndDate(contract)
   // Le manque à gagner s'affiche une fois la date de fin prévue passée, que le
@@ -312,11 +311,6 @@ const getStatusConfig = (status: CreditContractStatus) => {
     EXTENDED: { label: 'Étendu', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
   }
   return configs[status] || configs.DRAFT
-}
-
-const canUploadSignedContract = (contract: CreditContract): boolean => {
-  const uploadableStatuses: CreditContractStatus[] = ['PENDING', 'ACTIVE', 'PARTIAL', 'OVERDUE', 'BLOCKED']
-  return !contract.signedContractUrl && uploadableStatuses.includes(contract.status)
 }
 
 /** Nom de fichier normalisé pour un document lié à un contrat de crédit spécial. */
@@ -502,7 +496,7 @@ export default function CreditContractDetail({
 
   const statusConfig = getStatusConfig(contract.status)
   const { startDate, initialStartDate, hasExtension } = getCreditContractStartDates(contract)
-  const isUploadActivationFlow = contract.status === 'PENDING'
+  const isUploadActivationFlow = isCreditContractActivationUpload(contract)
 
   const formatDate = (date: Date | undefined) => {
     if (!date) return 'N/A'
@@ -3357,6 +3351,11 @@ export default function CreditContractDetail({
               {/* Actions pour uploader le contrat signé (activation initiale ou après augmentation) */}
               {canUploadSignedContract(contract) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  {hasCreditContractExtension(contract) && (
+                    <p className="text-sm text-[#234D65] md:col-span-2">
+                      Vous pouvez téléverser le contrat signé après rajout. Les versions précédentes restent conservées et les conditions du crédit ne changent pas.
+                    </p>
+                  )}
                   <Button
                     variant="outline"
                     className="justify-start bg-white hover:bg-blue-50"
@@ -3364,7 +3363,7 @@ export default function CreditContractDetail({
                     disabled={uploadSignedContract.isPending}
                   >
                     <Upload className="h-4 w-4 mr-2" />
-                    {isUploadActivationFlow ? 'Uploader contrat signé' : 'Uploader nouveau contrat signé'}
+                    {hasCreditContractExtension(contract) ? 'Téléverser un nouveau contrat signé' : 'Téléverser le contrat signé'}
                   </Button>
                 </div>
               )}
@@ -3856,11 +3855,11 @@ export default function CreditContractDetail({
         <ModalContent size="sm">
           <ModalHeader
             icon={Upload}
-            title="Uploader le contrat signé"
+            title={hasCreditContractExtension(contract) ? 'Téléverser un nouveau contrat signé' : 'Téléverser le contrat signé'}
             description={
               isUploadActivationFlow
                 ? 'Téléversez le contrat signé par le client. Le contrat sera automatiquement activé après l\'upload.'
-                : 'Téléversez le nouveau contrat signé par le client après augmentation du crédit.'
+                : 'Ajoutez le contrat signé. Les versions précédentes sont conservées ; le statut et la date de remise des fonds restent inchangés.'
             }
           />
 

@@ -11,6 +11,7 @@ import {
   businessWallTime,
   withBusinessDates,
   getMobileCIDueDate,
+  civilDayToTimestamp,
 } from '@/domains/mobile/server/calendar-dates'
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 import {
@@ -37,6 +38,12 @@ import {
   canCreditContractBeInFixedPhase,
 } from '@/utils/credit-speciale-history'
 import { creditContractSummary } from '@/utils/credit-contract-summary'
+import {
+  computeWeeklyCreditTotals,
+  isFlatCredit,
+  isWeeklyCredit,
+} from '@/utils/credit-weekly'
+import { getWeeklyInterestEndDate } from '@/utils/credit-periods'
 import { computeCreditInstallments } from '@/utils/credit-installments'
 import type { CreditContract, CreditPayment } from '@/types/types'
 import type { FinanceModule } from '../actions'
@@ -489,14 +496,37 @@ export async function projectFinanceContract(
       (await services.creditSpeciale.getPenaltiesByCreditId(row.id))
     penalties = penaltyRows.reduce((s, p) => s + number(p.amount), 0)
     const starts = getCreditContractStartDates(contract)
+    const weekly = isWeeklyCredit(contract)
+    const initialWeeklyTotals = weekly
+      ? computeWeeklyCreditTotals(contract.amount, contract.interestRate)
+      : null
+    const civilDate = (value: Date | null | undefined) =>
+      value && !Number.isNaN(value.getTime())
+        ? date(civilDayToTimestamp(value))
+        : null
     const unpaid = penaltyRows.filter((p) => !p.paid)
     cardCredit = {
-      startAt: date(starts.startDate),
+      startAt: weekly ? civilDate(starts.startDate) : date(starts.startDate),
       initialStartAt: starts.hasExtension
         ? date(starts.initialStartDate)
         : null,
       hasExtension: starts.hasExtension,
       remainingMonths: getCreditContractRemainingMonths(contract, wallNow),
+      ...(weekly && initialWeeklyTotals
+        ? {
+            weekly: {
+              weeks: contract.duration,
+              firstDueAt: civilDate(contract.firstPaymentDate),
+              interestEndAt: isFlatCredit(contract)
+                ? null
+                : civilDate(getWeeklyInterestEndDate(contract)),
+              initialInterestAmount: initialWeeklyTotals.interest,
+              initialDueAmount: initialWeeklyTotals.totalAmount,
+              recurring: !isFlatCredit(contract),
+              periodDays: isFlatCredit(contract) ? null : 7,
+            },
+          }
+        : {}),
       fixedPhase: fixed || null,
       losses: isCreditContractEnded(row.status)
         ? {

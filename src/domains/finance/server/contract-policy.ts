@@ -5,6 +5,8 @@ import {
 } from '@/utils/contract-lock'
 import { contractLocked } from './contract-card'
 import type { FinanceModule } from '../actions'
+import { canUploadSignedCreditContract } from '@/utils/credit-contract-documents'
+import { isCreditModule } from '../credit-module'
 
 type Row = Record<string, any>
 export function contractDocumentGate(module: FinanceModule, row: Row) {
@@ -57,13 +59,9 @@ export function contractActionAvailable(
   )
     return false
   if (actionId === 'document.upload')
-    return (
-      !hasDocument &&
-      (!['credit-speciale', 'credit-fixe', 'caisse-aide'].includes(module) ||
-        ['PENDING', 'ACTIVE', 'PARTIAL', 'OVERDUE', 'BLOCKED'].includes(
-          row.status,
-        ))
-    )
+    return isCreditModule(module)
+      ? canUploadSignedCreditContract(row)
+      : !hasDocument
   if (actionId === 'document.replace')
     return (
       hasDocument && (module !== 'caisse-imprevue' || row.status === 'ACTIVE')

@@ -25,7 +25,7 @@ export interface CreditContractDatesInput {
 
 /** Le rajout devient le départ courant, sans modifier la date initiale enregistrée. */
 export function getCreditContractStartDates(
-  contract: Partial<Pick<CreditContract, 'createdAt' | 'disbursementDate' | 'initialStartAt' | 'extendedAt' | 'creditCycles' | 'firstPaymentDate' | 'rajoutEffectue'>>
+  contract: Partial<Pick<CreditContract, 'createdAt' | 'disbursementDate' | 'initialStartAt' | 'extendedAt' | 'creditCycles' | 'firstPaymentDate' | 'rajoutEffectue' | 'duration' | 'durationUnit'>>
 ) {
   const cycles = [...(contract.creditCycles ?? [])].sort((left, right) => left.cycleNumber - right.cycleNumber)
   const initialStartDate = getCreditInitialStartDate(contract)

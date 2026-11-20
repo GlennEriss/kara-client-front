@@ -5,6 +5,33 @@ import {
 } from '../server/contract-policy'
 
 describe('prérequis des contrats natifs', () => {
+  it.each(['credit-speciale', 'credit-fixe', 'caisse-aide'] as const)(
+    'autorise un nouveau dépôt après rajout déjà signé en %s sans retirer les droits existants',
+    (module) => {
+      const row = {
+        status: 'PARTIAL',
+        signedContractUrl: 'ancien.pdf',
+        rajoutEffectue: true,
+      }
+      expect(contractDocumentGate(module, row)).toBeNull()
+      expect(contractActionAvailable(module, row, 'document.upload')).toBe(true)
+      expect(
+        contractActionAvailable(
+          module,
+          { ...row, rajoutEffectue: false },
+          'document.upload',
+        ),
+      ).toBe(false)
+      for (const status of ['CLOSED', 'DISCHARGED', 'WRITTEN_OFF'])
+        expect(
+          contractActionAvailable(
+            module,
+            { ...row, status },
+            'document.upload',
+          ),
+        ).toBe(false)
+    },
+  )
   it.each(['caisse-speciale', 'caisse-imprevue', 'credit-speciale'] as const)(
     'bloque les versements sans document signé en %s',
     (module) => {

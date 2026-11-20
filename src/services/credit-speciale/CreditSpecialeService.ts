@@ -36,7 +36,7 @@ import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion
 import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from "@/utils/credit-write-off";
 import { computeMissedEarningsBalance } from "@/utils/credit-losses";
 import { getMonthPenaltyReferenceDate } from "@/utils/credit-penalty-due-date";
-import { WEEKLY_CREDIT_MAX_WEEKS, applyShopPartnerTerms, clampShopCreditInstallments, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from "@/utils/credit-weekly";
+import { WEEKLY_CREDIT_MAX_WEEKS, applyShopPartnerTerms, clampShopCreditInstallments, getWeeklyCreditStartDate, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from "@/utils/credit-weekly";
 import { getCreditPeriodDueDate, getCreditPeriodIndex } from '@/utils/credit-periods';
 import { getShopArticle, getShopCreditPartner } from "@/db/shops.db";
 import { CREDIT_SCORING_ENABLED } from "@/constantes/credit-scoring";
@@ -49,6 +49,7 @@ import {
 } from "@/utils/guarantor-commission";
 import { addContractMonths } from '@/utils/contract-months'
 import { getCreditExtensionStartDate, getCreditInitialStartDate } from '@/utils/credit-cycle-dates'
+import { canUploadSignedCreditContract, isCreditContractActivationUpload } from '@/utils/credit-contract-documents'
 
 export interface CreditServicePorts {
     notifications: NotificationService;
@@ -587,7 +588,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             disbursementWithFees: simulationData.disbursementWithFees,
             disbursementLocation: simulationData.disbursementLocation,
             disbursementDate: simulationData.disbursementDate,
-            initialStartAt: simulationData.disbursementDate,
+            initialStartAt: isWeekly
+                ? getWeeklyCreditStartDate(simulationData.firstPaymentDate, normalizedDuration)
+                : simulationData.disbursementDate,
             disbursementPaymentMethodOther: simulationData.disbursementPaymentMethodOther,
             createdBy: adminId,
             updatedBy: adminId,
@@ -2976,6 +2979,14 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
         assertContractUnlocked(isCreditContractLocked(contract.status));
 
+        if (!canUploadSignedCreditContract(contract)) {
+            throw new Error('Le téléversement d’un nouveau contrat signé n’est pas disponible pour ce dossier.');
+        }
+        if (signedContractFile.type !== 'application/pdf' || signedContractFile.size === 0) {
+            throw new Error('Le contrat signé doit être un PDF non vide.');
+        }
+        const activate = isCreditContractActivationUpload(contract);
+
         // Upload du contrat signé
         const { url, path } = await this.documentRepository.uploadDocumentFile(
             signedContractFile,
@@ -3003,15 +3014,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             signedContractDocumentId: document.id,
         });
 
-        // Mettre à jour le contrat avec l'URL, le chemin et l'ID document du contrat signé, et activer le contrat
+        // Un nouveau dépôt conserve les fichiers/documents précédents. Seule la
+        // signature initiale d'un contrat en attente active la remise des fonds.
         const updatedContract = await this.creditContractRepository.updateContract(contractId, {
             signedContractUrl: url,
             signedContractPath: path,
             signedContractDocumentId: document.id,
             creditCycles: updatedCycles,
-            status: 'ACTIVE',
-            activatedAt: new Date(),
-            fundsReleasedAt: new Date(),
+            ...(activate ? {
+                status: 'ACTIVE' as const,
+                activatedAt: new Date(),
+                fundsReleasedAt: new Date(),
+            } : {}),
             updatedBy: adminId,
         });
 
@@ -3024,9 +3038,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             await this.notificationService.createNotification({
                 module: 'credit_speciale',
                 entityId: contractId,
-                type: 'contract_created',
-                title: 'Contrat activé',
-                message: `Le contrat de crédit ${contract.creditType} a été activé et les fonds ont été remis`,
+                type: activate ? 'contract_created' : 'status_update',
+                title: activate ? 'Contrat activé' : 'Nouveau contrat signé téléversé',
+                message: activate
+                    ? `Le contrat de crédit ${contract.creditType} a été activé et les fonds ont été remis`
+                    : `Un nouveau contrat signé a été ajouté au crédit ${contract.creditType}. Les versions précédentes sont conservées.`,
                 metadata: {
                     contractId,
                     clientId: contract.clientId,

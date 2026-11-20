@@ -1,5 +1,6 @@
 import type { CreditContract } from '@/types/types'
 import { addContractMonths } from './contract-months'
+import { getWeeklyCreditStartDate } from './credit-weekly'
 
 type PeriodContract = Pick<CreditContract, 'firstPaymentDate'> &
   Partial<Pick<CreditContract, 'duration' | 'durationUnit'>>
@@ -33,8 +34,7 @@ export function getCreditPeriodIndex(contract: PeriodContract, value: Date): num
 /** Interest stops one calendar month after the weekly calendar starts. The
  * initial package duration is only used to recover this original start date. */
 export function getWeeklyInterestEndDate(contract: PeriodContract): Date {
-  const start = new Date(contract.firstPaymentDate)
-  start.setDate(start.getDate() - Math.min(3, Math.max(1, contract.duration || 1)) * 7)
+  const start = getWeeklyCreditStartDate(contract.firstPaymentDate, Math.min(3, Math.max(1, contract.duration || 1)))
   return addContractMonths(start, 1)
 }
 
