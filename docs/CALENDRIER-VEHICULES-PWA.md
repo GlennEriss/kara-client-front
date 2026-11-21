@@ -42,7 +42,8 @@ Les composants `RetireLegacyPwa` désinscrivent uniquement les anciens scripts
 `/sw.js` et `/service-worker.js` du même domaine, puis effacent les caches PWA
 connus (Workbox, start-url/pages et anciens caches d’images/polices). Les autres
 caches, préférences, sessions, IndexedDB et données métier ne sont pas supprimés.
-`public/sw.js` est conservé comme worker de retrait pour les anciennes visites :
+`/sw.js` reste accessible comme worker de retrait pour les anciennes visites
+(route explicite sur l’admin, fichier public sur le site membre) :
 il n’enregistre aucun fetch/cache et se désinscrit à son activation. Il n’est
 plus enregistré par le site.
 
@@ -62,4 +63,6 @@ aperçu/téléchargement, conservation de FCM et retrait des caches PWA. API mem
 réelles vérifiées en lecture seule avec le compte fourni ; API calendrier véhicules
 admin 200 sur novembre 2026, sans échéance dans les données locales actuelles.
 
-TypeScript et lint passent. Aucun build APK ni déploiement effectué.
+TypeScript et lint passent. Cette validation a précédé la livraison autorisée
+1.4.0 : les deux sites, les règles et le push ont depuis été déployés et l’APK
+de production a été compilé. Voir [DEPLOIEMENT-MOBILE-1.4.0.md](DEPLOIEMENT-MOBILE-1.4.0.md).

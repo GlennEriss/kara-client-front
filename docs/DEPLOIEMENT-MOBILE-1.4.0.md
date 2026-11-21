@@ -35,10 +35,30 @@ sauvegardés hors du dépôt avant publication. Le différentiel des règles est
 limité aux accords, remises et protections de suppression des groupes déjà
 implémentés dans les sources. Aucun index n’est supprimé par cette livraison.
 La réactivation administrative ciblée dispose d’une sauvegarde et d’une trace
-privées ; les écritures de versement et remboursement sont conservées.
+privées ; les cotisations sont conservées. Le responsable a également confirmé que le
+remboursement final payé était erroné : cet enregistrement est archivé, sans
+marqueurs de remise, avec son état initial conservé dans la trace administrative.
 
 ## Résultat de livraison
 
-En cours de vérification : les références de builds/rollouts, règles et fonctions
-seront renseignées après succès. Aucun résultat de production n’est supposé
-à partir des seuls tests locaux.
+### Production vérifiée
+
+- Admin/API : `f82fd0a67db49178200f4830a2f7e607560751f3`, backend `kara-admin`
+  (inclut les fonctions de `f3df79af` et la route de retrait PWA).
+- Site membre : `153b163431b9722b11ffa17aa7cfbf9506021dd3`, backend `kara-members`.
+- Builds : admin `build-2026-11-21-002`, membre `build-2026-11-21-001`,
+  projet `kara-gabon` / `us-east4`. READY, rollouts SUCCEEDED, trafic 100 %,
+  vérifiés le 22 novembre 2026 (heure du Gabon).
+- Firestore : `bb968648-43e5-46ce-af28-3b8f62d4f310` ; Storage :
+  `5ea7182d-f955-4910-8933-2477e22ee541`. Les contenus publiés correspondent
+  exactement aux fichiers du dépôt validés par les 18 tests en émulateur.
+- Fonction `sendPushOnNotification` ACTIVE, révision
+  `sendpushonnotification-00003-wes`, Node.js 22, `europe-west1`.
+- Politique de nettoyage Artifact Registry conservée dans son état initial :
+  le nettoyage à un jour ajouté par défaut par la CLI a été retiré, sans demande
+  de suppression des images de déploiements précédents.
+- Les sauvegardes avant/après et journaux contenant des données privées restent
+  hors Git. Les index existants sont conservés ; aucun index supprimé.
+- Vérification HTTP après la publication finale : `/sw.js` admin retourne 200
+  JavaScript sans cache et désinscrit l’ancienne PWA ; le worker FCM retourne
+  200 et l’API membre sans jeton retourne 401 JSON avec `no-store, private`.
