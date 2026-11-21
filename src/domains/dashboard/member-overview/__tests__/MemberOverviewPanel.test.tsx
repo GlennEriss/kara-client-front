@@ -131,7 +131,7 @@ describe('MemberOverviewPanel', () => {
   it('ouvre les compteurs et propose les vrais identifiants des contrats clôturés', () => {
     // Le beforeEach fournit la même structure ; seul le module exercé est rempli.
     const hook = vi.mocked(useMemberOverview)
-    const base = hook.getMockImplementation()!()
+    const base = hook.getMockImplementation()!('member-42')
     hook.mockReturnValue({
       ...base,
       data: {
@@ -170,4 +170,14 @@ describe('MemberOverviewPanel', () => {
     )
     expect(close).toHaveBeenCalledWith(false)
   })
+
+it('distingue les contrats résiliés des clôturés et ouvre leur fiche',()=>{
+ const current=vi.mocked(useMemberOverview).getMockImplementation()!('member-42')
+ vi.mocked(useMemberOverview).mockReturnValue({...current,data:{...current.data!,modules:{...current.data!.modules,caisseSpeciale:{...emptyModule,terminatedContrats:1,terminatedContracts:[{id:'CS-RESILIE',status:'RESCINDED',kind:'contrat',module:'caisseSpeciale'}]}}}} as ReturnType<typeof useMemberOverview>)
+ render(<MemberOverviewPanel memberId="member-42" open onOpenChange={vi.fn()}/>)
+ fireEvent.click(screen.getByRole('button',{name:'Voir résiliés Caisse spéciale (1)'}))
+ expect(screen.getByRole('heading',{name:'Contrats résiliés (1)'})).toBeInTheDocument()
+ expect(screen.getByRole('link',{name:/CS-RESILIE/})).toHaveAttribute('href',expect.stringContaining('CS-RESILIE'))
+})
+
 })

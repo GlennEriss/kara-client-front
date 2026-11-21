@@ -29,6 +29,7 @@ describe('vue consolidée : compteurs et contrats consultables', () => {
     vi.mocked(repository.getCaisseSpecialeContracts).mockResolvedValue([
       { id: 'CS-1', status: 'ACTIVE' },
       { id: 'CS-2', status: 'CLOSED' },
+      { id: 'CS-3', status: 'RESCINDED' },
     ])
     vi.mocked(repository.getCaisseImprevueContracts).mockResolvedValue([
       { id: 'CI-1', status: 'ACTIVE' },
@@ -67,6 +68,11 @@ describe('vue consolidée : compteurs et contrats consultables', () => {
       expect(result.modules[key].contrats).toHaveLength(1)
     }
     expect(result.modules.placement.closedContrats).toBe(2)
+    expect(result.modules.caisseSpeciale.terminatedContracts?.map(c=>c.id)).toEqual(['CS-3'])
+    expect(result.modules.caisseSpeciale.contrats.map(c=>c.id)).toEqual(['CS-1'])
+    expect(result.modules.caisseSpeciale.terminatedContrats).toBe(1)
+    expect(result.modules.caisseImprevue.terminatedContracts?.map(c=>c.id)).toEqual(['CI-3'])
+    expect(result.modules.caisseImprevue.terminatedContrats).toBe(1)
     expect(repository.countClosedContracts).not.toHaveBeenCalled()
   })
   it('ne compte pas deux fois une demande déjà transformée et expose une erreur partielle sans faux zéro', async () => {

@@ -650,9 +650,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             contracts = await this.creditContractRepository.getContractsWithFilters(filters);
         } catch (error) {
             console.error('[CreditSpecialeService] chargement des contrats impossible:', error);
-            return stats;
+            return { ...stats, nonFixedPhase: null };
         }
-        if (contracts.length === 0) return stats;
+        if (contracts.length === 0) return { ...stats, nonFixedPhase: 0 };
 
         // Une panne de l'un de ces calculs ne doit pas priver la page de toutes
         // ses statistiques : chacun garde la valeur du dépôt en cas d'erreur.
@@ -663,11 +663,15 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             }),
             this.countFixedPhaseContracts(contracts).catch((error) => {
                 console.error('[CreditSpecialeService] calcul de la partie fixe impossible:', error);
-                return stats.fixedPhase;
+                return null;
             }),
         ]);
 
-        return { ...stats, totalPenalties, fixedPhase };
+        return {
+            ...stats, totalPenalties, fixedPhase: fixedPhase ?? stats.fixedPhase,
+            nonFixedPhase: fixedPhase === null ? null : Math.max(0,
+                contracts.filter(c => c.creditType === 'SPECIALE' && !isCreditContractEnded(c.status)).length - fixedPhase),
+        };
     }
 
     private async sumPenaltiesOfContracts(contracts: CreditContract[]): Promise<number> {

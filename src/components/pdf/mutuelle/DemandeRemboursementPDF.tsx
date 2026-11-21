@@ -65,7 +65,7 @@ export interface RefundRequestPdfData {
 
 const optionalDate = (value: unknown) => (toDate(value) ? formatDate(value) : '')
 
-export default function DemandeRemboursementPDF({ data }: { data: RefundRequestPdfData }) {
+export default function DemandeRemboursementPDF({ data, logoSrc }: { data: RefundRequestPdfData; logoSrc?: string }) {
   const isEarly = data.type === 'EARLY'
   const product = data.productLabel
   const amount = Number(data.request.amount ?? 0)
@@ -103,7 +103,7 @@ export default function DemandeRemboursementPDF({ data }: { data: RefundRequestP
     <Document>
       <Page size="A4" style={styles.page}>
         <MutuellePageChrome footerLabel={`Demande de remboursement — contrat de ${product}`} />
-        <MutuelleHeader title={title} />
+        <MutuelleHeader title={title} logoSrc={logoSrc} />
 
         <Text style={styles.preamble}>
           Le présent document formalise la demande du membre relative au contrat de {product}{' '}

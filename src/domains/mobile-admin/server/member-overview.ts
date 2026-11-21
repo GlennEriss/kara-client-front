@@ -96,6 +96,8 @@ export async function mobileMemberOverview(
     data.modules[key].available = allowed(key)
     if (!allowed(key)) {
       delete data.modules[key].closedContrats
+      delete data.modules[key].terminatedContracts
+      delete data.modules[key].terminatedContrats
       delete data.modules[key].closedContracts
     }
   }

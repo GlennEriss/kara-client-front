@@ -177,7 +177,7 @@ function ModuleRecordCard({
             statusTone(item.status),
           )}
         >
-          {item.status}
+          {item.status === 'RESCINDED' || (item.module === 'caisseImprevue' && item.status === 'CANCELED') ? 'Résilié' : item.status}
         </Badge>
       </div>
 
@@ -380,6 +380,7 @@ export function MemberOverviewPanel({
                                       },
                                     ]
                                   : []),
+                                ...(module.terminatedContrats !== undefined ? [{key:'terminated',label:'Résiliés',count:module.terminatedContrats}]:[]),
                               ].map((group) => (
                                 <Button
                                   key={group.key}
@@ -408,7 +409,7 @@ export function MemberOverviewPanel({
                                 <OverviewRecords
                                   key={`${memberId}:${expanded}`}
                                   title={
-                                    expanded.endsWith(':closed')
+                                    expanded.endsWith(':terminated') ? 'Contrats résiliés' : expanded.endsWith(':closed')
                                       ? 'Contrats clôturés'
                                       : expanded.endsWith(':demandes')
                                         ? 'Demandes'
@@ -417,7 +418,7 @@ export function MemberOverviewPanel({
                                           : 'Contrats en suivi'
                                   }
                                   items={
-                                    expanded.endsWith(':closed')
+                                    expanded.endsWith(':terminated') ? module.terminatedContracts || [] : expanded.endsWith(':closed')
                                       ? module.closedContracts || []
                                       : expanded.endsWith(':demandes')
                                         ? module.demandes

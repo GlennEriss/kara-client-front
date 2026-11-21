@@ -3,7 +3,7 @@ import { VehicleLocationStats } from '@/components/vehicule/VehicleLocationStats
 import { vehicleLocationStats } from '@/domains/vehicles/location'
 import { VehicleLocationFields } from '@/components/vehicule/VehicleLocationFields'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Car,
@@ -114,6 +114,11 @@ export function ProspectsPage({
       repository.list(actor.admin ? undefined : [actor.id, actor.memberId!]),
     enabled: !!actor.id && (actor.admin || !!actor.memberId),
   })
+  useEffect(() => {
+    const focus = new URLSearchParams(window.location.search).get('focus')
+    const row = query.data?.find(r => r.id === focus)
+    if (row) { setSearch(row.plateNumber); setPage(1) }
+  }, [query.data])
   const all = query.data || [],
     openRows = all.filter((r) => !['converted', 'lost'].includes(r.status))
   const filtered = all.filter(

@@ -37,7 +37,7 @@ const StatsCard = ({
         <Icon className="w-3.5 h-3.5" />
       </div>
       <div className="min-w-0 flex-1 leading-tight">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 truncate">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 line-clamp-2">
           {title}
         </p>
         <p className="text-sm font-black text-gray-900 tabular-nums whitespace-nowrap">
@@ -131,17 +131,19 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
     },
     ...(showFixedPhase ? [{
       title: 'Partie fixe',
-      value: stats.fixedPhase,
+      value: stats.nonFixedPhase===null?'—':stats.fixedPhase,
       // Ardoise : neutre, distincte des autres teintes (intérêts « figés »).
       color: '#475569',
       icon: Lock
+    },{
+      title:'Non clos hors partie fixe',value:stats.nonFixedPhase??'—',color:'#234D65',icon:FileText
     }] : []),
   ] : []
 
   if (isLoading) {
     return (
       <div className={gridClassName}>
-        {[...Array(showFixedPhase ? 9 : 8)].map((_, i) => (
+        {[...Array(showFixedPhase ? 10 : 8)].map((_, i) => (
           <div key={i} className="flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm animate-pulse">
             <Skeleton className="h-7 w-7 rounded-lg shrink-0" />
             <div className="flex-1 space-y-1.5">
