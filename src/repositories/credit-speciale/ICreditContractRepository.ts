@@ -31,6 +31,8 @@ export interface CreditContractStats {
     totalPenalties: number;
     /** Contrats spéciale non clôturés dont les intérêts ne courent plus. */
     fixedPhase: number;
+    /** Contrats spéciale encore en suivi, hors partie fixe ; null si le calcul échoue. */
+    nonFixedPhase?: number | null;
     byType: {
         speciale: number;
         fixe: number;

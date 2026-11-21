@@ -41,6 +41,8 @@ export interface MemberOverviewModuleData {
   contrats: MemberOverviewListItem[]
   /** Contrats clôturés consultables derrière le compteur, sans limite d’affichage. */
   closedContracts?: MemberOverviewListItem[]
+  terminatedContracts?: MemberOverviewListItem[]
+  terminatedContrats?: number | null
   available?: boolean
   /**
    * Vrai si au moins une requête du module a échoué (index manquant, droits,

@@ -246,3 +246,9 @@ describe('lecture financière pour les cartes natives', () => {
     expect(result[1].dueDate?.slice(0, 10)).toBe('2026-11-30')
   })
 })
+
+
+it('compte les crédits spéciale non clos hors partie fixe, sans inclure les dossiers terminés',()=>{
+ const rows=[['ACTIVE',false],['OVERDUE',true],['PARTIAL',false],['CLOSED',false],['DISCHARGED',false],['WRITTEN_OFF',false]].map(([status,fixed],i)=>({id:String(i),status,financeView:{fixedPhase:fixed}}))
+ expect(summarizePresentedRows(rows as never,'credit-speciale')).toMatchObject({fixed:1,nonFixed:2})
+})

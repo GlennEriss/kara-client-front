@@ -18,6 +18,8 @@ import { getMessaging, getToken, isSupported, onMessage, type Messaging } from "
 import { app } from "@/firebase/app";
 import { db } from "@/firebase/firestore";
 
+import { retireLegacyPwaForBrowser } from "@/components/browser/retire-legacy-pwa";
+
 const SW_URL = "/firebase-messaging-sw.js";
 const VAPID_KEY =
   process.env.NEXT_PUBLIC_FIREBASE_FCM_VAPID_KEY ?? process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
@@ -42,6 +44,7 @@ async function registerToken(ids: string[], audience: "member" | "admin"): Promi
   const messaging = await getMessagingInstance();
   if (!messaging || !VAPID_KEY) return null;
 
+  await retireLegacyPwaForBrowser();
   const registration = await navigator.serviceWorker.register(SW_URL);
   const token = await getToken(messaging, {
     vapidKey: VAPID_KEY,

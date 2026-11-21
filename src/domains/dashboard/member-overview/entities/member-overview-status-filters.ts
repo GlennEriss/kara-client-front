@@ -1,7 +1,7 @@
 export const MEMBER_OVERVIEW_STATUS_FILTERS = {
   caisseSpeciale: {
     demandesIncluded: ['PENDING', 'APPROVED'],
-    contratsExcluded: ['CLOSED'],
+    contratsExcluded: ['CLOSED', 'RESCINDED'],
   },
   caisseImprevue: {
     demandesIncluded: ['PENDING', 'APPROVED'],
@@ -46,3 +46,9 @@ export const MEMBER_OVERVIEW_CLOSED_CONTRACT_STATUSES = {
 
 export type MemberOverviewClosableModule = keyof typeof MEMBER_OVERVIEW_CLOSED_CONTRACT_STATUSES
 
+
+/** La résiliation est distincte de l’arrivée à terme/clôture normale. */
+export const MEMBER_OVERVIEW_TERMINATED_CONTRACT_STATUSES = {
+  caisseSpeciale: ['RESCINDED'],
+  caisseImprevue: ['CANCELED'],
+} as const

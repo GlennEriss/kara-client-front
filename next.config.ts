@@ -3,6 +3,7 @@ import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
+    '/api/mobile/member/**': ['./public/Logo-Kara.jpg', './public/assets/caisse-speciale/caissesp-logo.png'],
     '/api/mobile/admin/**': ['./public/Logo-Kara.jpg', './public/assets/caisse-speciale/caissesp-logo.png'],
     '/api/mobile/finance/**': ['./public/Logo-Kara.jpg', './public/assets/caisse-speciale/caissesp-logo.png'],
   },

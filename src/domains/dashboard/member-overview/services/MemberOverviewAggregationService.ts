@@ -1,6 +1,7 @@
 import routes from '@/constantes/routes'
 import {
   MEMBER_OVERVIEW_CLOSED_CONTRACT_STATUSES,
+  MEMBER_OVERVIEW_TERMINATED_CONTRACT_STATUSES,
   MEMBER_OVERVIEW_STATUS_FILTERS,
   type MemberOverviewClosableModule,
 } from '../entities/member-overview-status-filters'
@@ -186,7 +187,7 @@ export class MemberOverviewAggregationService {
           .filter(
             (c) =>
               !MEMBER_OVERVIEW_STATUS_FILTERS.caisseSpeciale.contratsExcluded.includes(
-                (c.status || '') as 'CLOSED',
+                (c.status || '') as 'CLOSED' | 'RESCINDED',
               ),
           )
           .map((c) => this.buildItem(c, 'caisseSpeciale', 'contrat')),
@@ -337,6 +338,12 @@ export class MemberOverviewAggregationService {
       modules[module].closedContrats =
         source === null ? null : modules[module].closedContracts!.length
     })
+
+    for(const module of ['caisseSpeciale','caisseImprevue'] as const){
+      const source=contractSources[module]
+      modules[module].terminatedContracts=(source||[]).filter(record=>(MEMBER_OVERVIEW_TERMINATED_CONTRACT_STATUSES[module] as readonly string[]).includes(record.status||'')).map(record=>this.buildItem(record,module,'contrat'))
+      modules[module].terminatedContrats=source===null?null:modules[module].terminatedContracts!.length
+    }
 
     return {
       member,

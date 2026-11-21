@@ -218,6 +218,7 @@ export function summarizePresentedRows(rows: Row[], module: FinanceModule) {
     remaining: sum('remaining'),
     penalties: sum('penalties'),
     fixed: rows.filter((r) => r.financeView.fixedPhase).length,
+    ...(module === 'credit-speciale' ? {nonFixed:rows.filter(r=>!ended.has(r.status)&&!r.financeView.fixedPhase).length}:{}),
     distribution: Array.from(byType, ([key, value]) => ({ key, value })),
   }
 }

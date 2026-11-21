@@ -1,5 +1,6 @@
 "use client"
 
+import { CalendarViewVehicles } from "@/components/calendrier/CalendarViewVehicles"
 import { CaisseTypeFilters } from "@/components/calendrier/CaisseTypeFilters"
 import { CalendarView } from "@/components/calendrier/CalendarView"
 import { CalendarViewCI } from "@/components/calendrier/CalendarViewCI"
@@ -20,7 +21,7 @@ import { useCalendarPlacement } from "@/hooks/useCalendarPlacement"
 import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CaisseType } from "@/services/caisse/types"
 import type { CaisseImprevuePaymentFrequency, PayoutMode } from "@/types/types"
-import { Banknote, Calendar, PiggyBank, TrendingUp, Wallet } from "lucide-react"
+import { Banknote, Car, Calendar, PiggyBank, TrendingUp, Wallet } from "lucide-react"
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
@@ -31,6 +32,7 @@ type CalendarTab =
   | "credit-fixe"
   | "caisse-aide"
   | "placement"
+  | "vehicles"
 
 const CALENDAR_TABS: CalendarTab[] = [
   "caisse-speciale",
@@ -39,6 +41,7 @@ const CALENDAR_TABS: CalendarTab[] = [
   "credit-fixe",
   "caisse-aide",
   "placement",
+  "vehicles",
 ]
 
 const isCalendarTab = (value: string | null): value is CalendarTab =>
@@ -46,7 +49,7 @@ const isCalendarTab = (value: string | null): value is CalendarTab =>
 
 function CalendrierPageContent() {
   const searchParams = useSearchParams()
-  const { canSeeAmounts } = useMyAccess()
+  const { canSeeAmounts, can, isLoading: accessLoading } = useMyAccess()
   const [currentMonth, setCurrentMonth] = useState(() => {
     const month = searchParams.get('month')
     const parsed = month && /^\d{4}-\d{2}$/.test(month) ? new Date(`${month}-01T12:00:00`) : null
@@ -58,6 +61,11 @@ function CalendrierPageContent() {
   })
   const focusedPaymentKey = searchParams.get('focus') || undefined
   
+  useEffect(() => {
+    if (!accessLoading && activeTab === 'vehicles' && !can('vehicules.view')) {
+      setActiveTab('caisse-speciale')
+    }
+  }, [accessLoading, activeTab, can])
   // Filtres Caisse Spéciale - Tous activés par défaut
   const [selectedTypes, setSelectedTypes] = useState<CaisseType[]>([
     "JOURNALIERE",
@@ -173,12 +181,12 @@ function CalendrierPageContent() {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <PageHero
         icon={Calendar}
-        title="Calendrier des versements"
-        subtitle="Gérez et suivez tous vos versements en un coup d'œil"
+        title={activeTab === "vehicles" ? "Calendrier des véhicules" : "Calendrier des versements"}
+        subtitle={activeTab === "vehicles" ? "Anticipez les fins d’assurance et les relances de prospection." : "Gérez et suivez tous vos versements en un coup d'œil"}
       />
 
-      {/* Légende des couleurs */}
-      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+      {/* La légende financière ne s’applique pas aux assurances. */}
+      {activeTab !== "vehicles" && <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-emerald-400" />
           <span className="text-sm text-gray-700">Payé</span>
@@ -199,9 +207,9 @@ function CalendrierPageContent() {
           <div className="w-3 h-3 rounded-full bg-gray-400" />
           <span className="text-sm text-gray-700">Sans versement</span>
         </div>
-      </div>
+      </div>}
 
-      <div id="call-plan"><WeeklyCallPlan /></div>
+      {activeTab !== "vehicles" && <div id="call-plan"><WeeklyCallPlan /></div>}
 
       {/* Contenu principal */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -216,11 +224,12 @@ function CalendrierPageContent() {
                   | "credit-fixe"
                   | "caisse-aide"
                   | "placement"
+                  | "vehicles"
               )
             }
           >
             {/* Onglets modernisés */}
-            <div data-kara-tool-tabs className="border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white px-6 pt-4">
+            <div data-kara-tool-tabs className="overflow-x-auto border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white px-6 pt-4">
               <TabsList className="h-14 p-1 bg-gray-100/80 rounded-xl gap-1">
                 <TabsTrigger 
                   value="caisse-speciale" 
@@ -264,10 +273,13 @@ function CalendrierPageContent() {
                   <Banknote className="h-4 w-4" />
                   <span className="font-medium">Caisse Aide</span>
                 </TabsTrigger>
+              {can('vehicules.view') && <TabsTrigger value="vehicles" className="h-12 rounded-lg px-6 data-[state=active]:bg-white data-[state=active]:text-[#234D65]"><Car className="mr-2 h-4 w-4"/>Véhicules</TabsTrigger>}
               </TabsList>
             </div>
             
             <div className="p-6">
+              {can('vehicules.view') && <TabsContent value="vehicles" className="mt-0"><CalendarViewVehicles month={currentMonth} onMonthChange={setCurrentMonth}/></TabsContent>}
+
               <TabsContent value="caisse-speciale" className="space-y-6 mt-0">
                 <CaisseTypeFilters
                   selectedTypes={selectedTypes}
