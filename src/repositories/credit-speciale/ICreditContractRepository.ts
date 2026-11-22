@@ -20,6 +20,8 @@ export interface CreditContractStats {
     total: number;
     active: number;
     overdue: number;
+    activeOverdue?: number;
+    partialOverdue?: number;
     partial: number;
     transformed: number;
     blocked: number;

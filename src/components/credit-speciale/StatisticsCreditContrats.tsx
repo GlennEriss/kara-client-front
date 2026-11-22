@@ -114,21 +114,6 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
       color: '#dc2626',
       icon: Ban
     },
-    {
-      title: 'Transformés',
-      value: stats.transformed,
-      // Magenta plutôt que violet : le violet d'origine était indiscernable du
-      // bleu « Partiels » pour un daltonien (ΔE 1.3 en deutéranopie).
-      color: '#e87ba4',
-      icon: FileText
-    },
-    {
-      title: 'Déchargés',
-      value: stats.discharged,
-      // Violet plutôt qu'un second vert, trop proche de « Actifs ».
-      color: '#7c3aed',
-      icon: CheckCircle
-    },
     ...(showFixedPhase ? [{
       title: 'Partie fixe',
       value: stats.nonFixedPhase===null?'—':stats.fixedPhase,
@@ -143,7 +128,7 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
   if (isLoading) {
     return (
       <div className={gridClassName}>
-        {[...Array(showFixedPhase ? 10 : 8)].map((_, i) => (
+        {[...Array(showFixedPhase ? 8 : 6)].map((_, i) => (
           <div key={i} className="flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm animate-pulse">
             <Skeleton className="h-7 w-7 rounded-lg shrink-0" />
             <div className="flex-1 space-y-1.5">
@@ -162,11 +147,9 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
   // ne sont pas des parts d'un même tout et fausseraient la lecture. La partie
   // fixe aussi : elle recoupe les statuts Actif, En retard et Partiel.
   const breakdown = [
-    { label: 'Actifs', value: stats.active, color: '#10b981' },
+    { label: 'Actifs', value: stats.active - (stats.activeOverdue ?? 0), color: '#10b981' },
     { label: 'En retard', value: stats.overdue, color: '#f59e0b' },
-    { label: 'Partiels', value: stats.partial, color: '#3b82f6' },
-    { label: 'Transformés', value: stats.transformed, color: '#e87ba4' },
-    { label: 'Déchargés', value: stats.discharged, color: '#7c3aed' },
+    { label: 'Partiels', value: stats.partial - (stats.partialOverdue ?? 0), color: '#3b82f6' },
   ]
 
   return (
@@ -178,7 +161,7 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
       </div>
 
       <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
-        <StatsBreakdownBar title="Répartition des contrats par statut" segments={breakdown} />
+        <StatsBreakdownBar title="Répartition des contrats suivis" segments={breakdown} />
       </div>
     </div>
   )
