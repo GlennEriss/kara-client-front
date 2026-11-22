@@ -4,6 +4,7 @@ import { useCreditCardSummaries } from '@/hooks/credit-speciale/useCreditCardSum
 import { isCreditContractLocked } from '@/utils/contract-lock'
 import { canUploadSignedCreditContract as canUploadSignedContract, hasCreditContractExtension, isCreditContractActivationUpload } from '@/utils/credit-contract-documents'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
+import { isCreditContractOverdue } from '@/utils/credit-contract-overdue'
 import { ENDED_CREDIT_STATUSES } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate, getCreditContractElapsedInstallments, getCreditContractRemainingMonths, getCreditContractStartDates } from '@/services/credit-speciale/creditContractDates'
@@ -104,6 +105,7 @@ type ContractTabItem = {
   isDanger?: boolean
 }
 
+const HIDDEN_FILTER_STATUSES = new Set(['DRAFT', 'SIMULATED'])
 const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'active', 'currentMonth', 'fixedPhase', 'closed', 'writtenOff', 'overdue']
 const isContractTabValue = (value: string | null): value is ContractTabValue =>
   value !== null && CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
@@ -207,12 +209,14 @@ const ContractFilters = ({
   onReset,
   activeTab,
   showCreditTypeFilter,
+  availableStatuses,
 }: {
   filters: CreditContractFilterState
   onFiltersChange: (filters: CreditContractFilterState) => void
   onReset: () => void
   activeTab: ContractTabValue
   showCreditTypeFilter: boolean
+  availableStatuses: ReadonlySet<CreditContractStatus>
 }) => {
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false)
   const defaultFilters: CreditContractFilterState = {
@@ -253,10 +257,8 @@ const ContractFilters = ({
 
   const statusLabels: Record<string, string> = {
     all: 'Tous les statuts',
-    DRAFT: 'Brouillon',
     PENDING: 'En attente',
     APPROVED: 'Approuvé',
-    SIMULATED: 'Simulé',
     ACTIVE: 'Actif',
     PARTIAL: 'Partiel',
     OVERDUE: 'En retard',
@@ -397,18 +399,9 @@ const ContractFilters = ({
                 ) : (
                   <>
                     <SelectItem value="all">Tous les statuts</SelectItem>
-                    <SelectItem value="DRAFT">Brouillon</SelectItem>
-                    <SelectItem value="PENDING">En attente</SelectItem>
-                    <SelectItem value="APPROVED">Approuvé</SelectItem>
-                    <SelectItem value="SIMULATED">Simulé</SelectItem>
-                    <SelectItem value="ACTIVE">Actif</SelectItem>
-                    <SelectItem value="PARTIAL">Partiel</SelectItem>
-                    <SelectItem value="OVERDUE">En retard</SelectItem>
-                    <SelectItem value="BLOCKED">Bloqué</SelectItem>
-                    <SelectItem value="TRANSFORMED">Transformé</SelectItem>
-                    <SelectItem value="EXTENDED">Étendu</SelectItem>
-                    <SelectItem value="DISCHARGED">Déchargé</SelectItem>
-                    <SelectItem value="CLOSED">Clos</SelectItem>
+                    {Object.entries(statusLabels)
+                      .filter(([status]) => status !== 'all' && (availableStatuses.has(status as CreditContractStatus) || status === statusValue))
+                      .map(([status, label]) => <SelectItem key={status} value={status}>{label}</SelectItem>)}
                   </>
                 )}
               </SelectContent>
@@ -769,9 +762,12 @@ const ListContrats = ({
   
   // Initialiser les états depuis l'URL
   const [activeTab, setActiveTab] = useState<ContractTabValue>(initialTab)
+  const initialStatus = searchParams.get('status')
   const [filters, setFilters] = useState<CreditContractFilterState>({
     search: searchParams.get('search') || '',
-    status: (searchParams.get('status') as CreditContractStatus | 'all') || 'all',
+    status: initialStatus && !HIDDEN_FILTER_STATUSES.has(initialStatus)
+      ? initialStatus as CreditContractStatus
+      : 'all',
     creditType: forcedCreditType || initialCreditType,
     createdAtFrom: undefined,
     createdAtTo: undefined,
@@ -838,16 +834,8 @@ const ListContrats = ({
 
   // Hooks pour récupérer les données
   const effectiveCreditType: CreditTypeFilter = forcedCreditType || filters.creditType
-  const statusFilter = filters.status === 'all' ? 'all' : filters.status
-  const tabStatusFilter: CreditContractStatus | 'all' =
-    activeTab === 'closed'
-      ? 'CLOSED'
-      : activeTab === 'writtenOff'
-      ? 'all'
-      : statusFilter
-
   const queryFilters: CreditContractFilters = {
-    status: tabStatusFilter,
+    status: activeTab === 'closed' ? 'CLOSED' : 'all',
     creditType: effectiveCreditType === 'all' ? 'all' : effectiveCreditType,
     search: filters.search || undefined,
     overdueOnly: activeTab === 'overdue' ? true : Boolean(filters.overdueOnly),
@@ -1251,34 +1239,7 @@ const ListContrats = ({
     return dots[status] || dots.DRAFT
   }
 
-  /**
-   * Vérifie si un contrat est en retard
-   */
-  const isContractOverdue = (contract: CreditContract): boolean => {
-    // Un contrat PARTIAL = partiellement remboursé, pas forcément "en retard".
-    // "En retard" doit refléter une échéance dépassée (nextDueAt < aujourd'hui) ou un statut OVERDUE explicite.
-    if (contract.status === 'OVERDUE') {
-      return true
-    }
-    
-    if ((contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && contract.nextDueAt) {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      
-      const nextDue = contract.nextDueAt instanceof Date 
-        ? contract.nextDueAt 
-        : new Date(contract.nextDueAt)
-      nextDue.setHours(0, 0, 0, 0)
-      
-      if (nextDue < today) {
-        return true
-      }
-    }
-    
-    return false
-  }
-
-  const filteredContrats = React.useMemo(() => {
+  const contractsBeforeStatusFilter = React.useMemo(() => {
     let items = [...contrats]
     const matchesRange = (value: number, min?: number, max?: number) => {
       if (typeof min === 'number' && value < min) return false
@@ -1338,15 +1299,11 @@ const ListContrats = ({
     }
 
     if (activeTab === 'overdue') {
-      items = items.filter((contract) => isContractOverdue(contract))
-    }
-
-    if (filters.status !== 'all' && activeTab !== 'closed') {
-      items = items.filter((contract) => contract.status === filters.status)
+      items = items.filter((contract) => isCreditContractOverdue(contract))
     }
 
     if (filters.overdueOnly && activeTab !== 'overdue') {
-      items = items.filter((contract) => isContractOverdue(contract))
+      items = items.filter((contract) => isCreditContractOverdue(contract))
     }
 
     if (activeTab === 'overdue' || activeTab === 'currentMonth') {
@@ -1404,6 +1361,11 @@ const ListContrats = ({
 
     return items
   }, [activeTab, contrats, filters, isCreditTypeLocked, lossesById, fixedPhaseById])
+
+  const availableStatuses = new Set(contractsBeforeStatusFilter.map(contract => contract.status))
+  const filteredContrats = filters.status === 'all' || activeTab === 'closed'
+    ? contractsBeforeStatusFilter
+    : contractsBeforeStatusFilter.filter(contract => contract.status === filters.status)
 
   // Fonction pour construire les lignes d'export
   const formatAmount = (amount: number): string => {
@@ -1498,6 +1460,7 @@ const ListContrats = ({
         onReset={handleResetFilters}
         activeTab={activeTab}
         showCreditTypeFilter={!isCreditTypeLocked}
+        availableStatuses={availableStatuses}
       />
 
       {/* Barre d'actions moderne */}
@@ -1716,7 +1679,7 @@ const ListContrats = ({
                 >
                   <Card className={cn(
                     'group relative h-full flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md',
-                    isContractOverdue(contract) && 'border-red-200'
+                    isCreditContractOverdue(contract) && 'border-red-200'
                   )}>
                     <CardContent className="relative z-10 flex flex-1 flex-col gap-3 p-4 pt-5">
                       {/* Header : avatar + nom pleine largeur, statut sur sa propre ligne
@@ -1737,7 +1700,7 @@ const ListContrats = ({
                         <span className={`flex items-center gap-1.5 text-xs font-semibold ${getStatusDot(contract.status).text}`}>
                           <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(contract.status).dot}`} />
                           {getStatusLabel(contract.status)}
-                          {isContractOverdue(contract) && (
+                          {isCreditContractOverdue(contract) && (
                             <span className="ml-1 flex items-center gap-1 text-[10px] font-semibold text-red-600">
                               <AlertCircle className="h-3 w-3" /> Retard
                             </span>

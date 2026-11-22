@@ -2,7 +2,7 @@
 import { ContractCardActions } from '@/components/shared/ContractCardActions'
 import { isCaisseSpecialeContractLocked } from '@/utils/contract-lock'
 import dynamic from 'next/dynamic'
-import { resolveContractEndAt } from '@/services/caisse/contractDates'
+import { computeDueAt, resolveContractEndAt } from '@/services/caisse/contractDates'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -34,6 +34,9 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
+import { getUserById } from '@/db/user.db'
+import type { CaisseContract } from '@/services/caisse/types'
+import { getGroupById } from '@/db/group.db'
 import { listRefunds } from '@/db/caisse/refunds.db'
 import { EarlyWithdrawalCardSummary } from '@/components/refunds/EarlyWithdrawalCardSummary'
 import { findCardEarlyWithdrawal } from '@/utils/refund-payout'
@@ -86,6 +89,9 @@ import DeleteCaisseSpecialeContractModal from './DeleteCaisseSpecialeContractMod
 import ReplaceCaisseSpecialeContractPdfModal from './ReplaceCaisseSpecialeContractPdfModal'
 import ValidateMemberSignedCSModal from './ValidateMemberSignedCSModal'
 import ViewUploadedContractModal from './ViewUploadedContractModal'
+
+const isGroupContract = (contract: Pick<CaisseContract, 'contractType' | 'groupeId' | 'memberId'>) =>
+  contract.contractType === 'GROUP' || Boolean(contract.groupeId && !contract.memberId)
 
 type ViewMode = 'grid' | 'list'
 
@@ -1377,10 +1383,6 @@ const ListContracts = () => {
   const statsFilters = React.useMemo(() => ({}), [])
   const { data: stats } = useCaisseContractsStats(statsFilters)
 
-  // Données des membres et groupes (à récupérer depuis Firestore si nécessaire)
-  const membersData = { data: [] as any[] }
-  const groupsData: any[] = []
-
   const contractsData = contractsPage?.items || []
   const totalCount = contractsPage?.total || 0
 
@@ -1559,7 +1561,20 @@ const ListContracts = () => {
     return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`
   }
 
-  const buildExportData = () => {
+  const buildExportData = async () => {
+    const groupIds = new Set(contractsData.flatMap(contract =>
+      isGroupContract(contract) && contract.groupeId ? [contract.groupeId] : []
+    ))
+    const missingMemberIds = new Set(contractsData.flatMap(contract => {
+      const id = normalizeMemberId(contract.memberId)
+      return !isGroupContract(contract) && id && !membersMap.has(id) ? [id] : []
+    }))
+    const [groups, membersByDocumentId] = await Promise.all([
+      Promise.all(Array.from(groupIds, async id => [id, await getGroupById(id, true)] as const)).then(entries => new Map(entries)),
+      Promise.all(Array.from(missingMemberIds, async id => [id, await getUserById(id)] as const)).then(entries => new Map(entries)),
+    ])
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
     return contractsData.map((contract: any) => {
       const _toISO = (v: any) => {
         try {
@@ -1581,10 +1596,23 @@ const ListContracts = () => {
         }
       }
 
+      const memberId = normalizeMemberId(contract.memberId)
+      const member = membersMap.get(memberId) ?? membersByDocumentId.get(memberId)
+      const displayName = isGroupContract(contract)
+        ? groups.get(contract.groupeId)?.name
+        : [member?.firstName, member?.lastName].filter(Boolean).join(' ')
+      let elapsedInstallments = 0
+      const start = contract.contractStartAt ?? contract.firstPaymentDate
+      for (let index = 0; index < contract.monthsPlanned; index++) {
+        const dueDate = computeDueAt(start, index, contract.caisseType)
+        if (!dueDate || dueDate >= today) break
+        elapsedInstallments++
+      }
+
       return {
         'ID Contrat': contract?.id || '',
-        'Type': getContractType(contract),
-        'Nom': getContractDisplayName(contract),
+        'Échéances passées': elapsedInstallments,
+        'Nom': displayName || 'Nom indisponible',
         'Statut': getStatusLabel(contract.status),
         'Montant mensuel (FCFA)': contract?.monthlyAmount || 0,
         'Durée (mois)': contract?.monthsPlanned || 0,
@@ -1616,7 +1644,7 @@ const ListContracts = () => {
 
     setIsExporting(true)
     try {
-      const exportData = buildExportData()
+      const exportData = await buildExportData()
       const XLSX = await import('xlsx')
       const worksheet = XLSX.utils.json_to_sheet(exportData)
       worksheet['!cols'] = Object.keys(exportData[0] || {}).map(() => ({ wch: 22 }))
@@ -1649,9 +1677,9 @@ const ListContracts = () => {
       const pageHeight = doc.internal.pageSize.getHeight()
       const horizontalMargin = 20
 
-      const rows = buildExportData().map((row) => [
+      const rows = (await buildExportData()).map((row) => [
         row['ID Contrat'],
-        row['Type'],
+        String(row['Échéances passées']),
         row['Nom'],
         row['Statut'],
         formatAmountWithSpaces(row['Montant mensuel (FCFA)']),
@@ -1672,7 +1700,7 @@ const ListContracts = () => {
       doc.setFont('times', 'normal')
       doc.setTextColor(70, 70, 70)
       doc.setFontSize(10)
-      doc.text(`Type: ${activeTabLabel}`, horizontalMargin, 20)
+      doc.text(`Onglet: ${activeTabLabel}`, horizontalMargin, 20)
       doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, horizontalMargin, 24)
       doc.text(`Total: ${rows.length} contrat(s)`, horizontalMargin, 28)
       doc.setDrawColor(35, 77, 101)
@@ -1681,7 +1709,7 @@ const ListContracts = () => {
 
       const headers = [
         'ID',
-        'Type',
+        'Échéances passées',
         'Nom',
         'Statut',
         'Mensualité FCFA',
@@ -1760,53 +1788,6 @@ const ListContracts = () => {
     } finally {
       setIsExporting(false)
     }
-  }
-
-  // Fonctions utilitaires
-  const isGroupContract = (contract: any) => {
-    return contract.contractType === 'GROUP' || (contract.groupeId && !contract.memberId)
-  }
-
-  const getContractType = (contract: any) => {
-    if (contract.contractType === 'GROUP') return 'Groupe'
-    if (contract.contractType === 'INDIVIDUAL') return 'Individuel'
-    if (isGroupContract(contract)) return 'Groupe'
-    return 'Individuel'
-  }
-
-  // Fonction pour obtenir le nom affiché (groupe ou personne)
-  const getContractDisplayName = (contract: any) => {
-    if (isGroupContract(contract)) {
-      // Recherche du nom du groupe
-      if (groupsData && contract.groupeId) {
-        const group = groupsData.find((g: any) => g.id === contract.groupeId)
-        return group ? group.name : `Groupe ${contract.groupeId.slice(-6)}`
-      }
-      return `Groupe ${contract.groupeId?.slice(-6) || 'N/A'}`
-    } else {
-      // Recherche du nom de la personne
-      if (membersData && contract.memberId) {
-        const member = membersData.data?.find((m: any) => m.id === contract.memberId)
-        if (member) {
-          return `${member.firstName} ${member.lastName}`
-        }
-      }
-      return `Membre ${contract.memberId?.slice(-6) || 'N/A'}`
-    }
-  }
-
-  // Fonction pour obtenir le nom du membre (version améliorée)
-  const getMemberName = (contract: any) => {
-    if (contract.contractType === 'INDIVIDUAL' && contract.memberId) {
-      const member = membersMap.get(normalizeMemberId(contract.memberId))
-      if (member) {
-        return {
-          firstName: member.firstName,
-          lastName: member.lastName
-        }
-      }
-    }
-    return getContractDisplayName(contract)
   }
 
   // Fonction pour obtenir le label du type de contrat
@@ -1917,7 +1898,7 @@ const ListContracts = () => {
   // Récupérer les informations des membres pour les contrats individuels (via domaine memberships)
   const individualContractMemberIds = React.useMemo(() => {
     const ids = contractsData
-      ?.filter((contract: any) => contract.contractType === 'INDIVIDUAL' && contract.memberId)
+      ?.filter((contract: any) => !isGroupContract(contract) && contract.memberId)
       .map((contract: any) => String(contract.memberId).trim().replace(/\s/g, ''))
       .filter(Boolean) || []
     return Array.from(new Set(ids))
@@ -2192,7 +2173,7 @@ const ListContracts = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={isExporting || contractsData.length === 0}
+                    disabled={isExporting || membersLoading || contractsData.length === 0}
                     className="h-10 w-full sm:w-auto rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 cursor-pointer transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50"
                   >
                     {isExporting ? (

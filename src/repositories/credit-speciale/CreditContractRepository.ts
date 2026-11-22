@@ -1,3 +1,4 @@
+import { isCreditContractOverdue } from '@/utils/credit-contract-overdue';
 import { ICreditContractRepository, CreditContractFilters, CreditContractStats } from "./ICreditContractRepository";
 import { CreditContract } from "@/types/types";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
@@ -303,21 +304,8 @@ export class CreditContractRepository implements ICreditContractRepository {
             }
 
             if (filters?.overdueOnly) {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                contracts = contracts.filter((c) => {
-                    // PARTIAL = partiellement remboursé, pas forcément en retard.
-                    // Retard = statut OVERDUE explicite ou nextDueAt dépassée.
-                    if (c.status === 'OVERDUE') {
-                        return true;
-                    }
-                    if ((c.status === 'ACTIVE' || c.status === 'PARTIAL') && c.nextDueAt) {
-                        const nextDue = c.nextDueAt instanceof Date ? c.nextDueAt : new Date(c.nextDueAt);
-                        nextDue.setHours(0, 0, 0, 0);
-                        return nextDue < today;
-                    }
-                    return false;
-                });
+                const now = new Date();
+                contracts = contracts.filter(contract => isCreditContractOverdue(contract, now));
             }
 
             if (filters?.dateFrom) {
@@ -347,10 +335,13 @@ export class CreditContractRepository implements ICreditContractRepository {
         try {
             const contracts = await this.getContractsWithFilters(filters);
 
+            const now = new Date();
             const stats: CreditContractStats = {
                 total: contracts.length,
                 active: contracts.filter(c => c.status === 'ACTIVE').length,
-                overdue: contracts.filter(c => c.status === 'OVERDUE').length,
+                overdue: contracts.filter(c => isCreditContractOverdue(c, now)).length,
+                activeOverdue: contracts.filter(c => c.status === 'ACTIVE' && isCreditContractOverdue(c, now)).length,
+                partialOverdue: contracts.filter(c => c.status === 'PARTIAL' && isCreditContractOverdue(c, now)).length,
                 partial: contracts.filter(c => c.status === 'PARTIAL').length,
                 transformed: contracts.filter(c => c.status === 'TRANSFORMED').length,
                 blocked: contracts.filter(c => c.status === 'BLOCKED').length,
