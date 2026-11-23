@@ -163,6 +163,39 @@ describe('caisses natives membre — propriété et présentation', () => {
       penalty: 100,
     })
   })
+  it('distingue les versements détaillés du paiement historique d’une échéance de caisse spéciale', () => {
+    const legacy = {
+      id: 'M0',
+      status: 'PAID',
+      amount: 30000,
+      paidAt: '2026-06-10T17:00:00Z',
+      mode: 'airtel_money',
+      withFees: false,
+      proofUrl: 'https://fixture/legacy',
+    }
+    const payment = paymentDTO(legacy, cs, 'caisse-speciale')
+    expect(payment.versements).toEqual([])
+    expect(payment.legacyVersement).toMatchObject({
+      amount: 30000,
+      date: '2026-06-10',
+      time: '18:00',
+      mode: 'airtel_money',
+      withFees: false,
+      hasProof: true,
+    })
+    expect(paymentDTO({ ...legacy, status: 'DUE' }, cs, 'caisse-speciale').legacyVersement).toBeNull()
+    expect(paymentDTO(legacy, ci, 'caisse-imprevue').legacyVersement).toBeNull()
+
+    const detailed = paymentDTO({
+      ...legacy,
+      contribs: [],
+      versements: [{ amount: 30000, date: '2026-06-10', mode: 'other', paymentMethodOther: 'Chèque' }],
+    }, cs, 'caisse-speciale')
+    expect(detailed.legacyVersement).toBeNull()
+    expect(detailed.versements).toMatchObject([
+      { date: '2026-06-10', amount: 30000, mode: 'other', paymentMethodOther: 'Chèque' },
+    ])
+  })
   it('calcule les périodes journalières de 30 jours et borne les fins de mois', () => {
     expect(
       paymentDTO(

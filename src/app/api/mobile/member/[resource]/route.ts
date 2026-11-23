@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { adminAuth } from '@/firebase/adminAuth'
 import { adminFirestore } from '@/firebase/adminFirestore'
 import { mobileJson } from '@/domains/mobile/server/access'
+import { memberPaymentHistory, memberPaymentHistoryPdf } from '@/domains/member-mobile/server/payment-history'
 import { requireMemberCaller } from '@/domains/member-mobile/server/access'
 import {
   listMemberGroups,
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest, context: Context) {
       'me',
       'profile',
       'subscriptions',
+      'payment-history',
       'dashboard',
       'rules',
       'calendar',
@@ -155,6 +157,12 @@ export async function GET(request: NextRequest, context: Context) {
       )
     if (resource === 'profile')
       return mobileJson({ profile: memberProfile(caller) })
+    if (resource === 'payment-history') {
+      const items = await memberPaymentHistory(adminFirestore!, caller)
+      return mobileJson(request.nextUrl.searchParams.get('format') === 'pdf'
+        ? await memberPaymentHistoryPdf(items)
+        : { items })
+    }
     if (resource === 'subscriptions')
       return mobileJson({
         subscriptions: await memberSubscriptions(adminFirestore!, caller),

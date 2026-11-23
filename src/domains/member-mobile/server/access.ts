@@ -94,7 +94,7 @@ export async function requireMemberCaller(
       email: claims.email || '',
       matricule,
       member,
-      dossier,
+      dossier: { ...dossier, id: dossierSnap.id },
     }
   } catch {
     return mobileJson(

@@ -19,6 +19,8 @@ import { memberProfile } from './read-model'
 import { MemberError, memberIdentifier, memberIds } from './data'
 import {
   financeChildren,
+  recordedContributions,
+  isLegacySpecialPayment,
   contractDTO,
   ownedFinanceRecord,
   type MemberFinanceModule,
@@ -64,6 +66,7 @@ export async function memberFinanceAttachmentSource(
   type: string,
   fileId: string,
   ownerIds: string[] = [record.memberId],
+  module?: MemberFinanceModule,
 ) {
   let source = '',
     documentId = ''
@@ -93,10 +96,11 @@ export async function memberFinanceAttachmentSource(
   }
   if (type === 'versement-proof') {
     const [paymentId, index] = fileId.split(':')
-    const p = children.payments.find((p) => p.id === paymentId),
-      rows = p?.contribs || p?.versements
-    if (Array.isArray(rows) && /^\d+$/.test(index || ''))
-      source = rows[Number(index)]?.proofUrl || ''
+    const p = children.payments.find((p) => p.id === paymentId)
+    if (p && index === 'legacy' && module === 'caisse-speciale' && isLegacySpecialPayment(p, record))
+      source = p.proofUrl || ''
+    if (p && /^\d+$/.test(index || ''))
+      source = recordedContributions(p)[Number(index)]?.proofUrl || ''
   }
   if (!source && memberIdentifier(documentId)) {
     const d = (await db.collection('documents').doc(documentId).get()).data()
@@ -143,6 +147,7 @@ export async function memberFinanceFile(
       type,
       fileId,
       memberIds(caller),
+      module,
     )
     return readMemberFinanceFile(source, `LE-KARA-${type}-${id}`)
   }

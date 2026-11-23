@@ -196,11 +196,20 @@ export function financePolicy(
           : '',
   }
 }
-function versement(v: MemberData, index: number) {
+const specialPaymentTime = new Intl.DateTimeFormat('fr-FR', {
+  timeZone: 'Africa/Libreville',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
+function versement(v: MemberData, index: number, module: MemberFinanceModule) {
+  const paidAt = module === 'caisse-speciale' && !/^\d{4}-\d{2}-\d{2}$/.test(text(v.paidAt))
+    ? iso(v.paidAt)
+    : ''
   return {
     id: text(v.id) || String(index),
     date: day(v.date || v.paidAt),
-    time: text(v.time),
+    time: text(v.time) || (paidAt ? specialPaymentTime.format(new Date(paidAt)) : ''),
     amount: number(v.amount),
     mode: text(v.mode),
     withFees: typeof v.withFees === 'boolean' ? v.withFees : null,
@@ -214,18 +223,26 @@ function versement(v: MemberData, index: number) {
     hasProof: !!v.proofUrl,
   }
 }
+export function recordedContributions(p: MemberData): MemberData[] {
+  if (Array.isArray(p.contribs) && p.contribs.length) return p.contribs
+  return Array.isArray(p.versements) ? p.versements : []
+}
+
+export function isLegacySpecialPayment(p: MemberData, contract: MemberData) {
+  return contract.contractType !== 'GROUP' &&
+    p.status === 'PAID' &&
+    recordedContributions(p).length === 0 &&
+    !(Array.isArray(p.groupContributions) && p.groupContributions.length)
+}
+
 export function paymentDTO(
   p: MemberData,
   c: MemberData,
   module: MemberFinanceModule,
 ) {
   const monthIndex = number(p.dueMonthIndex ?? p.monthIndex)
-  const contributions: MemberData[] = Array.isArray(p.contribs)
-    ? p.contribs
-    : Array.isArray(p.versements)
-      ? p.versements
-      : []
-  const versements = contributions.map(versement)
+  const contributions = recordedContributions(p)
+  const versements = contributions.map((v, index) => versement(v, index, module))
   let dueAt =
     module === 'caisse-imprevue'
       ? iso(
@@ -279,6 +296,14 @@ export function paymentDTO(
     penalty: number(p.penaltyApplied),
     bonus: number(p.bonusApplied),
     supportRepaymentAmount: number(p.supportRepaymentAmount),
+    legacyVersement:
+      module === 'caisse-speciale' && isLegacySpecialPayment(p, c)
+        ? versement({
+            ...p,
+            amount: p.accumulatedAmount ?? p.amount,
+            penalty: p.penaltyApplied,
+          }, 0, module)
+        : null,
     versements,
     frequency:
       module === 'caisse-imprevue'
