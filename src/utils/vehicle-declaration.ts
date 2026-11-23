@@ -1,3 +1,4 @@
+import { assetTypeLabel } from '@/domains/vehicles/asset-types'
 import type { VehicleDeclarationCorrection, VehicleInsurance } from '@/types/types'
 
 /**
@@ -5,19 +6,11 @@ import type { VehicleDeclarationCorrection, VehicleInsurance } from '@/types/typ
  * comparaison avec les informations de l'assureur partenaire.
  */
 
-const VEHICLE_TYPE_LABELS: Record<string, string> = {
-  car: 'Voiture',
-  motorcycle: 'Moto',
-  truck: 'Camion',
-  bus: 'Bus',
-  maison: 'Habitation',
-  other: 'Autre',
-}
-
 /** Champs saisis par le membre que l'admin peut corriger. */
 const COMPARED_FIELDS: Array<{ field: keyof VehicleInsurance; label: string; kind?: 'date' | 'amount' | 'vehicleType' }> = [
-  { field: 'plateNumber', label: 'Plaque' },
-  { field: 'vehicleType', label: 'Type de véhicule', kind: 'vehicleType' },
+  { field: 'plateNumber', label: 'Immatriculation ou référence' },
+  { field: 'vehicleType', label: 'Type de bien', kind: 'vehicleType' },
+  { field: 'vehicleDescription', label: 'Précision sur le bien' },
   { field: 'vehicleBrand', label: 'Marque' },
   { field: 'vehicleModel', label: 'Modèle' },
   { field: 'vehicleYear', label: 'Année' },
@@ -38,7 +31,7 @@ function display(value: unknown, kind?: 'date' | 'amount' | 'vehicleType'): stri
   if (isEmpty(value)) return '—'
   if (kind === 'date') return new Date(value as string | Date).toLocaleDateString('fr-FR')
   if (kind === 'amount') return `${Number(value).toLocaleString('fr-FR')} FCFA`
-  if (kind === 'vehicleType') return VEHICLE_TYPE_LABELS[String(value)] ?? String(value)
+  if (kind === 'vehicleType') return assetTypeLabel(String(value))
   return String(value).trim()
 }
 

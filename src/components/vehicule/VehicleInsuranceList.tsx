@@ -1,5 +1,7 @@
 'use client'
 
+import { assetTypeLabel } from '@/domains/vehicles/asset-types'
+
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -28,6 +30,7 @@ import { VehicleInsuranceForm } from './VehicleInsuranceForm'
 import { VehicleInsuranceRenewForm } from './VehicleInsuranceRenewForm'
 import { VehicleInsuranceStats } from './VehicleInsuranceStats'
 import { VehicleInsuranceTable } from './VehicleInsuranceTable'
+import { InsuranceAssetTypesDialog } from './InsuranceAssetTypesDialog'
 import { InsurancePartnersDialog, VehicleRewardEstimate, VehicleRewardsPanel } from './VehicleRewards'
 
 const DEFAULT_FILTERS: VehicleInsuranceFilters = {
@@ -36,14 +39,6 @@ const DEFAULT_FILTERS: VehicleInsuranceFilters = {
   alphabeticalOrder: 'asc',
 }
 
-const VEHICLE_TYPE_LABELS: Record<string, string> = {
-  car: 'Voiture',
-  motorcycle: 'Moto',
-  truck: 'Camion',
-  bus: 'Bus',
-  maison: 'Maison',
-  other: 'Autre',
-}
 
 const ENERGY_LABELS: Record<string, string> = {
   essence: 'Essence',
@@ -81,6 +76,7 @@ export function VehicleInsuranceList() {
     searchParams.get('vue') === 'a-valider' ? 'pending' : searchParams.get('vue') === 'reversements' ? 'rewards' : 'insurances',
   )
   const [isExporting, setIsExporting] = useState(false)
+  const [assetTypesOpen, setAssetTypesOpen] = useState(false)
   const [partnersOpen, setPartnersOpen] = useState(false)
   const [pageSize, setPageSize] = useState(Number(searchParams.get('limit')) || 10)
 
@@ -125,7 +121,7 @@ export function VehicleInsuranceList() {
       const lastName = insurance.holderType === 'member' ? (insurance.memberLastName || '') : (insurance.nonMemberLastName || '')
       const phone = insurance.primaryPhone || insurance.memberContacts?.[0] || insurance.nonMemberPhone1 || ''
       const brand = [insurance.vehicleBrand, insurance.vehicleModel].filter(Boolean).join(' ').trim()
-      const vehicleType = VEHICLE_TYPE_LABELS[insurance.vehicleType] || insurance.vehicleType
+      const vehicleType = assetTypeLabel(insurance.vehicleType, insurance.vehicleDescription)
       const energy = insurance.energySource ? (ENERGY_LABELS[insurance.energySource] || insurance.energySource) : ''
       const fiscalPower = insurance.fiscalPower || ''
       const startDate = insurance.startDate ? insurance.startDate.toLocaleDateString('fr-FR') : ''
@@ -348,6 +344,11 @@ export function VehicleInsuranceList() {
               </Button>
             )}
             {can('vehicules.edit') && (
+              <Button type="button" variant="outline" className="bg-white/10 hover:bg-white/20 border-white/20 text-white" onClick={() => setAssetTypesOpen(true)}>
+                Types de biens
+              </Button>
+            )}
+            {can('vehicules.edit') && (
               <Button
                 type="button"
                 variant="outline"
@@ -443,6 +444,7 @@ export function VehicleInsuranceList() {
       </>
       )}
 
+      {can('vehicules.edit') && <InsuranceAssetTypesDialog open={assetTypesOpen} onOpenChange={setAssetTypesOpen} />}
       <InsurancePartnersDialog open={partnersOpen} onOpenChange={setPartnersOpen} companies={companies} />
 
       <VehicleInsuranceDetail insurance={detailInsurance} open={!!detailInsurance} onOpenChange={open => {

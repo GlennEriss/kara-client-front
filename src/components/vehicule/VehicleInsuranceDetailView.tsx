@@ -1,5 +1,7 @@
 'use client'
 
+import { assetTypeLabel, isRoadAssetType } from '@/domains/vehicles/asset-types'
+
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -15,14 +17,6 @@ import { useAuditLogger } from '@/hooks/useAuditLog'
 import { VEHICLE_AUDIT_MODULE } from '@/constantes/audit-modules'
 import { useEffect, useRef } from 'react'
 
-const VEHICLE_TYPE_LABELS: Record<string, string> = {
-  car: 'Voiture',
-  motorcycle: 'Moto',
-  truck: 'Camion',
-  bus: 'Bus',
-  maison: 'Maison',
-  other: 'Autre',
-}
 
 const ENERGY_LABELS: Record<string, string> = {
   essence: 'Essence',
@@ -78,7 +72,7 @@ export function VehicleInsuranceDetailView({ insuranceId }: Props) {
   const holderLabel = data.holderType === 'member' ? 'Membre LE KARA' : 'Non-membre'
   const holderReference = data.holderType === 'member' ? (data.memberMatricule || 'Matricule inconnu') : 'Externe'
   const phone = data.primaryPhone || data.memberContacts?.[0] || data.nonMemberPhone1 || ''
-  const vehicleTypeLabel = VEHICLE_TYPE_LABELS[data.vehicleType] || data.vehicleType
+  const vehicleTypeLabel = assetTypeLabel(data.vehicleType, data.vehicleDescription)
   const energyLabel = data.energySource ? (ENERGY_LABELS[data.energySource] || data.energySource) : ''
 
   return (
@@ -120,7 +114,7 @@ export function VehicleInsuranceDetailView({ insuranceId }: Props) {
           <DetailRow label="Type">{vehicleTypeLabel}</DetailRow>
           <DetailRow label="Marque">{data.vehicleBrand}</DetailRow>
           <DetailRow label="Modèle">{data.vehicleModel}</DetailRow>
-          <DetailRow label={data.vehicleType === 'maison' ? 'Référence du bien' : 'Immatriculation'}>{data.plateNumber}</DetailRow>
+          <DetailRow label={!isRoadAssetType(data.vehicleType) ? 'Référence du bien' : 'Immatriculation'}>{data.plateNumber}</DetailRow>
           <DetailRow label="Année">{data.vehicleYear || '—'}</DetailRow>
           <DetailRow label="Source d'énergie">{energyLabel || '—'}</DetailRow>
           <DetailRow label="Puissance fiscale">{data.fiscalPower || '—'}</DetailRow>

@@ -1,5 +1,7 @@
 'use client'
 
+import { assetTypeLabel, isRoadAssetType } from '@/domains/vehicles/asset-types'
+
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useMyAccess } from '@/hooks/useMyAccess'
@@ -22,9 +24,6 @@ import type { ReactNode } from 'react'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
 import { VehicleRewardsSection } from './VehicleRewards'
 
-const VEHICLE_TYPE_LABELS: Record<string, string> = {
-  car: 'Voiture', motorcycle: 'Moto', truck: 'Camion', bus: 'Bus', maison: 'Habitation', other: 'Autre',
-}
 
 const ENERGY_LABELS: Record<string, string> = {
   essence: 'Essence', diesel: 'Diesel', electrique: 'Électrique', hybride: 'Hybride', gaz: 'Gaz', autre: 'Autre',
@@ -80,7 +79,7 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
   const holderLabel = insurance.holderType === 'member' ? 'Membre LE KARA' : 'Non-membre'
   const holderReference = insurance.holderType === 'member' ? (insurance.memberMatricule || 'Matricule inconnu') : 'Externe'
   const phone = insurance.primaryPhone || insurance.memberContacts?.[0] || insurance.nonMemberPhone1 || ''
-  const vehicleTypeLabel = VEHICLE_TYPE_LABELS[insurance.vehicleType] || insurance.vehicleType
+  const vehicleTypeLabel = assetTypeLabel(insurance.vehicleType, insurance.vehicleDescription)
   const energyLabel = insurance.energySource ? (ENERGY_LABELS[insurance.energySource] || insurance.energySource) : '—'
   const vehicleName = [insurance.vehicleBrand, insurance.vehicleModel].filter(Boolean).join(' ') || vehicleTypeLabel
   const currency = insurance.currency || 'FCFA'
@@ -129,7 +128,7 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
             <SectionCard icon={<Car className="h-4 w-4" />} title="Bien assuré">
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailItem label="Type / modèle">{vehicleTypeLabel} · {vehicleName}</DetailItem>
-                <DetailItem label={insurance.vehicleType === 'maison' ? 'Référence' : 'Immatriculation'}>{insurance.plateNumber || '—'}</DetailItem>
+                <DetailItem label={!isRoadAssetType(insurance.vehicleType) ? 'Référence' : 'Immatriculation'}>{insurance.plateNumber || '—'}</DetailItem>
                 <DetailItem label="Année">{insurance.vehicleYear || '—'}</DetailItem>
                 <DetailItem label="Énergie">{energyLabel}</DetailItem>
                 <DetailItem label="Puissance"><span className="inline-flex items-center gap-1.5"><Gauge className="h-3.5 w-3.5 text-slate-400" />{insurance.fiscalPower || '—'}</span></DetailItem>

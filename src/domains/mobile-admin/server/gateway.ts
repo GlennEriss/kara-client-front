@@ -1,3 +1,4 @@
+import { readInsuranceAssetTypes } from '@/domains/vehicles/asset-types-server'
 import { helpOverview } from './help-presentation'
 import {
   activityRows,
@@ -161,6 +162,7 @@ export const listSchema = z
         'communeId',
         'locationMissing',
         'vehicleType',
+        'vehicleDescription',
         'holderType',
         'declarationStatus',
         'category',
@@ -285,9 +287,10 @@ export async function getAdminWorkspace(request: NextRequest, key: string) {
       )
       counts.set(k, (counts.get(k) || 0) + 1)
     }
+    const assetTypes = key === 'vehicles' ? await readInsuranceAssetTypes(access.services.db).catch(() => []) : undefined
     const actions = adminActions(access.module, dataset)
       .filter((a) => a.scope === 'workspace' && canAction(access.caller, a))
-      .map((a) => publicAdminAction(a))
+      .map((a) => publicAdminAction(a, undefined, assetTypes))
     const batchMembership = [
       'members',
       'member-requests',
@@ -588,6 +591,7 @@ export async function getAdminDetail(
           lastName: member.lastName,
         })
     }
+    const assetTypes = key === 'vehicles' ? await readInsuranceAssetTypes(access.services.db).catch(() => []) : undefined
     const editedAccess =
       key === 'admins' ? resolveAdminAccess([row], {}) : undefined
     return mobileJson(
@@ -669,7 +673,7 @@ export async function getAdminDetail(
                       : undefined,
                   }
                 : {}),
-            }),
+            }, assetTypes),
         ),
         related: redactAdminAmounts(
           await relatedRows(access.services, access.module, row, access.caller),

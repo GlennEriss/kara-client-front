@@ -272,6 +272,7 @@ export class VehicleInsuranceRepository implements IRepository {
       sponsorMatricule: data.sponsorMatricule,
       sponsorContacts: data.sponsorContacts,
       vehicleType: data.vehicleType,
+      vehicleDescription: data.vehicleDescription,
       vehicleBrand: data.vehicleBrand,
       vehicleModel: data.vehicleModel,
       vehicleYear: data.vehicleYear,

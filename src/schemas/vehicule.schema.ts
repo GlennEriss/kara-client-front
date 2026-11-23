@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isInsuranceAssetType } from '@/domains/vehicles/asset-types'
 
 // Préfixes réels : Libertis 60/62/66, Moov 65, Airtel 74/76/77.
 const GABON_PHONE_REGEX = /^\+241(60|62|65|66|74|76|77)\d{6}$/
@@ -48,7 +49,8 @@ export const vehicleInsuranceFormSchema = z.object({
   sponsorName: z.string().min(1, 'Parrain requis'),
   sponsorMatricule: z.string().optional().nullable(),
   sponsorContacts: z.array(z.string()).optional(),
-  vehicleType: z.enum(['car', 'motorcycle', 'truck', 'bus', 'maison', 'other']),
+  vehicleType: z.string().refine(isInsuranceAssetType, 'Sélectionnez un type de bien'),
+  vehicleDescription: z.string().trim().max(60).nullish(),
   vehicleBrand: z.string().optional(),
   vehicleModel: z.string().optional(),
   energySource: z.enum(['essence', 'diesel', 'electrique', 'hybride', 'gaz', 'autre']).optional(),
@@ -62,8 +64,8 @@ export const vehicleInsuranceFormSchema = z.object({
     .nullable(),
   plateNumber: z
     .string()
-    .min(3, 'Plaque invalide')
-    .regex(/[A-Za-z0-9-]+/, 'Format de plaque invalide'),
+    .min(3, 'Immatriculation ou référence du bien requise')
+    .regex(/[A-Za-z0-9-]+/, 'Format de référence invalide'),
   insuranceCompany: z.string().min(1, "Le nom de l'assurance est requis"),
   policyNumber: z.string().trim().min(2, 'Le numéro de police est requis'),
   warrantyMonths: z
@@ -93,6 +95,7 @@ export const vehicleInsuranceFormSchema = z.object({
   path: ['endDate'],
 })
 .superRefine((data, ctx) => {
+  if (data.vehicleType === 'other' && !data.vehicleDescription) ctx.addIssue({ code: 'custom', path: ['vehicleDescription'], message: 'Précisez le type de bien' })
   if (data.locationType === 'quarter' && !data.quarterId) ctx.addIssue({ code: 'custom', path: ['quarterId'], message: 'Sélectionnez un quartier de Géographie' })
   if (data.locationType === 'other' && !data.locationDetails?.trim()) ctx.addIssue({ code: 'custom', path: ['locationDetails'], message: 'Précisez l’emplacement' })
   if (data.holderType === 'member') {
@@ -141,7 +144,7 @@ export type VehicleInsuranceFormValues = z.infer<typeof vehicleInsuranceFormSche
 export const vehicleInsuranceFiltersSchema = z.object({
   status: z.enum(['all', 'active', 'expires_soon', 'expired']).default('all'),
   insuranceCompany: z.string().optional(),
-  vehicleType: z.enum(['all', 'car', 'motorcycle', 'truck', 'bus', 'maison', 'other']).default('all'),
+  vehicleType: z.string().refine((value) => value === 'all' || isInsuranceAssetType(value)).default('all'),
   searchQuery: z.string().optional(),
   sponsorMemberId: z.string().optional(),
   alphabeticalOrder: z.enum(['asc', 'desc']).default('asc'),

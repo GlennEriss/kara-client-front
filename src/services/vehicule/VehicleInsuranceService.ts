@@ -63,6 +63,7 @@ export class VehicleInsuranceService {
       sponsorMatricule: payload.sponsorMatricule || null,
       sponsorContacts: payload.sponsorContacts || [],
       vehicleType: payload.vehicleType,
+      vehicleDescription: payload.vehicleType === 'other' ? payload.vehicleDescription ?? null : null,
       vehicleBrand: payload.vehicleBrand,
       vehicleModel: payload.vehicleModel,
       vehicleYear: payload.vehicleYear ?? null,
@@ -133,6 +134,7 @@ export class VehicleInsuranceService {
     
     const updatePayload: any = {
       ...restUpdates,
+      ...(updates.vehicleType && updates.vehicleType !== 'other' ? { vehicleDescription: null } : {}),
     }
 
     // Si holderType change, mettre à jour les champs en conséquence

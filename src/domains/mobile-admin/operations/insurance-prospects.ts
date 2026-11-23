@@ -1,3 +1,5 @@
+import { insuranceAssetOptions, isInsuranceAssetType } from '@/domains/vehicles/asset-types'
+import { ensureConfiguredAssetType } from '@/domains/vehicles/asset-types-server'
 import { z } from 'zod'
 import {
   textField,
@@ -9,7 +11,6 @@ import {
 import {
   prospectSchema,
   civilDate,
-  vehicleTypes,
   KARA_SPONSOR_ID,
 } from '@/domains/insurance-prospects/model'
 import type { AdminModule, Dataset } from '../catalog'
@@ -19,13 +20,14 @@ const fields = [
   textField('ownerName', 'Nom du contact'),
   textField('phone', 'Téléphone'),
   textField('whatsapp', 'WhatsApp', false),
-  textField('plateNumber', 'Immatriculation'),
-  selectField(
-    'vehicleType',
-    'Type de véhicule',
-    Object.entries(vehicleTypes).map(([value, label]) => ({ value, label })),
-  ),
-  textField('vehicleDescription', 'Précisez le véhicule si Autre', false),
+  textField('plateNumber', 'Immatriculation ou référence du bien'),
+  field('vehicleType', 'Type de bien', 'select', z.string().refine(isInsuranceAssetType), {
+    options: insuranceAssetOptions(),
+    initial: 'car',
+  }),
+  field('vehicleDescription', 'Précisez le type de bien', 'text', z.string().trim().max(2000).optional(), {
+    showWhen: { key: 'vehicleType', value: 'other' },
+  }),
   textField('city', 'Ville'),
   selectField('locationType', 'Localisation', [
     { value: 'quarter', label: 'Quartier' },
@@ -66,13 +68,10 @@ export function insuranceProspectActions(
     fields: actionFields,
     scope: 'contract',
     permission: 'vehicules.edit',
-    run: (ctx, data) =>
-      ctx.services.insuranceProspects.change(
-        ctx.id,
-        currentActor(ctx),
-        kind,
-        data,
-      ),
+    run: async (ctx, data) => {
+      if (kind === 'edit') await ensureConfiguredAssetType(ctx.services.db, data.vehicleType, ctx.row?.vehicleType)
+      return ctx.services.insuranceProspects.change(ctx.id, currentActor(ctx), kind, data)
+    },
   })
   return [
     {
@@ -100,8 +99,9 @@ export function insuranceProspectActions(
                 message: issue.message,
               })
         }),
-      run: (ctx, data) => {
+      run: async (ctx, data) => {
         const { sponsorMemberId, ...input } = data
+        await ensureConfiguredAssetType(ctx.services.db, input.vehicleType)
         return ctx.services.insuranceProspects.create(
           input,
           sponsorMemberId,

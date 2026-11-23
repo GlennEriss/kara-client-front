@@ -1,3 +1,4 @@
+import { assetTypeLabel } from '@/domains/vehicles/asset-types'
 import {
   dateField,
   moneyField,
@@ -111,6 +112,10 @@ export function sectionFilters(
     list.push(select('sort', 'Tri alphabétique', ['nameAsc', 'nameDesc'], true))
     pick('insuranceCompany', 'Assureur')
     pick('vehicleType', 'Bien assuré')
+    const assetFilter = list.find((item) => item.key === 'vehicleType')
+    if (assetFilter?.options) {
+      assetFilter.options = assetFilter.options.map(({ value }) => ({ value, label: assetTypeLabel(value) }))
+    }
     pick('holderType', 'Type de titulaire')
     pick('declarationStatus', 'Déclaration')
     list.push(idField('sponsorMemberId', 'Parrain', 'members', false))

@@ -264,6 +264,7 @@ export function filterRows(
       'insuranceCompany',
       'quarter',
       'vehicleType',
+      'vehicleDescription',
       'holderType',
       'declarationStatus',
       'category',

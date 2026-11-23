@@ -1541,6 +1541,23 @@ service cloud.firestore {
       );
     }
 
+    function validInsuranceAssetType(data) {
+      return data.vehicleType is string && (
+        data.vehicleType in ['car', 'motorcycle', 'truck', 'bus', 'van', 'trailer', 'maison',
+          'apartment', 'premises', 'warehouse', 'equipment', 'electronics', 'machinery', 'boat', 'other'] ||
+        (data.vehicleType.matches('^custom:.{2,60}$') &&
+          exists(/databases/$(database)/documents/settings/insuranceAssetTypes) &&
+          data.vehicleType in get(/databases/$(database)/documents/settings/insuranceAssetTypes).data.values)
+      ) && (data.vehicleType != 'other' ||
+        (data.vehicleDescription is string && data.vehicleDescription.size() > 0 && data.vehicleDescription.size() <= 2000));
+    }
+
+    match /settings/insuranceAssetTypes {
+      allow get: if isAuthenticated();
+      allow create, update: if isAdmin() && request.resource.data.keys().hasOnly(['values']) &&
+        request.resource.data.values is list && request.resource.data.values.size() <= 100;
+    }
+
     match /insurance-prospects/{prospectId} {
       function ownsProspect(data) {
         return isAuthenticated() && data.sponsorMemberId is string && isMemberOwner(data.sponsorMemberId);
@@ -1549,8 +1566,7 @@ service cloud.firestore {
         return validVehicleGeography(data) && data.ownerName is string && data.ownerName.size() >= 2 && data.ownerName.size() <= 150 &&
           data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 30 &&
           data.plateNumber is string && data.plateNumber.size() >= 2 && data.plateNumber.size() <= 30 &&
-          data.vehicleType in ['car', 'motorcycle', 'truck', 'bus', 'other'] &&
-          (data.vehicleType != 'other' || (data.vehicleDescription is string && data.vehicleDescription.size() > 0)) &&
+          validInsuranceAssetType(data) &&
           data.city is string && data.city.size() >= 2 && data.city.size() <= 100 &&
           data.locationType in ['quarter', 'other'] &&
           (data.locationType != 'quarter' || (data.quarter is string && data.quarter.size() > 0)) &&
@@ -1599,6 +1615,7 @@ service cloud.firestore {
         isMemberOwner(request.resource.data.memberId) &&
         request.resource.data.declarationStatus == 'draft' &&
         validVehicleGeography(request.resource.data) &&
+        validInsuranceAssetType(request.resource.data) &&
         request.resource.data.status == 'active'
       );
       // Le membre modifie son brouillon (ou sa déclaration refusée) et l'envoie à
@@ -1610,8 +1627,10 @@ service cloud.firestore {
         resource.data.declarationStatus in ['draft', 'rejected'] &&
         validVehicleGeography(request.resource.data) &&
         request.resource.data.declarationStatus in ['draft', 'pending'] &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['vehicleType', 'vehicleDescription']) ||
+          validInsuranceAssetType(request.resource.data)) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'vehicleType', 'vehicleBrand', 'vehicleModel', 'vehicleYear', 'plateNumber',
+          'vehicleType', 'vehicleDescription', 'vehicleBrand', 'vehicleModel', 'vehicleYear', 'plateNumber',
           'energySource', 'provinceId', 'province', 'departmentId', 'department', 'communeId', 'districtId', 'district', 'quarterId', 'quarter', 'locationType', 'locationDetails', 'city', 'fiscalPower', 'insuranceCompany', 'policyNumber',
           'warrantyMonths', 'premiumAmount', 'startDate', 'endDate', 'notes', 'attachments',
           'declarationStatus', 'declaredValues', 'submittedAt', 'updatedAt'
