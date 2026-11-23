@@ -403,7 +403,7 @@ export function ProspectsPage({
               </h2>
               <p>
                 {actor.admin
-                  ? 'Vous pouvez attribuer le prospect à un membre ou à « LE KARA — Inconnu ». Pour le déclarer assuré chez LE KARA, enregistrez d’abord l’assurance dans Véhicules, puis utilisez « Rattacher l’assurance LE KARA » : elle doit être validée, de même plaque et parrain, couvrir une période après l’ancienne échéance et ne pas être liée à un autre prospect.'
+                  ? 'Vous pouvez attribuer le prospect à un membre ou à « LE KARA — Inconnu ». Pour le déclarer assuré chez LE KARA, enregistrez d’abord l’assurance dans « Assurances et prospections », puis utilisez « Rattacher l’assurance LE KARA » : elle doit être validée, de même plaque et parrain, couvrir une période après l’ancienne échéance et ne pas être liée à un autre prospect.'
                   : 'Vous suivez uniquement vos propres prospects et ceux que l’administration vous attribue. Vous pouvez demander leur prise en charge ; seule l’administration peut changer le parrain et rattacher une assurance réellement validée.'}
               </p>
             </div>
@@ -684,7 +684,7 @@ export function ProspectsPage({
                 {!busy && !insurances.length && (
                   <p className="text-sm">
                     Aucune assurance correspondante. Enregistrez d’abord la
-                    nouvelle assurance dans le module Véhicules.
+                    nouvelle assurance dans « Assurances et prospections ».
                   </p>
                 )}
                 {selection.row && insuranceCreateUrl && (
@@ -692,7 +692,7 @@ export function ProspectsPage({
                     className="block text-sm underline"
                     href={insuranceCreateUrl(selection.row)}
                   >
-                    Enregistrer l’assurance dans le module Véhicules
+                    Enregistrer une assurance
                   </a>
                 )}
               </>

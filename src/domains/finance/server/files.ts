@@ -1,5 +1,6 @@
+import { countElapsedCaisseInstallments } from '@/services/caisse/contractDates'
 import type { CreditContract } from '@/types/types'
-import { withBusinessDates } from '@/domains/mobile/server/calendar-dates'
+import { businessWallTime, withBusinessDates } from '@/domains/mobile/server/calendar-dates'
 import { getCreditContractElapsedInstallments } from '@/services/credit-speciale/creditContractDates'
 import { settingsExportRow, settingsRow } from './settings-presentation'
 /* eslint-disable no-restricted-imports -- Adaptateur temporaire vers les règles métier et modèles officiels existants. */
@@ -145,6 +146,7 @@ export async function getFinanceFile(
           },
           400,
         )
+      const exportDate = businessWallTime(new Date())
       const rows = result.items.map((row) =>
         kind === 'settings'
           ? settingsExportRow(module.data, settingsRow(module.data, row))
@@ -159,6 +161,14 @@ export async function getFinanceFile(
                 row.subscriptionCIAmountPerMonth ||
                 row.amountPerMonth ||
                 0,
+              ...(module.data === 'caisse-speciale' && kind === 'contracts'
+                ? { 'Échéances passées': countElapsedCaisseInstallments(withBusinessDates({
+                    contractStartAt: row.contractStartAt,
+                    firstPaymentDate: row.firstPaymentDate,
+                    monthsPlanned: row.monthsPlanned,
+                    caisseType: row.caisseType,
+                  }) as Parameters<typeof countElapsedCaisseInstallments>[0], exportDate) }
+                : {}),
             },
       )
       if (query.data.format === 'excel') {

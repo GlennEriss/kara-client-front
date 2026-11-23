@@ -29,6 +29,7 @@ import {
 } from '@/utils/credit-speciale-history'
 import { getMonthPeriod } from '@/utils/caisse-imprevue-utils'
 import { contractBonusSummary } from '@/services/caisse/contractLabels'
+import { summarizeCIPayments } from '@/services/caisse-imprevue/paymentStats'
 import { computeCreditInstallments } from '@/utils/credit-installments'
 import {
   withBusinessDates,
@@ -85,21 +86,36 @@ export async function enrichFinanceRows(
 ): Promise<Record<string, any>[]> {
   const members = new Map<string, Promise<any>>()
   return mapWithConcurrency(rows, 6, async (row) => {
-    const id = String(row.memberId || row.clientId || '')
+    const isCaisseSpeciale = module === 'caisse-speciale'
+    const groupId = isCaisseSpeciale && (row.contractType === 'GROUP' || !row.memberId)
+      ? row.groupeId
+      : undefined
+    const id = groupId ? '' : String(row.memberId || row.clientId || '').trim()
     let name =
       `${row.memberFirstName || row.clientFirstName || ''} ${row.memberLastName || row.clientLastName || ''}`.trim()
     let member: any = null
     if (id) {
-      if (!members.has(id)) members.set(id, services.members.getMemberById(id))
+      if (!members.has(id)) {
+        members.set(id, (async () => {
+          const member = await services.members.getMemberById(id)
+          if (member || !isCaisseSpeciale) return member
+          const matches = await services.db.collection(names.users)
+            .where('matricule', '==', id.replace(/\s/g, '')).limit(1).get()
+          return matches.docs[0]?.data() ?? null
+        })())
+      }
       member = await members.get(id)
       if (!name) name = fullName(member)
     }
-    if (!name && row.groupeId) {
+    if ((groupId || !name) && row.groupeId) {
       const group = await services.db
         .collection(names.groups)
         .doc(row.groupeId)
         .get()
-      name = String(group.data()?.name || 'Groupe KARA')
+      const identity = !group.exists && groupId
+        ? await services.db.collection('deletedGroupIdentities').doc(groupId).get()
+        : null
+      name = String(group.data()?.name || identity?.data()?.name || name || 'Groupe KARA')
     }
     return {
       ...row,
@@ -247,7 +263,7 @@ export async function financeContractDetail(
 ) {
   const record = await readFinanceTarget(services, module, 'contract', id)
   if (module === 'caisse-speciale') {
-    const [payments, refunds, documents, member, group] = await Promise.all([
+    const [payments, refunds, documents, member, group, declarations, settings, [enriched]] = await Promise.all([
       services.csPayments.listPayments(id).then(normalizeFinanceDates),
       services.csRefunds.listRefunds(id).then(normalizeFinanceDates),
       services.documents.getDocumentsByContractId(id),
@@ -259,18 +275,21 @@ export async function financeContractDetail(
             .get()
             .then((s) => s.data())
         : null,
+      services.csRefunds.listDeclaredVersementsCS(id),
+      services.csSettings.getActiveSettings(record.caisseType),
+      enrichFinanceRows(services, module, [record]),
     ])
     return {
-      record: (await enrichFinanceRows(services, module, [record]))[0],
+      record: enriched,
       payments,
       refunds,
       documents,
       member,
       group,
-      declarations: await services.csRefunds.listDeclaredVersementsCS(id),
+      declarations,
       bonusSummary: contractBonusSummary(
         withBusinessDates(record) as any,
-        await services.csSettings.getActiveSettings(record.caisseType),
+        settings,
         withBusinessDates(payments) as any,
       ),
       contributions: payments.flatMap((payment: any) =>
@@ -297,21 +316,22 @@ export async function financeContractDetail(
     }
   }
   if (module === 'caisse-imprevue') {
-    const [payments, refunds, supports, documents, stats] = await Promise.all([
+    const [payments, refunds, supports, documents, declarations, [enriched]] = await Promise.all([
       services.caisseImprevue.getPaymentsByContractId(id),
       services.ciRefunds.getEarlyRefundsByContractId(id),
       services.caisseImprevue.getSupportHistory(id),
       services.documents.getDocumentsByContractId(id),
-      services.caisseImprevue.getContractPaymentStats(id),
+      services.csRefunds.listDeclaredVersementsCI(id),
+      enrichFinanceRows(services, module, [record]),
     ])
     return {
-      record: (await enrichFinanceRows(services, module, [record]))[0],
+      record: enriched,
       payments,
       refunds,
       supports,
       documents,
-      stats,
-      declarations: await services.csRefunds.listDeclaredVersementsCI(id),
+      stats: summarizeCIPayments(payments, supports.length),
+      declarations,
       periods:
         record.paymentFrequency !== 'DAILY'
           ? []

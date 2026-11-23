@@ -19,8 +19,6 @@ import {
 } from '@/domains/groups/tutorial/group-tutorial-guidance'
 
 const excluded = new Set(['imports', 'reinitialisation'])
-const categoryLabel = (category: string) =>
-  category === 'Bienfaiteur' ? 'Charité' : category
 /** Partage les fiches du site sans exposer ses outils exclus du mobile. */
 export function mobileHelpRows(access: ResolvedAdminAccess) {
   return HELP_TOPICS.filter(
@@ -38,8 +36,7 @@ export function mobileHelpRows(access: ResolvedAdminAccess) {
       return {
         ...topic,
         id: topic.key,
-        category: categoryLabel(topic.category),
-        status: categoryLabel(topic.category),
+        status: topic.category,
         ...(topic.demonstration === 'groups'
           ? {
               tutorial: {
@@ -77,8 +74,7 @@ export function helpOverview(rows: Record<string, any>[]) {
   return {
     total: rows.length,
     sectionTitles: HELP_SECTION_TITLES,
-    categories: HELP_CATEGORY_ORDER.map((category) => {
-      const label = categoryLabel(category)
+    categories: HELP_CATEGORY_ORDER.map((label) => {
       return {
         value: label,
         label,

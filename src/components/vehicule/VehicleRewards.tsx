@@ -114,7 +114,7 @@ function PartnerReceiptDialog({ reward, onClose }: { reward: VehicleInsuranceRew
         <DialogHeader>
           <DialogTitle>Commission reçue de l&apos;assureur</DialogTitle>
           <DialogDescription>
-            {reward.insuranceCompany} · {reward.plateNumber || 'véhicule'} · période du {day(reward.startDate)} au{' '}
+            {reward.insuranceCompany} · {reward.plateNumber || 'bien assuré'} · période du {day(reward.startDate)} au{' '}
             {day(reward.endDate)}. Attendu : {fcfa(reward.expectedCommission)}.
           </DialogDescription>
         </DialogHeader>
@@ -190,7 +190,7 @@ function MemberPaymentDialog({ reward, onClose }: { reward: VehicleInsuranceRewa
           <DialogTitle>Verser au membre</DialogTitle>
           <DialogDescription>
             {fcfa(reward.memberAmount)} à {reward.beneficiaryName}
-            {reward.beneficiaryMatricule ? ` (${reward.beneficiaryMatricule})` : ''} pour l&apos;assurance du véhicule{' '}
+            {reward.beneficiaryMatricule ? ` (${reward.beneficiaryMatricule})` : ''} pour l&apos;assurance{' '}
             {reward.plateNumber || ''}.
           </DialogDescription>
         </DialogHeader>
@@ -257,7 +257,7 @@ function RewardRows({
         <table className="w-full min-w-[720px] text-sm">
           <thead className="text-left text-[10px] uppercase tracking-wider text-gray-400">
             <tr>
-              {showVehicle && <th className="py-2 pr-3">Véhicule</th>}
+              {showVehicle && <th className="py-2 pr-3">Bien assuré</th>}
               <th className="py-2 pr-3">Période</th>
               <th className="py-2 pr-3">Membre</th>
               <th className="py-2 pr-3 text-right">Prime</th>

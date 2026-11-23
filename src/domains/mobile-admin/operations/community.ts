@@ -171,7 +171,7 @@ const insuranceFields = [
     { value: 'quarter', label: 'Quartier' },
     { value: 'other', label: 'Autre emplacement' },
   ]), initial: 'quarter' },
-  idField('quarterId', 'Quartier du véhicule (si Quartier)', 'vehicleQuarters', false),
+  idField('quarterId', 'Quartier du bien assuré (si Quartier)', 'vehicleQuarters', false),
   textField('locationDetails', 'Précisez l’emplacement (si Autre)', false),
   select('vehicleType', 'Bien assuré', [
     'car',
@@ -181,7 +181,7 @@ const insuranceFields = [
     'maison',
     'other',
   ]),
-  textField('plateNumber', 'Immatriculation'),
+  textField('plateNumber', 'Immatriculation ou référence du bien'),
   textField('vehicleBrand', 'Marque', false),
   textField('vehicleModel', 'Modèle', false),
   field(

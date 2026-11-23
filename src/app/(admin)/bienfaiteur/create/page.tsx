@@ -13,7 +13,7 @@ export default function CreateBienfaiteurPage() {
     <div className="max-w-7xl mx-auto space-y-6 p-6">
       <PageHero
         icon={HandHeart}
-        title="Créer un Évènement Bienfaiteur"
+        title="Créer un évènement caritatif"
         subtitle="Lancez une nouvelle action de solidarité"
       />
 

@@ -33,9 +33,9 @@ export function VehicleInsuranceFilters({ filters, onChange, onReset, companies,
   return (
     <div className="grid gap-4 lg:grid-cols-4 bg-white border rounded-2xl shadow-sm p-4">
       <div className="space-y-2">
-        <Label>Quartier du véhicule</Label>
+        <Label>Quartier du bien assuré</Label>
         <Select value={filters.locationMissing ? 'missing' : filters.quarterId || 'all'} onValueChange={value => updateFilter({ quarterId: value === 'all' || value === 'missing' ? undefined : value, locationMissing: value === 'missing' })}>
-          <SelectTrigger aria-label="Quartier du véhicule"><SelectValue placeholder="Tous les quartiers" /></SelectTrigger>
+          <SelectTrigger aria-label="Quartier du bien assuré"><SelectValue placeholder="Tous les quartiers" /></SelectTrigger>
           <SelectContent><SelectItem value="all">Tous les quartiers</SelectItem><SelectItem value="missing">À rattacher à Géographie</SelectItem>{quarters.map(row => <SelectItem key={row.id} value={row.id}>{row.label} · {row.city}</SelectItem>)}</SelectContent>
         </Select>
       </div>
@@ -43,7 +43,7 @@ export function VehicleInsuranceFilters({ filters, onChange, onReset, companies,
         <Label htmlFor="search">Recherche</Label>
         <Input
           id="search"
-          placeholder="Nom, plaque, assurance, numéro de police..."
+          placeholder="Nom, immatriculation, référence du bien, assureur, numéro de police…"
           value={filters.searchQuery || ''}
           onChange={event => updateFilter({ searchQuery: event.target.value })}
         />
@@ -65,7 +65,7 @@ export function VehicleInsuranceFilters({ filters, onChange, onReset, companies,
       </div>
 
       <div className="space-y-2">
-        <Label>Type de véhicule</Label>
+        <Label>Type de bien assuré</Label>
         <Select value={filters.vehicleType || 'all'} onValueChange={value => updateFilter({ vehicleType: value as VehicleInsuranceFilters['vehicleType'] })}>
           <SelectTrigger>
             <SelectValue placeholder="Tous les types" />

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   filterPresentedRows,
   summarizePresentedRows,
@@ -100,6 +100,30 @@ describe('lecture financière pour les cartes natives', () => {
     await expect(
       presentedContracts(services, 'caisse-speciale', { limit: 25 }),
     ).rejects.toThrow('agrégation serveur')
+  })
+  it('limite les lectures liées aux contrats du membre et conserve les catégories globales', async () => {
+    const docs = [
+      { id: 'CI-A', data: () => ({ memberId: 'A', subscriptionCIID: 'C', subscriptionCILabel: 'Forfait C' }) },
+      { id: 'CI-B', data: () => ({ memberId: 'B', subscriptionCIID: 'D', subscriptionCILabel: 'Forfait D' }) },
+    ]
+    const getMemberById = vi.fn().mockResolvedValue(null)
+    const getPaymentsByContractId = vi.fn().mockResolvedValue([])
+    const getEarlyRefundsByContractId = vi.fn().mockResolvedValue([])
+    const services = {
+      db: { collection: () => ({ limit: () => ({ get: async () => ({ size: docs.length, docs }) }) }) },
+      members: { getMemberById },
+      caisseImprevue: { getPaymentsByContractId },
+      ciRefunds: { getEarlyRefundsByContractId },
+    } as unknown as FinanceServices
+
+    const result = await presentedContracts(services, 'caisse-imprevue', { memberId: 'A', limit: 25 })
+
+    expect(result.items.map((item) => item.id)).toEqual(['CI-A'])
+    expect(result.summary.total).toBe(1)
+    expect(result.categories.map((category) => category.value)).toEqual(['C', 'D'])
+    expect(getMemberById.mock.calls).toEqual([['A']])
+    expect(getPaymentsByContractId.mock.calls).toEqual([['CI-A']])
+    expect(getEarlyRefundsByContractId.mock.calls).toEqual([['CI-A']])
   })
   it('ne marque pas un crédit en attente comme en retard et somme ses pénalités réelles', async () => {
     const services = {
@@ -251,4 +275,17 @@ describe('lecture financière pour les cartes natives', () => {
 it('compte les crédits spéciale non clos hors partie fixe, sans inclure les dossiers terminés',()=>{
  const rows=[['ACTIVE',false],['OVERDUE',true],['PARTIAL',false],['CLOSED',false],['DISCHARGED',false],['WRITTEN_OFF',false]].map(([status,fixed],i)=>({id:String(i),status,financeView:{fixedPhase:fixed}}))
  expect(summarizePresentedRows(rows as never,'credit-speciale')).toMatchObject({fixed:1,nonFixed:2})
+})
+
+it('compte le retard calculé et retire les statuts masqués de la répartition spéciale', () => {
+  const rows = [
+    { id: 'late', status: 'ACTIVE', financeView: { overdue: true } },
+    { id: 'current', status: 'ACTIVE', financeView: { overdue: false } },
+    { id: 'transformed', status: 'TRANSFORMED', financeView: {} },
+    { id: 'discharged', status: 'DISCHARGED', financeView: {} },
+  ]
+  expect(summarizePresentedRows(rows, 'credit-speciale')).toMatchObject({
+    overdue: 1,
+    distribution: [{ key: 'OVERDUE', value: 1 }, { key: 'ACTIVE', value: 1 }],
+  })
 })

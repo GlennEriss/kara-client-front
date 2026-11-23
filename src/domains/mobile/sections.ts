@@ -74,7 +74,7 @@ export const mobileSections = [
   },
   {
     key: 'bienfaiteur',
-    label: 'Charité',
+    label: 'Charités',
     icon: 'hand-heart-outline',
     path: '/bienfaiteur',
     group: 'Vie de l’association',
@@ -83,8 +83,8 @@ export const mobileSections = [
   },
   {
     key: 'vehicles',
-    label: 'Véhicules et assurances',
-    icon: 'car-outline',
+    label: 'Assurances et prospections',
+    icon: 'shield-check-outline',
     path: '/vehicules',
     group: 'Vie de l’association',
     permission: 'vehicules.view',

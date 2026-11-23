@@ -28,7 +28,7 @@ export const caisseSpecialeHelp: HelpTopic = {
             { term: 'Libre', text: 'Des versements de montant libre.' },
             {
               term: 'Types « charitables »',
-              text: 'Les mêmes formules, réservées aux membres qui ont contribué à une œuvre de charité (section Bienfaiteur).',
+              text: 'Les mêmes formules, réservées aux membres qui ont contribué à une œuvre de charité (section Charités).',
             },
             { term: 'Fiche d’un contrat', text: 'Ses versements mois par mois, ses remboursements et ses documents.' },
           ],

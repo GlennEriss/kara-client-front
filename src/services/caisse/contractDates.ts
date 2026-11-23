@@ -89,3 +89,25 @@ export function resolveContractEndAt(contract: {
 
   return computeContractEndAt(start, contract.monthsPlanned, contract.caisseType)
 }
+
+/** Nombre d'échéances prévues avant le jour de référence. */
+export function countElapsedCaisseInstallments(contract: {
+  contractStartAt?: Date | string | null
+  firstPaymentDate?: Date | string | null
+  monthsPlanned?: number | null
+  caisseType?: string | null
+}, now = new Date()): number {
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+  const start = contract.contractStartAt ?? contract.firstPaymentDate
+  const duration = contract.monthsPlanned ?? 0
+  if (!Number.isFinite(duration)) return 0
+
+  let elapsed = 0
+  for (let index = 0; index < duration; index++) {
+    const due = computeDueAt(start, index, contract.caisseType)
+    if (!due || due >= today) break
+    elapsed++
+  }
+  return elapsed
+}

@@ -3,7 +3,7 @@ import type { HelpTopic } from '../entities/help.types'
 export const charitesHelp: HelpTopic = {
   key: 'charites',
   title: 'Charités',
-  category: 'Bienfaiteur',
+  category: 'Vie de l’association',
   summary: 'Les évènements de charité (récollections) : participants, contributions en argent ou en nature, groupes et médias.',
   pages: [{ path: '/bienfaiteur', label: 'Charités', summary: 'Créer un évènement de charité, enregistrer les contributions et suivre la collecte.' }],
   sections: [
@@ -105,11 +105,11 @@ export const charitesHelp: HelpTopic = {
 
 export const vehiculesHelp: HelpTopic = {
   key: 'vehicules',
-  title: 'Véhicules',
-  category: 'Bienfaiteur',
-  summary: 'Le suivi des assurances, la prospection des véhicules assurés ailleurs, les relances des prospects et les commissions des assureurs partenaires.',
+  title: 'Assurances et prospections',
+  category: 'Vie de l’association',
+  summary: 'Le suivi des assurances de biens, la prospection de véhicules assurés ailleurs, les relances et les commissions des assureurs partenaires.',
   pages: [
-    { path: '/vehicules', label: 'Véhicules', summary: 'Enregistrer une assurance, valider les déclarations des membres, renouveler et suivre les reversements.' },
+    { path: '/vehicules', label: 'Assurances et prospections', summary: 'Enregistrer une assurance, valider les déclarations des membres, renouveler et suivre les reversements.' },
     { path: '/vehicules/prospection', label: 'Prospection assurance', summary: 'Enregistrer les véhicules assurés ailleurs, les attribuer à un parrain, préparer les relances et traiter leur échéance.' },
   ],
   sections: [
@@ -118,7 +118,7 @@ export const vehiculesHelp: HelpTopic = {
       blocks: [
         {
           type: 'text',
-          text: 'Chaque fiche décrit une assurance : le titulaire, le véhicule (type, marque, modèle, année, plaque, énergie, puissance fiscale), l’assureur, le numéro de police, la prime et la période de validité.',
+          text: 'Chaque fiche décrit une assurance : le titulaire, le bien assuré (véhicule, maison ou autre), son immatriculation ou sa référence selon le type, l’assureur, le numéro de police, la prime et la période de validité.',
         },
         {
           type: 'list',
@@ -139,7 +139,7 @@ export const vehiculesHelp: HelpTopic = {
           title: 'Enregistrer une assurance',
           items: [
             'Cliquez sur « Ajouter l’assurance » et choisissez le titulaire : un membre, ou une personne non membre parrainée par un membre.',
-            'Renseignez le véhicule, l’assureur, la police, la prime, les dates de début et de fin.',
+            'Renseignez le bien assuré, l’assureur, la police, la prime et les dates de début et de fin.',
             'Joignez le reçu de paiement si vous l’avez.',
           ],
         },
@@ -173,9 +173,9 @@ export const vehiculesHelp: HelpTopic = {
           type: 'steps',
           title: 'Enregistrer et attribuer un prospect',
           items: [
-            'Sur le site, ouvrez Véhicules puis « Prospection assurance ». Dans l’app mobile, ouvrez l’onglet « Prospection » du module Véhicules.',
+            'Sur le site, ouvrez « Assurances et prospections » puis « Voir les prospects ». Dans l’app mobile, ouvrez l’onglet « Prospection » du module Véhicules.',
             'Choisissez « Nouveau prospect » puis renseignez le contact, son téléphone, la plaque, le type de véhicule, l’assureur actuel et la fin de l’assurance.',
-            'Sélectionnez la ville, l’arrondissement et le quartier dans le référentiel Géographie. Pour un véhicule déjà enregistré, ouvrez Modifier pour compléter ce rattachement ; les anciens noms libres ne sont pas devinés. Les statistiques Véhicules et du tableau de bord regroupent les dossiers par identifiant de quartier et par ville. Si vous choisissez « Autre emplacement », précisez le lieu, par exemple un parking ou un garage. Si le véhicule est de type « Autre », décrivez-le aussi.',
+            'Sélectionnez la ville, l’arrondissement et le quartier dans le référentiel Géographie. Pour un véhicule déjà enregistré, ouvrez Modifier pour compléter ce rattachement ; les anciens noms libres ne sont pas devinés. Les statistiques de la section et du tableau de bord regroupent les dossiers par identifiant de quartier et par ville. Si vous choisissez « Autre emplacement », précisez le lieu, par exemple un parking ou un garage. Si le véhicule est de type « Autre », décrivez-le aussi.',
             'L’administration choisit le parrain ou « LE KARA — Inconnu » pour une prospection de l’association. Le membre enregistre ses propres prospects depuis Mes véhicules ; il ne peut pas les attribuer à quelqu’un d’autre.',
             'Pour changer le parrain, l’administration utilise « Attribuer le parrainage » avec un motif. Le nouveau parrain retrouve le dossier dans sa liste.',
           ],
@@ -195,7 +195,7 @@ export const vehiculesHelp: HelpTopic = {
           type: 'steps',
           title: 'Rattacher l’assurance LE KARA réellement souscrite',
           items: [
-            'L’administration enregistre d’abord l’assurance dans le module Véhicules, avec les informations réelles du titulaire, du véhicule, de la police et de la période assurée. Une déclaration membre doit être validée.',
+            'L’administration enregistre d’abord l’assurance dans « Assurances et prospections », avec les informations du titulaire, du bien, de la police et de la période assurée. Une déclaration membre doit être validée.',
             'Revenez au prospect et choisissez « Rattacher l’assurance LE KARA ». Sélectionnez une assurance validée de même plaque et de même parrain, dont la fin de couverture est postérieure à l’ancienne échéance.',
             'Indiquez le résultat puis confirmez. Une assurance déjà rattachée à un autre prospect ne peut pas être utilisée.',
             'Le suivi passe à « Assuré chez LE KARA », les rappels de prospection s’arrêtent et le dossier devient consultable en lecture seule. L’historique reste conservé.',
@@ -269,7 +269,7 @@ export const vehiculesHelp: HelpTopic = {
 export const boutiquesHelp: HelpTopic = {
   key: 'boutiques',
   title: 'Boutiques',
-  category: 'Bienfaiteur',
+  category: 'Vie de l’association',
   summary: 'L’annuaire des commerces des membres, visible par tous les membres, et les achats à crédit dans les boutiques partenaires.',
   pages: [{ path: '/boutiques', label: 'Boutiques', summary: 'Valider les boutiques et leurs articles, gérer les partenariats d’achat à crédit.' }],
   sections: [

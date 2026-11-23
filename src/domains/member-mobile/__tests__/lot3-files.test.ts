@@ -96,6 +96,24 @@ describe('documents des caisses membre', () => {
       ),
     ).rejects.toMatchObject({ status: 404 })
   })
+  it('résout le justificatif avec les mêmes versements que le détail membre', async () => {
+    const { db } = memoryDb({})
+    const children = {
+      payments: [
+        { id: 'M0', status: 'PAID', proofUrl: 'https://fixture/legacy' },
+        { id: 'M1', status: 'PAID', contribs: [], versements: [{ proofUrl: 'https://fixture/item' }] },
+      ],
+      declarations: [],
+      refunds: [],
+      supports: [],
+    }
+    const findProof = (fileId: string, module: 'caisse-speciale' | 'caisse-imprevue') =>
+      memberFinanceAttachmentSource(db, record, children, 'versement-proof', fileId, undefined, module)
+    await expect(findProof('M0:legacy', 'caisse-speciale')).resolves.toBe('https://fixture/legacy')
+    await expect(findProof('M1:0', 'caisse-speciale')).resolves.toBe('https://fixture/item')
+    await expect(findProof('M0:legacy', 'caisse-imprevue')).rejects.toMatchObject({ status: 404 })
+    await expect(findProof('M1:legacy', 'caisse-speciale')).rejects.toMatchObject({ status: 404 })
+  })
   it('refuse les sources externes et les fausses extensions ou types MIME', () => {
     expect(
       memberStoragePath(

@@ -29,8 +29,8 @@ const CS_CONTRATS: BreadcrumbSegment = { label: 'Contrats', href: '/caisse-speci
 const CI_CONTRATS: BreadcrumbSegment = { label: 'Contrats', href: '/caisse-imprevue' }
 const PLACEMENTS: BreadcrumbSegment = { label: 'Placements', href: '/placements' }
 const EVENTS: BreadcrumbSegment = { label: 'Événements', href: '/events' }
-const BIENFAITEUR: BreadcrumbSegment = { label: 'Bienfaiteur', href: '/bienfaiteur' }
-const VEHICULES: BreadcrumbSegment = { label: 'Véhicules', href: '/vehicules' }
+const CHARITES: BreadcrumbSegment = { label: 'Charités', href: '/bienfaiteur' }
+const ASSURANCES: BreadcrumbSegment = { label: 'Assurances et prospections', href: '/vehicules' }
 const PAYMENTS_HISTORY: BreadcrumbSegment = { label: 'Historique des paiements', href: '/payments-history' }
 const CONTRACTS_HISTORY: BreadcrumbSegment = { label: 'Historique des contrats', href: '/contracts-history' }
 
@@ -224,26 +224,26 @@ function resolveBreadcrumbs(pathname: string): BreadcrumbSegment[] {
   if (pathname === '/events') return [TB, { label: 'Événements' }]
 
   // ── Bienfaiteur ──────────────────────────────────────────────────────────
-  if (pathname === '/bienfaiteur/create') return [TB, BIENFAITEUR, { label: 'Créer' }]
+  if (pathname === '/bienfaiteur/create') return [TB, CHARITES, { label: 'Créer' }]
   if (/^\/bienfaiteur\/[^/]+\/modify$/.test(pathname)) {
     const id = pathname.split('/')[2]
-    return [TB, BIENFAITEUR, { label: 'Détails', href: `/bienfaiteur/${id}` }, { label: 'Modifier' }]
+    return [TB, CHARITES, { label: 'Détails', href: `/bienfaiteur/${id}` }, { label: 'Modifier' }]
   }
   if (/^\/bienfaiteur\/[^/]+$/.test(pathname)) {
-    return [TB, BIENFAITEUR, { label: 'Détails' }]
+    return [TB, CHARITES, { label: 'Détails' }]
   }
-  if (pathname === '/bienfaiteur') return [TB, { label: 'Bienfaiteur' }]
+  if (pathname === '/bienfaiteur') return [TB, { label: 'Charités' }]
 
   // ── Véhicules ────────────────────────────────────────────────────────────
-  if (pathname === '/vehicules/prospection') return [TB, VEHICULES, { label: 'Prospection assurance' }]
+  if (pathname === '/vehicules/prospection') return [TB, ASSURANCES, { label: 'Prospection' }]
   if (/^\/vehicules\/[^/]+\/edit$/.test(pathname)) {
     const id = pathname.split('/')[2]
-    return [TB, VEHICULES, { label: 'Détails', href: `/vehicules/${id}` }, { label: 'Modifier' }]
+    return [TB, ASSURANCES, { label: 'Détails', href: `/vehicules/${id}` }, { label: 'Modifier' }]
   }
   if (/^\/vehicules\/[^/]+$/.test(pathname)) {
-    return [TB, VEHICULES, { label: 'Détails' }]
+    return [TB, ASSURANCES, { label: 'Détails' }]
   }
-  if (pathname === '/vehicules') return [TB, { label: 'Véhicules' }]
+  if (pathname === '/vehicules') return [TB, { label: 'Assurances et prospections' }]
 
   // ── Historique ───────────────────────────────────────────────────────────
   if (/^\/payments-history\/[^/]+$/.test(pathname)) {

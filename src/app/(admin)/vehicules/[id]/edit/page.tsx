@@ -2,7 +2,7 @@ import { VehicleInsuranceEditView } from '@/components/vehicule/VehicleInsurance
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Modifier assurance véhicule | LE KARA Admin',
+  title: 'Modifier l’assurance | LE KARA Admin',
 }
 
 interface Props {
