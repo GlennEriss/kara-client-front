@@ -797,7 +797,7 @@ export function communityActions(
               return snapshot.exists ? snapshot.data() ?? null : null
             })
             const data = vehicleInsuranceFormSchema.parse({ ...payload, ...location, vehicleDescription: payload.vehicleType === 'other' ? payload.vehicleDescription : null })
-            await ensureConfiguredAssetType(ctx.services.db, data.vehicleType, ctx.row?.vehicleType)
+            await ensureConfiguredAssetType(ctx.services.db, data.vehicleType, create ? undefined : ctx.row?.vehicleType)
             const receipt = await asset(ctx, 'receipt')
             if (receipt)
               data.attachments = {

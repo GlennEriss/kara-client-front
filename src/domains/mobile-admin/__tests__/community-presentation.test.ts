@@ -8,7 +8,27 @@ import {
 } from '../server/community-presentation'
 import { filterRows } from '../server/read-model'
 import { listSchema } from '../server/gateway'
+import { insuranceProspectActions } from '../operations/insurance-prospects'
+import { publicAdminAction } from '../server/registry'
+import type { AdminModule, Dataset } from '../catalog'
 import type { AdminServices } from '../server/context'
+
+describe('catalogue mobile des types de biens', () => {
+  it('retire le choix et sa valeur initiale à la création, puis conserve le choix enregistré en édition', () => {
+    const actions = insuranceProspectActions({ key: 'vehicles' } as AdminModule, { key: 'prospects' } as Dataset)
+    const catalog = { values: [], inactive: ['car'] }
+    const create = actions.find((action) => action.id === 'prospect.create')!
+    const update = actions.find((action) => action.id === 'prospect.update')!
+    const createType = publicAdminAction(create, undefined, catalog).fields.find((field) => field.key === 'vehicleType')
+    const updateType = publicAdminAction(update, { vehicleType: 'car' }, catalog).fields.find((field) => field.key === 'vehicleType')
+
+    expect(createType?.options).not.toContainEqual({ value: 'car', label: 'Voiture' })
+    expect(createType?.initial).toBeUndefined()
+    expect(updateType?.options).toContainEqual({ value: 'car', label: 'Voiture' })
+    expect(updateType?.initial).toBe('car')
+  })
+})
+
 describe('boutiques, événements et filtres des groupes', () => {
   it('garde les fiches historiques publiées et les modifications proposées dans la bonne file', () => {
     const legacy = { isActive: true },

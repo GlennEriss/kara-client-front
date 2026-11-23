@@ -1,4 +1,4 @@
-import { insuranceAssetOptions } from '@/domains/vehicles/asset-types'
+import { insuranceAssetOptions, type InsuranceAssetCatalog } from '@/domains/vehicles/asset-types'
 import { z } from 'zod'
 import {
   asDate,
@@ -47,7 +47,7 @@ export interface AdminContext {
 export const publicAdminAction = (
   action: AdminAction,
   row?: Record<string, any>,
-  assetTypes?: string[],
+  assetTypes?: InsuranceAssetCatalog,
 ) => {
   const result = publicAction({ ...action, schema: z.object({}) } as any)
   if (
@@ -101,9 +101,11 @@ export const publicAdminAction = (
     result.fields = initial(result.fields, row)
   }
   if (assetTypes) {
-    result.fields = result.fields.map((item) => item.key === 'vehicleType'
-      ? { ...item, options: insuranceAssetOptions(assetTypes, row?.vehicleType) }
-      : item)
+    result.fields = result.fields.map((item) => {
+      if (item.key !== 'vehicleType') return item
+      const options = insuranceAssetOptions(assetTypes, { selected: row?.vehicleType })
+      return { ...item, options, initial: options.some((option) => option.value === item.initial) ? item.initial : undefined }
+    })
   }
   return result
 }

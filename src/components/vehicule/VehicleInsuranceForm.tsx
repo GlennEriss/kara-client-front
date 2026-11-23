@@ -17,7 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import MemberSearchInput from './MemberSearchInput'
 import { VehicleLocationFields } from './VehicleLocationFields'
-import { insuranceAssetOptions, isRoadAssetType } from '@/domains/vehicles/asset-types'
+import { insuranceAssetOptions, isAvailableInsuranceAssetType, isRoadAssetType } from '@/domains/vehicles/asset-types'
 import { useInsuranceAssetTypes } from '@/domains/vehicles/use-insurance-asset-types'
 import { pickVehicleLocation } from '@/domains/vehicles/location'
 
@@ -218,6 +218,10 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
   }
 
   const handleSubmit = async (values: VehicleInsuranceFormValues) => {
+    if (!isAvailableInsuranceAssetType(values.vehicleType, customAssets, initialInsurance?.vehicleType)) {
+      form.setError('vehicleType', { message: 'Sélectionnez un type de bien disponible.' }, { shouldFocus: true })
+      return
+    }
     try {
       setIsUploading(true)
       const ownerId = values.memberMatricule || values.memberId || initialInsurance?.id || 'externe'
@@ -440,14 +444,14 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-semibold">Type de bien assuré</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={isAvailableInsuranceAssetType(field.value, customAssets, initialInsurance?.vehicleType) ? field.value : ''} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger className="h-11">
                           <SelectValue placeholder="Type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {insuranceAssetOptions(customAssets, field.value).map(({ value, label }) => (
+                        {insuranceAssetOptions(customAssets, { selected: initialInsurance?.vehicleType }).map(({ value, label }) => (
                           <SelectItem key={value} value={value}>{label}</SelectItem>
                         ))}
                       </SelectContent>

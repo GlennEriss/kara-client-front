@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { doc, getDoc, runTransaction } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
-import { extraAssetTypes, insuranceAssetSettingsId, newInsuranceAssetType } from './asset-types'
+import { insuranceAssetOptions, insuranceAssetSettingsId, newInsuranceAssetType, parseInsuranceAssetCatalog } from './asset-types'
 
 const queryKey = ['insurance-asset-types']
 const settings = () => doc(db, 'settings', insuranceAssetSettingsId)
@@ -11,20 +11,30 @@ const settings = () => doc(db, 'settings', insuranceAssetSettingsId)
 export function useInsuranceAssetTypes() {
   return useQuery({
     queryKey,
-    queryFn: async () => extraAssetTypes((await getDoc(settings())).data()?.values),
+    queryFn: async () => parseInsuranceAssetCatalog((await getDoc(settings())).data()),
   })
 }
 
-export function useAddInsuranceAssetType() {
+export function useUpdateInsuranceAssetTypes() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (label: string) => runTransaction(db, async (transaction) => {
+    mutationFn: (change: { label: string } | { value: string; active: boolean }) => runTransaction(db, async (transaction) => {
       const ref = settings()
-      const current = extraAssetTypes((await transaction.get(ref)).data()?.values)
-      const values = [...current, newInsuranceAssetType(label, current)]
-      transaction.set(ref, { values })
-      return values
+      const catalog = parseInsuranceAssetCatalog((await transaction.get(ref)).data())
+      if ('label' in change) {
+        catalog.values.push(newInsuranceAssetType(change.label, catalog.values))
+      } else {
+        if (change.value === 'other' || !insuranceAssetOptions(catalog, { includeInactive: true }).some((option) => option.value === change.value)) {
+          throw new Error('Ce type de bien ne peut pas être modifié.')
+        }
+        const inactive = new Set(catalog.inactive)
+        if (change.active) inactive.delete(change.value)
+        else inactive.add(change.value)
+        catalog.inactive = [...inactive]
+      }
+      transaction.set(ref, catalog)
+      return catalog
     }),
-    onSuccess: (values) => queryClient.setQueryData(queryKey, values),
+    onSuccess: (catalog) => queryClient.setQueryData(queryKey, catalog),
   })
 }

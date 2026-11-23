@@ -1,6 +1,6 @@
 'use client'
 
-import { assetTypeLabel, insuranceAssetOptions, isRoadAssetType } from "@/domains/vehicles/asset-types"
+import { assetTypeLabel, insuranceAssetOptions, isAvailableInsuranceAssetType, isRoadAssetType } from "@/domains/vehicles/asset-types"
 import { useInsuranceAssetTypes } from "@/domains/vehicles/use-insurance-asset-types"
 import { VehicleLocationStats } from '@/components/vehicule/VehicleLocationStats'
 import { vehicleLocationStats } from '@/domains/vehicles/location'
@@ -214,6 +214,8 @@ export function ProspectsPage({
       />
     </label>
   )
+  const previousAssetType = selection?.op === 'edit' ? selection.row?.vehicleType : undefined
+
   const choose = (
     key: string,
     label: string,
@@ -223,7 +225,7 @@ export function ProspectsPage({
       {label}
       <select
         aria-label={label}
-        value={values[key] || ''}
+        value={Object.hasOwn(options, values[key]) ? values[key] : ''}
         onChange={(e) => set(key, e.target.value)}
         className="h-11 rounded-lg border bg-background px-3"
       >
@@ -241,6 +243,9 @@ export function ProspectsPage({
     setBusy(true)
     try {
       if (selection.op === 'create' || selection.op === 'edit') {
+        if (!isAvailableInsuranceAssetType(values.vehicleType, customAssets, previousAssetType)) {
+          throw Error('Sélectionnez un type de bien disponible.')
+        }
         const input = Object.fromEntries(
           Object.keys(empty).map((k) => [k, values[k] || '']),
         ) as ProspectInput
@@ -630,7 +635,10 @@ export function ProspectsPage({
                   {input('phone', 'Téléphone', 'tel', true)}
                   {input('whatsapp', 'WhatsApp', 'tel')}
                   {input('plateNumber', isRoadAssetType(values.vehicleType) ? 'Immatriculation' : 'Référence du bien', 'text', true)}
-                  {choose('vehicleType', 'Type de bien', Object.fromEntries(insuranceAssetOptions(customAssets, values.vehicleType).map(({ value, label }) => [value, label])))}
+                  {choose('vehicleType', 'Type de bien', {
+                    '': 'Choisir un type de bien',
+                    ...Object.fromEntries(insuranceAssetOptions(customAssets, { selected: previousAssetType }).map(({ value, label }) => [value, label])),
+                  })}
                   {values.vehicleType === 'other' &&
                     input(
                       'vehicleDescription',

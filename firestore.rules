@@ -1541,32 +1541,46 @@ service cloud.firestore {
       );
     }
 
-    function validInsuranceAssetType(data) {
-      return data.vehicleType is string && (
-        data.vehicleType in ['car', 'motorcycle', 'truck', 'bus', 'van', 'trailer', 'maison',
-          'apartment', 'premises', 'warehouse', 'equipment', 'electronics', 'machinery', 'boat', 'other'] ||
-        (data.vehicleType.matches('^custom:.{2,60}$') &&
-          exists(/databases/$(database)/documents/settings/insuranceAssetTypes) &&
-          data.vehicleType in get(/databases/$(database)/documents/settings/insuranceAssetTypes).data.values)
-      ) && (data.vehicleType != 'other' ||
+    function insuranceAssetTypeDefaults() {
+      return ['car', 'motorcycle', 'truck', 'bus', 'van', 'trailer', 'maison',
+        'apartment', 'premises', 'warehouse', 'equipment', 'electronics', 'machinery', 'boat'];
+    }
+
+    function validInsuranceAssetType(data, previousType) {
+      let catalogPath = /databases/$(database)/documents/settings/insuranceAssetTypes;
+      let catalog = exists(catalogPath) ? get(catalogPath).data : {};
+      let type = data.vehicleType;
+      return type is string && (
+        type == 'other' ||
+        type == previousType ||
+        (!(type in catalog.get('inactive', [])) && (type in insuranceAssetTypeDefaults() ||
+          (type.matches('^custom:.{2,60}$') && type in catalog.get('values', []))))
+      ) && (type != 'other' ||
         (data.vehicleDescription is string && data.vehicleDescription.size() > 0 && data.vehicleDescription.size() <= 2000));
     }
 
     match /settings/insuranceAssetTypes {
+      function validCatalog(data) {
+        let inactive = data.get('inactive', []);
+        return data.keys().hasOnly(['values', 'inactive']) && data.values is list && data.values.size() <= 100 &&
+          inactive is list && inactive.size() <= 114 && !('other' in inactive) &&
+          inactive.hasOnly(insuranceAssetTypeDefaults().concat(data.values));
+      }
       allow get: if isAuthenticated();
-      allow create, update: if isAdmin() && request.resource.data.keys().hasOnly(['values']) &&
-        request.resource.data.values is list && request.resource.data.values.size() <= 100;
+      allow create: if isAdmin() && validCatalog(request.resource.data);
+      allow update: if isAdmin() && validCatalog(request.resource.data) &&
+        (resource.data.get('inactive', []).size() == 0 || request.resource.data.keys().hasAll(['inactive']));
     }
 
     match /insurance-prospects/{prospectId} {
       function ownsProspect(data) {
         return isAuthenticated() && data.sponsorMemberId is string && isMemberOwner(data.sponsorMemberId);
       }
-      function validProspect(data) {
+      function validProspect(data, previousType) {
         return validVehicleGeography(data) && data.ownerName is string && data.ownerName.size() >= 2 && data.ownerName.size() <= 150 &&
           data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 30 &&
           data.plateNumber is string && data.plateNumber.size() >= 2 && data.plateNumber.size() <= 30 &&
-          validInsuranceAssetType(data) &&
+          validInsuranceAssetType(data, previousType) &&
           data.city is string && data.city.size() >= 2 && data.city.size() <= 100 &&
           data.locationType in ['quarter', 'other'] &&
           (data.locationType != 'quarter' || (data.quarter is string && data.quarter.size() > 0)) &&
@@ -1576,12 +1590,12 @@ service cloud.firestore {
           data.notes is string && data.notes.size() <= 2000;
       }
       allow read: if isAdmin() || ownsProspect(resource.data);
-      allow create: if isAdmin() || (ownsProspect(request.resource.data) && validProspect(request.resource.data) &&
+      allow create: if isAdmin() || (ownsProspect(request.resource.data) && validProspect(request.resource.data, null) &&
         request.resource.data.keys().hasOnly(['ownerName','phone','whatsapp','plateNumber','vehicleType','vehicleDescription','provinceId','province','departmentId','department','communeId','districtId','district','quarterId','city','locationType','quarter','locationDetails','insuranceCompany','endDate','notes','status','sponsorMemberId','sponsorName','source','createdBy','updatedBy','createdAt','updatedAt']) &&
         request.resource.data.source == 'member' && request.resource.data.status == 'tracking' &&
         request.resource.data.createdBy == request.auth.uid && request.resource.data.updatedBy == request.auth.uid &&
         request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time);
-      allow update: if isAdmin() || (ownsProspect(resource.data) && validProspect(request.resource.data) &&
+      allow update: if isAdmin() || (ownsProspect(resource.data) && validProspect(request.resource.data, resource.data.get('vehicleType', null)) &&
         !(resource.data.status in ['converted','lost']) &&
         request.resource.data.status in ['tracking','contacted','quote_requested','lost'] &&
         request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time &&
@@ -1615,7 +1629,7 @@ service cloud.firestore {
         isMemberOwner(request.resource.data.memberId) &&
         request.resource.data.declarationStatus == 'draft' &&
         validVehicleGeography(request.resource.data) &&
-        validInsuranceAssetType(request.resource.data) &&
+        validInsuranceAssetType(request.resource.data, null) &&
         request.resource.data.status == 'active'
       );
       // Le membre modifie son brouillon (ou sa déclaration refusée) et l'envoie à
@@ -1628,7 +1642,7 @@ service cloud.firestore {
         validVehicleGeography(request.resource.data) &&
         request.resource.data.declarationStatus in ['draft', 'pending'] &&
         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['vehicleType', 'vehicleDescription']) ||
-          validInsuranceAssetType(request.resource.data)) &&
+          validInsuranceAssetType(request.resource.data, resource.data.get('vehicleType', null))) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'vehicleType', 'vehicleDescription', 'vehicleBrand', 'vehicleModel', 'vehicleYear', 'plateNumber',
           'energySource', 'provinceId', 'province', 'departmentId', 'department', 'communeId', 'districtId', 'district', 'quarterId', 'quarter', 'locationType', 'locationDetails', 'city', 'fiscalPower', 'insuranceCompany', 'policyNumber',
