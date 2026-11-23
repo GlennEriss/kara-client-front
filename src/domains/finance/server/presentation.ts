@@ -1,3 +1,4 @@
+import { isCreditContractOverdue } from '@/utils/credit-contract-overdue'
 import { caisseSpecialeFinalRefundEligibility, caisseImprevueFinalRefundEligibility } from '@/services/refunds/final-refund-policy'
 import { projectContractCard } from './contract-card'
 import { computeMissedEarningsBalance, computePostTermPenaltyBalance } from '@/utils/credit-losses'
@@ -101,6 +102,8 @@ const range = (value: number, min?: number, max?: number) =>
 const dateRange = (value: any, from?: string, to?: string) =>
   (!from && !to) ||
   (!!day(value) && (!from || day(value) >= from) && (!to || day(value) <= to))
+const matchesMember = (row: Row, memberId?: string) =>
+  !memberId || row.memberId === memberId || row.clientId === memberId
 
 /** Filters run before pagination; summary always describes the complete matching set. */
 export function filterPresentedRows(
@@ -116,11 +119,7 @@ export function filterPresentedRows(
   return rows.filter((row) => {
     const v = row.financeView
     if (!v) return false
-    if (
-      input.memberId &&
-      ![row.memberId, row.clientId].includes(input.memberId)
-    )
-      return false
+    if (!matchesMember(row, input.memberId)) return false
     if (
       input.search &&
       !normalize(
@@ -196,7 +195,10 @@ export function summarizePresentedRows(rows: Row[], module: FinanceModule) {
     rows.reduce((total, r) => total + number(r.financeView[key]), 0)
   const byType = new Map<string, number>()
   for (const row of rows) {
-    const key = isCreditModule(module) ? row.status : row.financeView.type
+    if (module === 'credit-speciale' && ['TRANSFORMED', 'DISCHARGED'].includes(row.status)) continue
+    const key = isCreditModule(module)
+      ? (module === 'credit-speciale' && row.financeView.overdue ? 'OVERDUE' : row.status)
+      : row.financeView.type
     byType.set(key, (byType.get(key) || 0) + 1)
   }
   return {
@@ -204,7 +206,7 @@ export function summarizePresentedRows(rows: Row[], module: FinanceModule) {
     active: count('ACTIVE'),
     closed: rows.filter((r) => ended.has(r.status)).length,
     partial: count('PARTIAL'),
-    overdue: isCreditModule(module)
+    overdue: isCreditModule(module) && module !== 'credit-speciale'
       ? count('OVERDUE')
       : rows.filter((r) => r.financeView.overdue).length,
     finished: count('FINISHED'),
@@ -320,7 +322,7 @@ export async function presentedContracts(
     throw new Error(
       'Le volume nécessite une agrégation serveur. Les statistiques ne sont pas disponibles.',
     )
-  const raw = snapshot.docs.map((d) => ({
+  const raw: Row[] = snapshot.docs.map((d) => ({
     ...(fromFirestore(d.data()) as Row),
     id: d.id,
   }))
@@ -329,23 +331,38 @@ export async function presentedContracts(
       String(date(b.createdAt)).localeCompare(String(date(a.createdAt))) ||
       a.id.localeCompare(b.id),
   )
-  const named = await enrichFinanceRows(services, module, raw)
+  const matching = raw.filter((row) => matchesMember(row, input.memberId))
+  const creditModule = isCreditModule(module)
+  const [named, penalties] = await Promise.all([
+    enrichFinanceRows(services, module, matching),
+    creditModule && !input.memberId && matching.length
+      ? services.creditPenalties.getAllPenalties()
+      : Promise.resolve([]),
+  ])
+  const penaltiesByCreditId = new Map<string, typeof penalties>()
+  for (const penalty of penalties) {
+    const items = penaltiesByCreditId.get(penalty.creditId)
+    if (items) items.push(penalty)
+    else penaltiesByCreditId.set(penalty.creditId, [penalty])
+  }
   const now = new Date()
-  const penalties = isCreditModule(module)
-    ? await services.creditPenalties.getAllPenalties()
-    : []
   const rows: Row[] = await mapWithConcurrency(named, 6, (row) =>
     projectFinanceContract(
       services,
       module,
       row,
       now,
-      isCreditModule(module)
-        ? { penalties: penalties.filter((p) => p.creditId === row.id) }
+      creditModule && !input.memberId
+        ? { penalties: penaltiesByCreditId.get(row.id) ?? [] }
         : {},
     ),
   )
-  const filtered = filterPresentedRows(rows, input, now)
+  const statusCandidates = module === 'credit-speciale'
+    ? filterPresentedRows(rows, { ...input, status: undefined }, now)
+    : null
+  const filtered = statusCandidates
+    ? statusCandidates.filter(row => !input.status || row.status === input.status)
+    : filterPresentedRows(rows, input, now)
   const start = input.cursor
     ? filtered.findIndex((r) => r.id === input.cursor) + 1
     : 0
@@ -359,9 +376,12 @@ export async function presentedContracts(
         ? filtered[start + input.limit - 1].id
         : null,
     summary: summarizePresentedRows(filtered, module),
+    ...(statusCandidates ? { availableStatuses: [...new Set<string>(
+      statusCandidates.map(row => row.status).filter(status => status && !['DRAFT', 'SIMULATED'].includes(status)),
+    )] } : {}),
     categories: [
       ...new Map(
-        rows
+        raw
           .filter((r) => r.subscriptionCIID)
           .map((r) => [
             r.subscriptionCIID,
@@ -403,8 +423,11 @@ export async function projectFinanceContract(
   let refunds: Row[] = []
   let finalRefundEligibility: ReturnType<typeof caisseSpecialeFinalRefundEligibility> | undefined
   if (module === 'caisse-speciale') {
-    const payments: Row[] =
-      loaded.payments || (await services.csPayments.listPayments(row.id))
+    const [payments, contractRefunds]: [Row[], Row[]] = await Promise.all([
+      loaded.payments ?? services.csPayments.listPayments(row.id),
+      loaded.refunds ?? services.csRefunds.listRefunds(row.id),
+    ])
+    refunds = contractRefunds
     finalRefundEligibility = caisseSpecialeFinalRefundEligibility(contract, payments, now)
     monthly = number(row.monthlyAmount)
     duration = number(row.monthsPlanned)
@@ -429,11 +452,12 @@ export async function projectFinanceContract(
       !ended.has(row.status) &&
       ((!!nextDueAt && day(nextDueAt) < day(now)) ||
         String(row.status).startsWith('LATE'))
-    refunds = loaded.refunds || (await services.csRefunds.listRefunds(row.id))
   } else if (module === 'caisse-imprevue') {
-    const payments: Row[] =
-      loaded.payments ||
-      (await services.caisseImprevue.getPaymentsByContractId(row.id))
+    const [payments, contractRefunds]: [Row[], Row[]] = await Promise.all([
+      loaded.payments ?? services.caisseImprevue.getPaymentsByContractId(row.id),
+      loaded.refunds ?? services.ciRefunds.getEarlyRefundsByContractId(row.id),
+    ])
+    refunds = contractRefunds
     finalRefundEligibility = caisseImprevueFinalRefundEligibility(contract, payments, now)
     monthly = number(row.subscriptionCIAmountPerMonth)
     duration = number(row.subscriptionCIDuration)
@@ -466,13 +490,11 @@ export async function projectFinanceContract(
           )
         : null
     overdue = !!overdueSummary
-    refunds =
-      loaded.refunds ||
-      (await services.ciRefunds.getEarlyRefundsByContractId(row.id))
   } else {
-    const payments =
-      loaded.payments ||
-      (await services.creditSpeciale.getPaymentsByCreditId(row.id))
+    const [payments, penaltyRows]: [CreditPayment[], Row[]] = await Promise.all([
+      loaded.payments ?? services.creditSpeciale.getPaymentsByCreditId(row.id),
+      loaded.penalties ?? services.creditSpeciale.getPenaltiesByCreditId(row.id),
+    ])
     const normalized = withBusinessDates(payments) as CreditPayment[]
     const installments = computeCreditInstallments(
       contract as CreditContract,
@@ -492,13 +514,14 @@ export async function projectFinanceContract(
     overdue =
       ['ACTIVE', 'PARTIAL', 'OVERDUE', 'BLOCKED'].includes(row.status) &&
       installments.some((p) => p.status === 'OVERDUE')
+    if (module === 'credit-speciale') {
+      overdue = isCreditContractOverdue(contract as CreditContract, wallNow) ||
+        (['ACTIVE', 'PARTIAL'].includes(row.status) && installments.some(p => p.status === 'OVERDUE'))
+    }
     const fixed =
       canCreditContractBeInFixedPhase(contract) &&
       getCreditContractFixedPhase(contract, normalized)
     fixedPhase = !!fixed
-    const penaltyRows: Row[] =
-      loaded.penalties ||
-      (await services.creditSpeciale.getPenaltiesByCreditId(row.id))
     penalties = penaltyRows.reduce((s, p) => s + number(p.amount), 0)
     const starts = getCreditContractStartDates(contract)
     const weekly = isWeeklyCredit(contract)

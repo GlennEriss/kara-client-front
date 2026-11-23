@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addContractMonths, computeContractEndAt, computeDueAt, resolveContractEndAt } from '@/services/caisse/contractDates'
+import { addContractMonths, computeContractEndAt, computeDueAt, countElapsedCaisseInstallments, resolveContractEndAt } from '@/services/caisse/contractDates'
 
 const start = new Date(2025, 0, 15) // 15 janvier 2025
 // Formatage en heure locale : `toISOString()` repasse en UTC et décalerait
@@ -159,4 +159,11 @@ describe('computeDueAt', () => {
     computeDueAt(start, 5, 'JOURNALIERE')
     expect(start.getTime()).toBe(original)
   })
+})
+
+it('compte les échéances avant aujourd’hui, avec le calendrier propre à chaque caisse', () => {
+  const contract = { firstPaymentDate: new Date(2025, 0, 31), monthsPlanned: 3 }
+  const today = new Date(2025, 1, 28, 15)
+  expect(countElapsedCaisseInstallments({ ...contract, caisseType: 'STANDARD' }, today)).toBe(1)
+  expect(countElapsedCaisseInstallments({ ...contract, caisseType: 'JOURNALIERE' }, today)).toBe(0)
 })

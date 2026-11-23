@@ -2,7 +2,7 @@
 import { ContractCardActions } from '@/components/shared/ContractCardActions'
 import { isCaisseSpecialeContractLocked } from '@/utils/contract-lock'
 import dynamic from 'next/dynamic'
-import { computeDueAt, resolveContractEndAt } from '@/services/caisse/contractDates'
+import { countElapsedCaisseInstallments, resolveContractEndAt } from '@/services/caisse/contractDates'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -1574,7 +1574,6 @@ const ListContracts = () => {
       Promise.all(Array.from(missingMemberIds, async id => [id, await getUserById(id)] as const)).then(entries => new Map(entries)),
     ])
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
     return contractsData.map((contract: any) => {
       const _toISO = (v: any) => {
         try {
@@ -1601,17 +1600,8 @@ const ListContracts = () => {
       const displayName = isGroupContract(contract)
         ? groups.get(contract.groupeId)?.name
         : [member?.firstName, member?.lastName].filter(Boolean).join(' ')
-      let elapsedInstallments = 0
-      const start = contract.contractStartAt ?? contract.firstPaymentDate
-      for (let index = 0; index < contract.monthsPlanned; index++) {
-        const dueDate = computeDueAt(start, index, contract.caisseType)
-        if (!dueDate || dueDate >= today) break
-        elapsedInstallments++
-      }
-
       return {
         'ID Contrat': contract?.id || '',
-        'Échéances passées': elapsedInstallments,
         'Nom': displayName || 'Nom indisponible',
         'Statut': getStatusLabel(contract.status),
         'Montant mensuel (FCFA)': contract?.monthlyAmount || 0,
@@ -1621,6 +1611,7 @@ const ListContracts = () => {
         'Montant restant (FCFA)': (contract?.caisseType === 'LIBRE' || contract?.caisseType === 'LIBRE_CHARITABLE')
           ? 0
           : ((contract?.monthlyAmount || 0) * (contract?.monthsPlanned || 0)) - (contract?.nominalPaid || 0),
+        'Échéances passées': countElapsedCaisseInstallments(contract, today),
         'Prochaine échéance': toDate(contract?.nextDueAt),
         'Date de création': toDate(contract?.createdAt),
         'Dernière modification': toDate(contract?.updatedAt),
@@ -1679,7 +1670,6 @@ const ListContracts = () => {
 
       const rows = (await buildExportData()).map((row) => [
         row['ID Contrat'],
-        String(row['Échéances passées']),
         row['Nom'],
         row['Statut'],
         formatAmountWithSpaces(row['Montant mensuel (FCFA)']),
@@ -1687,6 +1677,7 @@ const ListContracts = () => {
         formatAmountWithSpaces(row['Montant total (FCFA)']),
         formatAmountWithSpaces(row['Montant versé (FCFA)']),
         formatAmountWithSpaces(row['Montant restant (FCFA)']),
+        String(row['Échéances passées']),
         row['Prochaine échéance'],
         row['Date de création'],
         row['Type de caisse'],
@@ -1709,7 +1700,6 @@ const ListContracts = () => {
 
       const headers = [
         'ID',
-        'Échéances passées',
         'Nom',
         'Statut',
         'Mensualité FCFA',
@@ -1717,6 +1707,7 @@ const ListContracts = () => {
         'Total FCFA',
         'Versé FCFA',
         'Restant FCFA',
+        'Échéances passées',
         'Prochaine échéance',
         'Créé le',
         'Caisse',
@@ -1755,14 +1746,14 @@ const ListContracts = () => {
         columnStyles: {
           // Largeurs calibrées pour totaliser exactement la largeur utile (257mm)
           0: { cellWidth: 34 },
-          1: { cellWidth: 15, halign: 'center' },
-          2: { cellWidth: 30 },
-          3: { cellWidth: 21 },
-          4: { cellWidth: 22, halign: 'right' },
-          5: { cellWidth: 14, halign: 'center' },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 21 },
+          3: { cellWidth: 22, halign: 'right' },
+          4: { cellWidth: 14, halign: 'center' },
+          5: { cellWidth: 22, halign: 'right' },
           6: { cellWidth: 22, halign: 'right' },
           7: { cellWidth: 22, halign: 'right' },
-          8: { cellWidth: 22, halign: 'right' },
+          8: { cellWidth: 15, halign: 'center' },
           9: { cellWidth: 21, halign: 'center' },
           10: { cellWidth: 18, halign: 'center' },
           11: { cellWidth: 16, halign: 'center' },

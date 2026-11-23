@@ -1,4 +1,5 @@
 import { caisseImprevueFinalRefundEligibility, sumCINominalPaid } from '@/services/refunds/final-refund-policy'
+import { summarizeCIPayments } from './paymentStats'
 import { User, Admin, ContractCI, PaymentCI, VersementCI, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI, CaisseImprevueDemand, CaisseImprevueDemandFilters, CaisseImprevueDemandStats } from "@/types/types";
 import { getCaisseImprevueVersementDeletionBlocker } from '@/utils/payment-deletion-order'
 import { assertContractUnlocked, isCaisseImprevueContractLocked } from '@/utils/contract-lock'
@@ -785,12 +786,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 this.paymentCIRepository.getPaymentsByContractId(contractId),
                 this.getSupportHistory(contractId),
             ])
-            const totalAmountPaid = sumCINominalPaid(payments)
-            const paymentCount = payments.length
-            const paidMonthsCount = payments.filter(p => p.status === 'PAID').length
-            const supportCount = supports.length
-
-            return { totalAmountPaid, paymentCount, paidMonthsCount, supportCount }
+            return summarizeCIPayments(payments, supports.length)
         } catch (error) {
             console.error('Erreur lors du calcul des statistiques de paiement:', error)
             return { totalAmountPaid: 0, paymentCount: 0, paidMonthsCount: 0, supportCount: 0 }
