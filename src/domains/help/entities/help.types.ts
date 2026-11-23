@@ -32,7 +32,6 @@ export type HelpCategory =
   | 'Crédits'
   | 'Placements'
   | 'Membres'
-  | 'Bienfaiteur'
   | 'Vie de l’association'
   | 'Système'
   | 'Utiliser l’aide'

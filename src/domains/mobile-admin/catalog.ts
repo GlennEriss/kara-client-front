@@ -198,7 +198,7 @@ export const adminModules: AdminModule[] = [
   },
   {
     key: 'bienfaiteur',
-    label: 'Charité',
+    label: 'Charités',
     icon: 'hand-heart-outline',
     permission: 'bienfaiteur',
     datasets: [
@@ -212,8 +212,8 @@ export const adminModules: AdminModule[] = [
   },
   {
     key: 'vehicles',
-    label: 'Véhicules et assurances',
-    icon: 'car-outline',
+    label: 'Assurances et prospections',
+    icon: 'shield-check-outline',
     permission: 'vehicules',
     datasets: [
       {

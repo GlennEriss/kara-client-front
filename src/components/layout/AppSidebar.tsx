@@ -33,7 +33,6 @@ import {
   ChevronDown,
   CreditCard,
   FileText,
-  HandCoins,
   HeartHandshake,
   Home,
   Landmark,
@@ -206,25 +205,19 @@ const adminMenuItems: SidebarItem[] = [
     ],
   },
   {
-    title: "Bienfaiteur",
-    icon: HandCoins,
-    children: [
-      {
-        title: "Charités",
-        url: routes.admin.bienfaiteur,
-        icon: HeartHandshake,
-      },
-      {
-        title: "Véhicules",
-        url: routes.admin.vehicules,
-        icon: Car,
-      },
-      {
-        title: "Boutiques",
-        url: routes.admin.boutiques,
-        icon: Store,
-      },
-    ],
+    title: "Charités",
+    url: routes.admin.bienfaiteur,
+    icon: HeartHandshake,
+  },
+  {
+    title: "Assurances et prospections",
+    url: routes.admin.vehicules,
+    icon: Shield,
+  },
+  {
+    title: "Boutiques",
+    url: routes.admin.boutiques,
+    icon: Store,
   },
   {
     title: "Placements",

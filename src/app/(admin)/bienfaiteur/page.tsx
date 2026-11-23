@@ -5,7 +5,7 @@ import { Metadata } from 'next'
 import { Suspense } from 'react'
 
 export const metadata: Metadata = {
-  title: 'Évènements Bienfaiteur | LE KARA Admin',
+  title: 'Charités | LE KARA Admin',
   description: 'Gestion des évènements caritatifs et récollections de l\'Association LE KARA'
 }
 
@@ -14,7 +14,7 @@ export default function BienfaiteurPage() {
     <div className="max-w-7xl mx-auto space-y-6 p-4 sm:p-6">
       <PageHero
         icon={HandHeart}
-        title="Évènements Bienfaiteur"
+        title="Charités"
         subtitle="Gérez les actions de solidarité, les participants et les contributions depuis un tableau de bord unifié."
       />
 

@@ -678,7 +678,7 @@ export async function relatedRows(
     if (canWithAccess(caller.access, 'vehicules.view'))
       await read(
         'member-vehicles',
-        'Véhicules et assurances',
+        'Assurances',
         'vehicle-insurances',
         'memberId',
         row.id,

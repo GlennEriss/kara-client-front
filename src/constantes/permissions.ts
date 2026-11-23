@@ -117,13 +117,13 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   },
   {
     key: 'bienfaiteur',
-    label: 'Bienfaiteur',
+    label: 'Charités',
     pathPrefixes: ['/bienfaiteur'],
     actions: actions('bienfaiteur', [VIEW, CREATE, EDIT, ['contribute', 'Gérer les contributions'], DELETE, EXPORT]),
   },
   {
     key: 'vehicules',
-    label: 'Véhicules',
+    label: 'Assurances et prospections',
     pathPrefixes: ['/vehicules'],
     actions: actions('vehicules', [VIEW, CREATE, EDIT, DELETE, EXPORT]),
   },

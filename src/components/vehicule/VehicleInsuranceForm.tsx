@@ -414,7 +414,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
           </CardContent>
         </Card>
 
-        {/* Section Véhicule */}
+        {/* Section Bien assuré */}
         <Card className="gap-4 border-slate-200 py-5 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
@@ -434,7 +434,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
                 name="vehicleType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-semibold">Type de véhicule</FormLabel>
+                    <FormLabel className="text-sm font-semibold">Type de bien assuré</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger className="h-11">

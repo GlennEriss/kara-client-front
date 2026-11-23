@@ -4,7 +4,7 @@ import type { vehicleLocationStats } from '@/domains/vehicles/location'
 
 export function VehicleLocationStats({
   locations,
-  title = 'Véhicules par quartier',
+  title = 'Assurances par quartier',
 }: {
   locations?: ReturnType<typeof vehicleLocationStats>
   title?: string
@@ -57,7 +57,7 @@ export function VehicleLocationStats({
           </div>
         </div>
         <p className="text-xs text-slate-500">
-          {locations.missing} véhicule(s) à rattacher à un quartier ·{' '}
+          {locations.missing} dossier(s) à rattacher à un quartier ·{' '}
           {locations.other} autre(s) emplacement(s) précisé(s). Les anciens noms
           libres restent à renseigner depuis « Modifier » ; aucun quartier n’est
           deviné.

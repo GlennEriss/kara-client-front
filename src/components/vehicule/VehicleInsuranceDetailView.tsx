@@ -114,13 +114,13 @@ export function VehicleInsuranceDetailView({ insuranceId }: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Véhicule</CardTitle>
+          <CardTitle>Bien assuré</CardTitle>
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-4 text-sm">
           <DetailRow label="Type">{vehicleTypeLabel}</DetailRow>
           <DetailRow label="Marque">{data.vehicleBrand}</DetailRow>
           <DetailRow label="Modèle">{data.vehicleModel}</DetailRow>
-          <DetailRow label="Plaque">{data.plateNumber}</DetailRow>
+          <DetailRow label={data.vehicleType === 'maison' ? 'Référence du bien' : 'Immatriculation'}>{data.plateNumber}</DetailRow>
           <DetailRow label="Année">{data.vehicleYear || '—'}</DetailRow>
           <DetailRow label="Source d'énergie">{energyLabel || '—'}</DetailRow>
           <DetailRow label="Puissance fiscale">{data.fiscalPower || '—'}</DetailRow>

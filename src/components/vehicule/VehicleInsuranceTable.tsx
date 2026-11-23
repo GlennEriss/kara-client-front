@@ -63,7 +63,7 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
             <TableHeader className="bg-gray-50">
               <TableRow>
                 <TableHead>Membre</TableHead>
-                <TableHead>Véhicule</TableHead>
+                <TableHead>Bien assuré</TableHead>
                 <TableHead>Assurance</TableHead>
                 <TableHead>Montant</TableHead>
                 <TableHead>Validité</TableHead>

@@ -11,6 +11,7 @@ import { useMyAccess } from '@/hooks/useMyAccess'
 import { useVehicleInsurancesRealtimeSync } from '@/hooks/vehicule/useVehicleInsurancesRealtimeSync'
 import { useCreateVehicleInsurance, useDeleteVehicleInsurance, useRejectVehicleDeclaration, useRenewVehicleInsurance, useUpdateVehicleInsurance, useValidateVehicleDeclaration, useVehicleInsuranceList, useVehicleInsuranceStats } from '@/hooks/vehicule/useVehicleInsurances'
 import { Textarea } from '@/components/ui/textarea'
+import { listVehicleRewards } from '@/db/vehicle-rewards.db'
 import { diffVehicleDeclaration } from '@/utils/vehicle-declaration'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { VehicleInsurance, VehicleInsuranceFilters } from '@/types/types'
@@ -54,22 +55,9 @@ const ENERGY_LABELS: Record<string, string> = {
 }
 
 const EXPORT_HEADERS = [
-  'NOMS',
-  'PRENOMS',
-  'VILLE',
-  'QUARTIER',
-  'EMPLACEMENT',
-  'TEL',
-  'MARQUE VEHICULE',
-  'TYPE DE VIHUCLE',
-  "SOURCE D'ENERGIE",
-  'PUISSANCE FISCALE / ADMINISTRATIF',
-  "DATE D'EFFET",
-  'DATE DE FIN',
-  'NUMERO D\'IMMATRICULATION',
-  'MONTANT PAYE',
-  'FIN DE GARANTIE - MOIS',
-  'ASSUREUR ACTUEL',
+  'Nom', 'Prénom', 'Ville', 'Quartier', 'Emplacement', 'Téléphone', 'Marque et modèle',
+  'Type de bien', 'Énergie', 'Puissance fiscale', 'Date d’effet', 'Date de fin',
+  'Référence du bien', 'Prime (FCFA)', 'Garantie (mois)', 'Assureur', 'Reversé au parrain (FCFA)',
 ]
 
 export function VehicleInsuranceList() {
@@ -92,6 +80,7 @@ export function VehicleInsuranceList() {
   const [view, setView] = useState<'insurances' | 'pending' | 'rewards'>(
     searchParams.get('vue') === 'a-valider' ? 'pending' : searchParams.get('vue') === 'reversements' ? 'rewards' : 'insurances',
   )
+  const [isExporting, setIsExporting] = useState(false)
   const [partnersOpen, setPartnersOpen] = useState(false)
   const [pageSize, setPageSize] = useState(Number(searchParams.get('limit')) || 10)
 
@@ -123,49 +112,14 @@ export function VehicleInsuranceList() {
     page,
     pageSize,
   )
-  // Récupérer TOUS les membres (sans filtre hasCar côté Firestore pour éviter les problèmes d'indexation)
   const { data: membersData, isLoading: membersLoading, refetch: refetchMembers } = useAllMembers({}, 1, 1000)
-  // Récupérer toutes les assurances (sans pagination) pour obtenir la liste complète des membres avec assurance
-  // Déclarations en attente comprises : le formulaire doit retrouver le membre déclarant.
   const { data: allInsurancesList } = useVehicleInsuranceList({ declaration: 'all' }, 1, 10000)
 
-  // Récupérer les IDs des membres qui ont déjà une assurance véhicule
-  const memberIdsWithInsurance = useMemo(() => {
-    if (!allInsurancesList?.items) {
-      return new Set<string>()
-    }
-    const ids = allInsurancesList.items
-      .map((insurance: VehicleInsurance) => insurance.memberId)
-      .filter((id): id is string => !!id)
-    return new Set(ids)
-  }, [allInsurancesList])
-
-  const membersWithCar = useMemo(() => {
-    if (!membersData?.data) {
-      return []
-    }
-    
-    // Filtrer côté client pour inclure :
-    // 1. Les membres où hasCar === true
-    // 2. OU les membres qui ont déjà une assurance véhicule (même si hasCar n'est pas défini)
-    const filtered = membersData.data.filter(member => {
-      const hasCarField = member.hasCar === true
-      const hasExistingInsurance = memberIdsWithInsurance.has(member.id)
-      return hasCarField || hasExistingInsurance
-    })
-    
-    // Trier par nom pour faciliter la recherche
-    return filtered.sort((a, b) => {
-      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase()
-      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase()
-      return nameA.localeCompare(nameB)
-    })
-  }, [membersData, memberIdsWithInsurance])
   const companies = useMemo(() => stats?.byCompany.map(item => item.company) || [], [stats])
   // Exports : seulement les assurances validées.
   const allItems = (allInsurancesList?.items || []).filter((item) => !item.declarationStatus || item.declarationStatus === 'validated')
 
-  const buildExportRows = () => {
+  const buildExportRows = (paid: Map<string, number>) => {
     return allItems.map(insurance => {
       const firstName = insurance.holderType === 'member' ? (insurance.memberFirstName || '') : (insurance.nonMemberFirstName || '')
       const lastName = insurance.holderType === 'member' ? (insurance.memberLastName || '') : (insurance.nonMemberLastName || '')
@@ -177,7 +131,7 @@ export function VehicleInsuranceList() {
       const startDate = insurance.startDate ? insurance.startDate.toLocaleDateString('fr-FR') : ''
       const endDate = insurance.endDate ? insurance.endDate.toLocaleDateString('fr-FR') : ''
       const plateNumber = insurance.plateNumber || ''
-      const premiumAmount = insurance.premiumAmount ? insurance.premiumAmount.toLocaleString('fr-FR') : ''
+      const premiumAmount = insurance.premiumAmount ?? ''
       const warrantyMonths = insurance.warrantyMonths ?? ''
 
       return [
@@ -197,75 +151,52 @@ export function VehicleInsuranceList() {
         premiumAmount,
         warrantyMonths,
         insurance.insuranceCompany || '',
+        paid.get(insurance.id) ?? 0,
       ]
     })
   }
 
-  const handleExportExcel = async () => {
-    if (!allItems.length) {
-      toast.error('Aucune assurance à exporter')
-      return
+  const exportInsurances = async (format: 'pdf' | 'xlsx') => {
+    if (isExporting || !canExport || !allItems.length) return
+    setIsExporting(true)
+    try {
+      const [rewards, exporter] = await Promise.all([
+        listVehicleRewards(),
+        import('@/domains/vehicles/insurance-export'),
+      ])
+      const generated = new Date()
+      const rows = buildExportRows(exporter.paidInsuranceTotals(rewards))
+      const filename = `LE-KARA-assurances_${new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Libreville' }).format(generated)}.${format}`
+      if (format === 'pdf') {
+        exporter.insuranceListPdf(EXPORT_HEADERS, rows, generated).save(filename)
+      } else {
+        const book = exporter.insuranceListExcel(EXPORT_HEADERS, rows, generated)
+        const bytes = await book.xlsx.writeBuffer()
+        const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }))
+        const link = document.createElement('a')
+        link.href = url
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 10_000)
+      }
+      log({
+        action: 'export',
+        ...VEHICLE_AUDIT_MODULE,
+        targetType: 'assurances',
+        targetId: filename,
+        description: `Export des assurances validées — ${rows.length} dossier(s)`,
+        metadata: { format, count: rows.length },
+      })
+      toast.success(format === 'pdf' ? 'Export PDF généré' : 'Export Excel généré')
+    } catch {
+      toast.error('Impossible d’exporter les assurances et leurs reversements.')
+    } finally {
+      setIsExporting(false)
     }
-    const rows = buildExportRows()
-    const XLSX = await import('xlsx')
-    const sheetData = [
-      ["FICHE D'EVALUATION DE PROSPECTION MANDATAIRE MASTER"],
-      ['DONNEES CLIENTS'],
-      EXPORT_HEADERS,
-      ...rows,
-    ]
-    const worksheet = XLSX.utils.aoa_to_sheet(sheetData)
-    worksheet['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: EXPORT_HEADERS.length - 1 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: EXPORT_HEADERS.length - 1 } },
-    ]
-    worksheet['!cols'] = EXPORT_HEADERS.map(() => ({ wch: 22 }))
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Assurances')
-    const filename = `assurances_${new Date().toISOString().slice(0, 10)}.xlsx`
-    XLSX.writeFile(workbook, filename)
-    log({
-      action: 'export',
-      ...VEHICLE_AUDIT_MODULE,
-      targetType: 'assurances',
-      targetId: filename,
-      description: `Export Excel des assurances véhicules — ${allItems.length} ligne${allItems.length > 1 ? 's' : ''}`,
-      metadata: { format: 'xlsx', count: allItems.length },
-    })
-    toast.success('Exporter Excel généré')
-  }
-
-  const handleExportPdf = async () => {
-    if (!allItems.length) {
-      toast.error('Aucune assurance à exporter')
-      return
-    }
-    const rows = buildExportRows()
-    const { jsPDF } = await import('jspdf')
-    const autoTable = (await import('jspdf-autotable')).default
-    const doc = new jsPDF('landscape')
-    doc.setFontSize(14)
-    doc.text("FICHE D'EVALUATION DE PROSPECTION MANDATAIRE MASTER", 14, 14)
-    doc.setFontSize(11)
-    doc.text('DONNEES CLIENTS', 14, 22)
-    autoTable(doc, {
-      head: [EXPORT_HEADERS],
-      body: rows,
-      startY: 28,
-      styles: { fontSize: 8, cellPadding: 2 },
-      theme: 'grid',
-    })
-    const filename = `assurances_${new Date().toISOString().slice(0, 10)}.pdf`
-    doc.save(filename)
-    log({
-      action: 'export',
-      ...VEHICLE_AUDIT_MODULE,
-      targetType: 'assurances',
-      targetId: filename,
-      description: `Export PDF des assurances véhicules — ${allItems.length} ligne${allItems.length > 1 ? 's' : ''}`,
-      metadata: { format: 'pdf', count: allItems.length },
-    })
-    toast.success('Exporter PDF généré')
   }
 
   const createMutation = useCreateVehicleInsurance()
@@ -313,14 +244,14 @@ export function VehicleInsuranceList() {
       ...VEHICLE_AUDIT_MODULE,
       targetType: 'assurance',
       targetId: insurance.id,
-      description: `Consultation d'une assurance véhicule${insurance.plateNumber ? ` (${insurance.plateNumber})` : ''}`,
+      description: `Consultation d'une assurance${insurance.plateNumber ? ` (${insurance.plateNumber})` : ''}`,
     })
   }
 
   const handleSubmitForm = async (values: VehicleInsuranceFormValues) => {
     try {
       // Récupérer le membre sélectionné pour enrichir les données
-      const selectedMember = membersWithCar.find(m => m.id === values.memberId)
+      const selectedMember = membersData?.data.find(member => member.id === values.memberId)
       
       // Enrichir les valeurs avec les informations du membre
       const enrichedValues = {
@@ -331,7 +262,7 @@ export function VehicleInsuranceList() {
       
       if (formMode === 'create') {
         await createMutation.mutateAsync(enrichedValues as any)
-        toast.success('Assurance véhicule créée')
+        toast.success('Assurance créée')
       } else if (currentInsurance) {
         await updateMutation.mutateAsync({ id: currentInsurance.id, updates: enrichedValues })
         if (validateAfterSave) {
@@ -387,21 +318,17 @@ export function VehicleInsuranceList() {
     <div className="space-y-6">
       <PageHero
         icon={ShieldCheck}
-        title="Assurances des véhicules"
-        subtitle={
-          !membersLoading && membersWithCar.length > 0
-            ? `Suivi complet des membres possédant un véhicule et de leurs assurances. (${membersWithCar.length} ${membersWithCar.length === 1 ? 'membre' : 'membres'} avec véhicule)`
-            : 'Suivi complet des membres possédant un véhicule et de leurs assurances.'
-        }
+        title="Assurances et prospections"
+        subtitle="Gérez les assurances de véhicules, de maisons et d’autres biens. Suivez les échéances, les reversements et les relances des prospects."
         action={
           <div className="flex flex-wrap gap-2 md:gap-3">
-            <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20"><Link href="/vehicules/prospection">Prospection assurance</Link></Button>
+            <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20"><Link href="/vehicules/prospection">Voir les prospects</Link></Button>
             {canExport && (
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleExportExcel}
-                disabled={!allItems.length}
+                onClick={() => void exportInsurances('xlsx')}
+                disabled={isExporting || !allItems.length}
                 className="bg-white/10 hover:bg-white/20 border-white/20 text-white flex items-center gap-2"
               >
                 <FileSpreadsheet className="h-4 w-4" />
@@ -412,8 +339,8 @@ export function VehicleInsuranceList() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleExportPdf}
-                disabled={!allItems.length}
+                onClick={() => void exportInsurances('pdf')}
+                disabled={isExporting || !allItems.length}
                 className="bg-white/10 hover:bg-white/20 border-white/20 text-white flex items-center gap-2"
               >
                 <FileText className="h-4 w-4" />
@@ -477,7 +404,7 @@ export function VehicleInsuranceList() {
       </div>
       {view === 'pending' && (
         <p className="text-sm text-gray-600">
-          Véhicules déclarés et envoyés par les membres. Vérifiez chez l&apos;assureur partenaire, complétez la fiche
+          Assurances déclarées par les membres. Vérifiez chez l&apos;assureur partenaire, complétez la fiche
           (plaque, ville, parrain) puis validez, ou refusez avec un motif : le membre est prévenu dans les deux cas.
         </p>
       )}
@@ -532,13 +459,13 @@ export function VehicleInsuranceList() {
         <ModalContent size="3xl" className="!w-[calc(100vw-1rem)] max-h-[95dvh] sm:!w-[95vw]">
           <ModalHeader
             icon={ShieldCheck}
-            title={formMode === 'create' ? 'Ajouter un véhicule assuré' : validateAfterSave ? 'Valider la déclaration' : "Modifier l'assurance"}
+            title={formMode === 'create' ? 'Ajouter une assurance' : validateAfterSave ? 'Valider la déclaration' : "Modifier l'assurance"}
             description={
               validateAfterSave
                 ? "Vérifiez les informations auprès de l'assureur partenaire avant de valider."
                 : formMode === 'create'
-                  ? 'Renseignez le titulaire, le véhicule, la couverture et le reçu de paiement.'
-                  : "Mettez à jour les informations du véhicule et de son assurance."
+                  ? 'Renseignez le titulaire, le bien assuré, la couverture et le reçu de paiement.'
+                  : "Mettez à jour les informations du bien et de son assurance."
             }
           />
           <ModalBody className="space-y-4 bg-slate-50/60 px-4 py-4 sm:px-6 sm:py-5">
@@ -547,22 +474,6 @@ export function VehicleInsuranceList() {
                 insuranceCompany={currentInsurance.insuranceCompany}
                 premiumAmount={currentInsurance.premiumAmount}
               />
-            )}
-            {formMode === 'create' && (
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
-                {membersLoading ? (
-                  <p className="text-slate-500">Chargement des membres…</p>
-                ) : membersWithCar.length === 0 ? (
-                  <p className="font-medium text-amber-700">
-                    Aucun membre avec véhicule n&apos;est actuellement identifié. Vous pouvez néanmoins enregistrer un titulaire non-membre.
-                  </p>
-                ) : (
-                  <p className="text-slate-600">
-                    <span className="font-semibold text-[#234D65]">{membersWithCar.length}</span>{' '}
-                    {membersWithCar.length === 1 ? 'membre identifié avec un véhicule' : 'membres identifiés avec un véhicule'}.
-                  </p>
-                )}
-              </div>
             )}
             <VehicleInsuranceForm 
               onSubmit={handleSubmitForm} 
@@ -641,7 +552,7 @@ export function VehicleInsuranceList() {
             value={rejectionReason}
             onChange={event => setRejectionReason(event.target.value)}
             rows={4}
-            placeholder="Ex. : véhicule introuvable chez l'assureur partenaire, numéro de police incorrect…"
+            placeholder="Ex. : dossier introuvable chez l'assureur partenaire, numéro de police incorrect…"
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDeclarationToReject(null)} disabled={rejectMutation.isPending}>

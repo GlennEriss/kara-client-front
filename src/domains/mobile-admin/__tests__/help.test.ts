@@ -41,7 +41,7 @@ describe('centre d’aide et périmètre mobile', () => {
     expect(JSON.stringify(HELP_TOPICS)).toContain(' et la réinitialisation')
     expect(mobileSections.some((s) => /import|reset/.test(s.key))).toBe(false)
     expect(
-      helpOverview(rows).categories.some((c) => c.value === 'Charité'),
+      helpOverview(rows).categories.some((c) => c.value === 'Vie de l’association'),
     ).toBe(true)
   })
   it('filtre les pages de chaque fiche et les accès directs par permissions', () => {
