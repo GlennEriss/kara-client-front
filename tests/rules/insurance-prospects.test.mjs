@@ -76,3 +76,21 @@ test('un quartier rattaché doit correspondre au référentiel et au bon parent'
   await assertFails(setDoc(doc(db(), 'insurance-prospects/bad-parent'), { ...row(), ...location, communeId: 'other-city' }))
   await assertFails(setDoc(doc(db(), 'insurance-prospects/bad-label'), { ...row(), ...location, quarter: 'Faux nom' }))
 })
+
+test('le catalogue est administré par le back-office et les membres peuvent choisir les types proposés', async () => {
+  const path = 'settings/insuranceAssetTypes'
+  const values = ['custom:Vitrine réfrigérée']
+  await assertFails(setDoc(doc(db(), path), { values }))
+  await assertSucceeds(setDoc(doc(db('manager'), path), { values }))
+  await assertSucceeds(getDoc(doc(db(), path)))
+  await assertSucceeds(setDoc(doc(db(), 'insurance-prospects/building'), { ...row(), vehicleType: 'apartment' }))
+  await assertSucceeds(setDoc(doc(db(), 'insurance-prospects/custom'), { ...row(), vehicleType: values[0] }))
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/unknown'), { ...row(), vehicleType: 'custom:Choix non publié' }))
+  await assertFails(setDoc(doc(db(), 'insurance-prospects/free'), { ...row(), vehicleType: 'other' }))
+  await assertSucceeds(setDoc(doc(db(), 'insurance-prospects/free'), { ...row(), vehicleType: 'other', vehicleDescription: 'Scène mobile' }))
+  const draft = { holderType: 'member', memberId: 'M001', status: 'active', declarationStatus: 'draft' }
+  const insurance = doc(db(), 'vehicle-insurances/custom-draft')
+  await assertSucceeds(setDoc(insurance, { ...draft, vehicleType: values[0] }))
+  await assertFails(updateDoc(insurance, { vehicleType: 'other' }))
+  await assertSucceeds(updateDoc(insurance, { vehicleType: 'other', vehicleDescription: 'Scène mobile' }))
+})

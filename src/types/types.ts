@@ -2373,7 +2373,7 @@ export const CHARITY_EVENT_STATUS_LABELS: Record<CharityEventStatus, string> = {
 
 export type VehicleInsuranceStatus = 'active' | 'expires_soon' | 'expired'
 
-export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'bus' | 'maison' | 'other'
+export type VehicleType = string
 
 export type VehicleEnergySource = 'essence' | 'diesel' | 'electrique' | 'hybride' | 'gaz' | 'autre'
 
@@ -2406,6 +2406,7 @@ export interface VehicleInsurance extends VehicleLocation {
   sponsorMatricule?: string | null
   sponsorContacts?: string[]
   vehicleType: VehicleType
+  vehicleDescription?: string | null
   vehicleBrand?: string
   vehicleModel?: string
   vehicleYear?: number

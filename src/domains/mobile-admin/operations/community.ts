@@ -1,3 +1,5 @@
+import { insuranceAssetOptions, isInsuranceAssetType } from '@/domains/vehicles/asset-types'
+import { ensureConfiguredAssetType } from '@/domains/vehicles/asset-types-server'
 import {
   getInsuranceHolderPhone,
   getInsuranceHolderName,
@@ -173,14 +175,13 @@ const insuranceFields = [
   ]), initial: 'quarter' },
   idField('quarterId', 'Quartier du bien assuré (si Quartier)', 'vehicleQuarters', false),
   textField('locationDetails', 'Précisez l’emplacement (si Autre)', false),
-  select('vehicleType', 'Bien assuré', [
-    'car',
-    'motorcycle',
-    'truck',
-    'bus',
-    'maison',
-    'other',
-  ]),
+  field('vehicleType', 'Type de bien assuré', 'select', z.string().refine(isInsuranceAssetType), {
+    options: insuranceAssetOptions(),
+    initial: 'car',
+  }),
+  field('vehicleDescription', 'Précisez le type de bien', 'text', z.string().trim().max(60).optional(), {
+    showWhen: { key: 'vehicleType', value: 'other' },
+  }),
   textField('plateNumber', 'Immatriculation ou référence du bien'),
   textField('vehicleBrand', 'Marque', false),
   textField('vehicleModel', 'Modèle', false),
@@ -795,7 +796,8 @@ export function communityActions(
               const snapshot = await ctx.services.db.collection(collection).doc(id).get()
               return snapshot.exists ? snapshot.data() ?? null : null
             })
-            const data = vehicleInsuranceFormSchema.parse({ ...payload, ...location })
+            const data = vehicleInsuranceFormSchema.parse({ ...payload, ...location, vehicleDescription: payload.vehicleType === 'other' ? payload.vehicleDescription : null })
+            await ensureConfiguredAssetType(ctx.services.db, data.vehicleType, ctx.row?.vehicleType)
             const receipt = await asset(ctx, 'receipt')
             if (receipt)
               data.attachments = {

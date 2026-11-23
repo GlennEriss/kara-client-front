@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isInsuranceAssetType } from "@/domains/vehicles/asset-types"
 
 export const PROSPECT_COLLECTION = 'insurance-prospects'
 export const KARA_SPONSOR_ID = '2548.MK.290126'
@@ -11,13 +12,6 @@ export const prospectStatuses = {
   lost: 'Prospect perdu',
 } as const
 export type ProspectStatus = keyof typeof prospectStatuses
-export const vehicleTypes = {
-  car: 'Voiture',
-  motorcycle: 'Moto',
-  truck: 'Camion',
-  bus: 'Bus',
-  other: 'Autre',
-} as const
 export const civilDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date requise')
@@ -36,10 +30,10 @@ export const prospectSchema = z
     plateNumber: z
       .string()
       .trim()
-      .min(2, 'Immatriculation requise')
+      .min(2, 'Immatriculation ou référence du bien requise')
       .max(30)
       .transform((v) => v.toUpperCase()),
-    vehicleType: z.enum(['car', 'motorcycle', 'truck', 'bus', 'other']),
+    vehicleType: z.string().refine(isInsuranceAssetType, "Sélectionnez un type de bien"),
     vehicleDescription: optionalText,
     city: z.string().trim().min(2, 'Ville requise').max(100),
     communeId: z.string().optional(),
@@ -68,13 +62,13 @@ export const prospectSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['locationDetails'],
-        message: 'Précisez où se trouve le véhicule',
+        message: 'Précisez où se trouve le bien',
       })
     if (v.vehicleType === 'other' && !v.vehicleDescription)
       ctx.addIssue({
         code: 'custom',
         path: ['vehicleDescription'],
-        message: 'Précisez le type de véhicule',
+        message: 'Précisez le type de bien',
       })
   })
 export type ProspectInput = z.input<typeof prospectSchema>

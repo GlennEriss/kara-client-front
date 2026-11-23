@@ -1,5 +1,8 @@
 'use client'
 
+import { insuranceAssetOptions } from '@/domains/vehicles/asset-types'
+import { useInsuranceAssetTypes } from '@/domains/vehicles/use-insurance-asset-types'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,6 +20,7 @@ interface Props {
 }
 
 export function VehicleInsuranceFilters({ filters, onChange, onReset, companies, quarters = [] }: Props) {
+  const { data: customAssets } = useInsuranceAssetTypes()
   const uniqueCompanies = useMemo(() => {
     if (!companies || companies.length === 0) return []
     return Array.from(new Set(companies)).sort((a, b) => a.localeCompare(b))
@@ -72,12 +76,9 @@ export function VehicleInsuranceFilters({ filters, onChange, onReset, companies,
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous</SelectItem>
-            <SelectItem value="car">Voiture</SelectItem>
-            <SelectItem value="motorcycle">Moto</SelectItem>
-            <SelectItem value="truck">Camion</SelectItem>
-            <SelectItem value="bus">Bus</SelectItem>
-            <SelectItem value="maison">Maison</SelectItem>
-            <SelectItem value="other">Autre</SelectItem>
+            {insuranceAssetOptions(customAssets, filters.vehicleType).map(({ value, label }) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

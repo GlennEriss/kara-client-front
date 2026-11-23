@@ -41,6 +41,7 @@ export interface FinanceField {
   accept?: string[]
   maxBytes?: number
   keepEmpty?: boolean
+  showWhen?: { key: string; value: string }
   help?: string
 }
 export interface FieldDefinition extends FinanceField {

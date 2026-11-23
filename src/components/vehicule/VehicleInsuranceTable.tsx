@@ -1,5 +1,7 @@
 'use client'
 
+import { assetTypeLabel } from '@/domains/vehicles/asset-types'
+
 import MembershipPagination from '@/components/memberships/MembershipPagination'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -25,14 +27,6 @@ interface Props {
   onItemsPerPageChange: (limit: number) => void
 }
 
-const VEHICLE_TYPE_LABELS: Record<string, string> = {
-  car: 'Voiture',
-  motorcycle: 'Moto',
-  truck: 'Camion',
-  bus: 'Bus',
-  maison: 'Maison',
-  other: 'Autre',
-}
 
 const ENERGY_LABELS: Record<string, string> = {
   essence: 'Essence',
@@ -96,7 +90,7 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                 const holderReference = item.holderType === 'member' ? (item.memberMatricule || 'Matricule inconnu') : 'Externe'
                 const phone = item.primaryPhone || item.memberContacts?.[0] || item.nonMemberPhone1 || ''
                 const city = [item.city, item.quarterId ? item.quarter : item.locationType === 'other' ? item.locationDetails : 'Quartier à renseigner'].filter(Boolean).join(' · ')
-                const vehicleTypeLabel = VEHICLE_TYPE_LABELS[item.vehicleType] || item.vehicleType
+                const vehicleTypeLabel = assetTypeLabel(item.vehicleType, item.vehicleDescription)
                 const energyLabel = item.energySource ? (ENERGY_LABELS[item.energySource] || item.energySource) : ''
                 return (
                   <TableRow key={item.id} className="hover:bg-gray-50">

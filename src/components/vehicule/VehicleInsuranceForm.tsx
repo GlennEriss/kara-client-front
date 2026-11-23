@@ -17,6 +17,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import MemberSearchInput from './MemberSearchInput'
 import { VehicleLocationFields } from './VehicleLocationFields'
+import { insuranceAssetOptions, isRoadAssetType } from '@/domains/vehicles/asset-types'
+import { useInsuranceAssetTypes } from '@/domains/vehicles/use-insurance-asset-types'
 import { pickVehicleLocation } from '@/domains/vehicles/location'
 
 const DEFAULT_PHONE_PREFIX = '+241 '
@@ -45,6 +47,7 @@ interface Props {
 }
 
 export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting = false, mode = 'create', isLoadingMembers = false }: Props) {
+  const { data: customAssets } = useInsuranceAssetTypes()
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const defaultValues = useMemo(() => {
@@ -103,6 +106,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
       nonMemberPhone1: initialInsurance.nonMemberPhone1 || '',
       nonMemberPhone2: initialInsurance.nonMemberPhone2 || null,
       vehicleType: initialInsurance.vehicleType,
+      vehicleDescription: initialInsurance.vehicleDescription ?? '',
       vehicleBrand: initialInsurance.vehicleBrand,
       vehicleModel: initialInsurance.vehicleModel,
       vehicleYear: initialInsurance.vehicleYear,
@@ -125,6 +129,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
   }, [initialInsurance])
 
   const form = useVehicleInsuranceForm(defaultValues)
+  const selectedAssetType = form.watch('vehicleType')
 
   const holderType = form.watch('holderType')
   const holderMemberId = form.watch('memberId')
@@ -442,29 +447,35 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="car">Voiture</SelectItem>
-                        <SelectItem value="motorcycle">Moto</SelectItem>
-                        <SelectItem value="truck">Camion</SelectItem>
-                        <SelectItem value="bus">Bus</SelectItem>
-                        <SelectItem value="maison">Maison</SelectItem>
-                        <SelectItem value="other">Autre</SelectItem>
+                        {insuranceAssetOptions(customAssets, field.value).map(({ value, label }) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              {selectedAssetType === 'other' && (
+                <FormField control={form.control} name="vehicleDescription" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Précisez le type de bien</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ''} maxLength={60} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
               <FormField
                 control={form.control}
                 name="plateNumber"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-semibold">
-                      {form.watch('vehicleType') === 'maison' ? 'Référence du bien' : "Plaque d'immatriculation"}
+                      {!isRoadAssetType(selectedAssetType) ? 'Référence du bien' : "Plaque d'immatriculation"}
                     </FormLabel>
                     <Input
                       {...field}
-                      placeholder={form.watch('vehicleType') === 'maison' ? 'Référence du contrat ou du bien' : 'AA-123-BB'}
+                      placeholder={!isRoadAssetType(selectedAssetType) ? 'Référence du contrat ou du bien' : 'AA-123-BB'}
                       className="h-11 uppercase"
                     />
                     <FormMessage />

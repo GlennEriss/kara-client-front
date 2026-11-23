@@ -1,4 +1,7 @@
 'use client'
+
+import { assetTypeLabel, insuranceAssetOptions, isRoadAssetType } from "@/domains/vehicles/asset-types"
+import { useInsuranceAssetTypes } from "@/domains/vehicles/use-insurance-asset-types"
 import { VehicleLocationStats } from '@/components/vehicule/VehicleLocationStats'
 import { vehicleLocationStats } from '@/domains/vehicles/location'
 import { VehicleLocationFields } from '@/components/vehicule/VehicleLocationFields'
@@ -29,7 +32,6 @@ import {
   prospectStatuses,
   prospectPhase,
   daysToExpiry,
-  vehicleTypes,
   KARA_SPONSOR_ID,
   type InsuranceProspect,
   type ProspectInput,
@@ -91,6 +93,7 @@ export function ProspectsPage({
   loadInsurances?: (row: InsuranceProspect) => Promise<Choice[]>
   insuranceCreateUrl?: (row: InsuranceProspect) => string
 }) {
+  const { data: customAssets } = useInsuranceAssetTypes()
   const client = useQueryClient(),
     repository = new InsuranceProspectRepository()
   const [search, setSearch] = useState(''),
@@ -369,7 +372,7 @@ export function ProspectsPage({
                 Choisissez « Nouveau prospect ». Indiquez le contact, le
                 téléphone, la plaque, l’assureur actuel et la fin de
                 l’assurance. Précisez la ville et le quartier, ou choisissez «
-                Autre emplacement » et décrivez le lieu. Le type de véhicule «
+                Autre emplacement » et décrivez le lieu. Le type de bien «
                 Autre » doit aussi être précisé.
               </p>
             </div>
@@ -482,7 +485,7 @@ export function ProspectsPage({
                     <div>
                       <h2 className="text-lg font-bold">{row.plateNumber}</h2>
                       <p className="text-sm text-muted-foreground">
-                        {row.ownerName} · {vehicleTypes[row.vehicleType]}
+                        {row.ownerName} · {assetTypeLabel(row.vehicleType, row.vehicleDescription)}
                       </p>
                     </div>
                     <span className="h-fit rounded-lg bg-[#234D65]/10 px-3 py-1 text-xs font-semibold text-[#234D65]">
@@ -626,12 +629,12 @@ export function ProspectsPage({
                   {input('ownerName', 'Nom du contact', 'text', true)}
                   {input('phone', 'Téléphone', 'tel', true)}
                   {input('whatsapp', 'WhatsApp', 'tel')}
-                  {input('plateNumber', 'Immatriculation', 'text', true)}
-                  {choose('vehicleType', 'Type de véhicule', vehicleTypes)}
+                  {input('plateNumber', isRoadAssetType(values.vehicleType) ? 'Immatriculation' : 'Référence du bien', 'text', true)}
+                  {choose('vehicleType', 'Type de bien', Object.fromEntries(insuranceAssetOptions(customAssets, values.vehicleType).map(({ value, label }) => [value, label])))}
                   {values.vehicleType === 'other' &&
                     input(
                       'vehicleDescription',
-                      'Précisez le véhicule',
+                      'Précisez le type de bien',
                       'text',
                       true,
                     )}
