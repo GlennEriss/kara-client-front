@@ -1,3 +1,4 @@
+import { isProspectingAccount } from '@/domains/auth/prospecting-role'
 import { pickVehicleLocation, resolveVehicleLocation, type VehicleLocation } from '@/domains/vehicles/location'
 import {
   prospectSchema,
@@ -51,8 +52,11 @@ export class InsuranceProspectRepository {
       if (sponsor === KARA_SPONSOR_ID) sponsorName = 'LE KARA — Inconnu'
       else {
         const member = await f.getDoc(f.doc(f.db, 'users', sponsor))
-        if (!member.exists()) throw Error('Parrain introuvable')
-        sponsorName = [member.data().firstName, member.data().lastName]
+        const staff = member.exists() ? undefined : (await f.getDoc(f.doc(f.db, 'admins', sponsor))).data()
+        const person = member.exists() ? member.data() : staff
+        if (!person || (!member.exists() && (!isProspectingAccount(staff) || staff?.isActive === false)))
+          throw Error('Parrain ou agent introuvable')
+        sponsorName = [person.firstName, person.lastName]
           .filter(Boolean)
           .join(' ')
       }
@@ -142,8 +146,11 @@ export class InsuranceProspectRepository {
         let sponsorName = 'LE KARA — Inconnu'
         if (sponsor !== KARA_SPONSOR_ID) {
           const member = await tx.get(f.doc(f.db, 'users', sponsor))
-          if (!member.exists()) throw Error('Parrain introuvable')
-          sponsorName = [member.data().firstName, member.data().lastName]
+          const staff = member.exists() ? undefined : (await tx.get(f.doc(f.db, 'admins', sponsor))).data()
+          const person = member.exists() ? member.data() : staff
+          if (!person || (!member.exists() && (!isProspectingAccount(staff) || staff?.isActive === false)))
+            throw Error('Parrain ou agent introuvable')
+          sponsorName = [person.firstName, person.lastName]
             .filter(Boolean)
             .join(' ')
         }

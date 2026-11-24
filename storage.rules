@@ -21,8 +21,24 @@ service firebase.storage {
       );
     }
 
+    function isProspectingStaff() {
+      return isAuthenticated() && (
+        request.auth.token.get('role', '') == 'AgentProspection' ||
+        (firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
+         firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('roles', []).hasAny(['AgentProspection']))
+      );
+    }
+
+    function isActiveProspectingOwner(memberId) {
+      return isProspectingStaff() && request.auth.uid == memberId &&
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('roles', []).hasAny(['AgentProspection']) &&
+        firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('isActive', true) == true &&
+        firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('mustChangePassword', false) == false;
+    }
+
     function isAdmin() {
-      return isAuthenticated() && !isInsuranceManager() && (
+      return isAuthenticated() && !isProspectingStaff() && !isInsuranceManager() && (
         request.auth.token.get('role', '') in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur', 'AgentRecouvrement'] ||
         // Repli sur le document `admins` (robuste si le custom claim est absent,
         // ex. après une migration d'UID).
@@ -92,18 +108,24 @@ service firebase.storage {
 
     // Pièces d'une déclaration d'assurance véhicule.
     match /vehicle-insurances/{memberId}/{insuranceId}/{fileName} {
-      allow read: if isAdmin() || isInsuranceManager() || (
+      allow read: if isAdmin() || (!isProspectingStaff() && isInsuranceManager()) || (
         isAuthenticated() && (
-          request.auth.uid == memberId ||
-          (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+          isActiveProspectingOwner(memberId) ||
+          (!isProspectingStaff() && (
+            request.auth.uid == memberId ||
+            (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+          ))
         )
       );
-      allow create: if (isAdmin() || isInsuranceManager() || (
+      allow create: if (isAdmin() || (!isProspectingStaff() && isInsuranceManager()) || (
         isAuthenticated() && (
-          request.auth.uid == memberId ||
-          (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+          isActiveProspectingOwner(memberId) ||
+          (!isProspectingStaff() && (
+            request.auth.uid == memberId ||
+            (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+          ))
         ) &&
         firestore.exists(/databases/(default)/documents/vehicle-insurances/$(insuranceId)) &&
         firestore.get(/databases/(default)/documents/vehicle-insurances/$(insuranceId)).data.memberId == memberId

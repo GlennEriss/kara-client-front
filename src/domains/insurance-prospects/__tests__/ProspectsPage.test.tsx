@@ -162,7 +162,7 @@ describe('parcours web de prospection', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Attribuer le parrainage' }),
     )
-    fireEvent.change(screen.getByLabelText('Parrain'), {
+    fireEvent.change(screen.getByLabelText('Parrain ou agent'), {
       target: { value: KARA_SPONSOR_ID },
     })
     fireEvent.change(screen.getByLabelText('Résultat / motif'), {

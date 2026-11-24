@@ -15,7 +15,7 @@ import {
   PERMISSIONS_VERSION,
   restrictedRoleOf,
 } from '@/constantes/permissions'
-import { ADMIN_ROLES } from '@/types/types'
+import { STAFF_ROLES } from '@/types/types'
 import {
   CALL_OUTCOME_LABELS,
   CONTACT_CHANNEL_LABELS,
@@ -48,7 +48,7 @@ const adminFields = [
   select('gender', 'Sexe', ['Homme', 'Femme']),
   textField('email', 'Email'),
   textField('phone', 'Téléphone (+241…)'),
-  select('role', 'Rôle', [...ADMIN_ROLES]),
+  select('role', 'Rôle', [...STAFF_ROLES]),
   rows(
     'permissions',
     'Autorisations',
@@ -225,7 +225,7 @@ export function administrationActions(
               ...d,
               contacts: [d.phone],
               roles,
-              permissions: roles.includes('SuperAdmin')
+              permissions: roles.includes('SuperAdmin') || roles.includes('AgentProspection')
                 ? []
                 : effectivePermissions((d.permissions || []).map((r: any) => r.permission), {
                     version: PERMISSIONS_VERSION,

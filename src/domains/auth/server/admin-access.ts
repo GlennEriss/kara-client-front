@@ -1,10 +1,12 @@
 import { adminFirestore } from '@/firebase/adminFirestore'
+import { isProspectingAccount } from '../prospecting-role'
 import { hasAdminRole, resolveAdminAccess } from '../access-policy'
 import type { SessionClaims } from './session'
 
 /** Une erreur de lecture ne doit jamais devenir des permissions implicites. */
 export async function loadAdminAccess(claims: SessionClaims) {
   if (!adminFirestore) throw new Error('Permissions temporairement indisponibles')
+  if (isProspectingAccount(claims)) return null
   const emails = [...new Set([claims.email?.trim(), claims.email?.trim().toLowerCase()].filter((value): value is string => !!value))]
   const groups = await Promise.all(['users', 'admins'].map(async collection => {
     const ref = adminFirestore!.collection(collection)
@@ -21,6 +23,7 @@ export async function loadAdminAccess(claims: SessionClaims) {
     return { collection, docs }
   }))
   const docs = groups.flatMap(group => group.docs)
+  if (docs.some(isProspectingAccount)) return null
   const isAdmin = hasAdminRole(claims) || docs.some(hasAdminRole) || groups.some(group => group.collection === 'admins' && group.docs.length > 0)
   return isAdmin ? resolveAdminAccess(docs, claims) : null
 }

@@ -83,6 +83,7 @@ export const listSchema = z
         'Secretary',
         'AgentRecouvrement',
         'GestionnaireVehicules',
+        'AgentProspection',
       ])
       .optional(),
     agentTab: z.enum(['birthdays']).optional(),
@@ -1070,6 +1071,13 @@ export async function getAdminChoices(request: NextRequest, key: string) {
               ['Adherant', 'Bienfaiteur', 'Sympathisant'].includes(role),
             ),
         )
+    }
+    if (input.source === 'members' && key === 'vehicles' && dataset.key === 'prospects') {
+      const agents = await access.services.db.collection('admins').where('roles', 'array-contains', 'AgentProspection').get()
+      rows.unshift(...agents.docs.flatMap(doc => {
+        const agent = doc.data()
+        return agent.isActive === false ? [] : [{ id: doc.id, name: `${agent.firstName || ''} ${agent.lastName || ''} · Agent de prospection` }]
+      }))
     }
     return mobileJson({
       items: rows

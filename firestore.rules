@@ -22,13 +22,29 @@ service cloud.firestore {
     }
 
     function canManageInsurance() {
-      return isAdmin() || isInsuranceManager();
+      return isAdmin() || (!isProspectingStaff() && isInsuranceManager());
     }
 
     // Vérifie si l'utilisateur est admin (Admin, SuperAdmin ou Secretary)
     // Vérifie d'abord via custom claims (token.role), puis via collection admins
+    function isProspectingStaff() {
+      return isAuthenticated() && (
+        request.auth.token.get('role', '') == 'AgentProspection' ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('roles', []).hasAny(['AgentProspection']))
+      );
+    }
+
+    function isActiveProspectingOwner(memberId) {
+      return isProspectingStaff() && request.auth.uid == memberId &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('roles', []).hasAny(['AgentProspection']) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('isActive', true) == true &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('mustChangePassword', false) == false;
+    }
+
     function isAdmin() {
-      return isAuthenticated() && !isInsuranceManager() && (
+      return isAuthenticated() && !isProspectingStaff() && !isInsuranceManager() && (
         // Méthode 1 : Vérifier via custom claims (token.role)
         request.auth.token.get('role', '') in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur', 'AgentRecouvrement'] ||
         // Méthode 2 : Vérifier via collection admins (fallback si custom claims non définis)
@@ -63,11 +79,15 @@ service cloud.firestore {
     // Vérifie qu'un identifiant membre (matricule OU uid) appartient à l'utilisateur connecté.
     // Réutilisable pour toutes les collections où un document est rattaché à un membre.
     function isMemberOwner(memberId) {
-      return isAuthenticated() && (
+      return isAuthenticated() && !isProspectingStaff() && (
         memberId == request.auth.uid ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
       );
+    }
+
+    function isInsuranceOwner(memberId) {
+      return isMemberOwner(memberId) || isActiveProspectingOwner(memberId);
     }
 
     // Les versements d'adhésion sont rattachés à la DEMANDE d'adhésion
@@ -398,7 +418,7 @@ service cloud.firestore {
     // ==========================================
     match /shops/{shopId} {
       // Lecture par tout membre connecté (annuaire visible côté membre)
-      allow read: if isAuthenticated() && !isInsuranceManager();
+      allow read: if isAuthenticated() && !isInsuranceManager() && !isProspectingStaff();
 
       // Un membre soumet sa propre boutique depuis son portail : elle arrive
       // en attente et hors annuaire. Il ne peut ni se publier lui-même ni
@@ -1591,7 +1611,7 @@ service cloud.firestore {
 
     match /insurance-prospects/{prospectId} {
       function ownsProspect(data) {
-        return isAuthenticated() && data.sponsorMemberId is string && isMemberOwner(data.sponsorMemberId);
+        return isAuthenticated() && data.sponsorMemberId is string && isInsuranceOwner(data.sponsorMemberId);
       }
       function validProspect(data, previousType) {
         return validVehicleGeography(data) && data.ownerName is string && data.ownerName.size() >= 2 && data.ownerName.size() <= 150 &&
@@ -1635,7 +1655,7 @@ service cloud.firestore {
       allow read: if canManageInsurance() || (
         isAuthenticated() &&
         resource.data.memberId is string &&
-        isMemberOwner(resource.data.memberId)
+        isInsuranceOwner(resource.data.memberId)
       );
       // Création : admin OU le membre qui déclare son propre véhicule, en brouillon
       // (memberId doit pointer vers lui-même + holderType doit être 'member')
@@ -1643,7 +1663,7 @@ service cloud.firestore {
         isAuthenticated() &&
         request.resource.data.holderType == 'member' &&
         request.resource.data.memberId is string &&
-        isMemberOwner(request.resource.data.memberId) &&
+        isInsuranceOwner(request.resource.data.memberId) &&
         request.resource.data.declarationStatus == 'draft' &&
         validVehicleGeography(request.resource.data) &&
         validInsuranceAssetType(request.resource.data, null) &&
@@ -1654,7 +1674,7 @@ service cloud.firestore {
       allow update: if canManageInsurance() || (
         isAuthenticated() &&
         resource.data.memberId is string &&
-        isMemberOwner(resource.data.memberId) &&
+        isInsuranceOwner(resource.data.memberId) &&
         resource.data.declarationStatus in ['draft', 'rejected'] &&
         validVehicleGeography(request.resource.data) &&
         request.resource.data.declarationStatus in ['draft', 'pending'] &&
@@ -1671,7 +1691,7 @@ service cloud.firestore {
       allow delete: if canManageInsurance() || (
         isAuthenticated() &&
         resource.data.memberId is string &&
-        isMemberOwner(resource.data.memberId) &&
+        isInsuranceOwner(resource.data.memberId) &&
         resource.data.declarationStatus in ['draft', 'rejected']
       );
 

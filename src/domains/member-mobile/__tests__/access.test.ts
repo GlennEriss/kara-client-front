@@ -78,6 +78,18 @@ describe('accès personnel mobile membre', () => {
       ((await requireMemberCaller(req(), true)) as NextResponse).status,
     ).toBe(403)
   })
+  it('autorise l’agent actif uniquement dans les routes de prospection et réutilise son UID', async () => {
+    state.verify.mockResolvedValue({ uid: 'OWN-UID', role: 'AgentProspection' })
+    state.dossier = { roles: ['AgentProspection'], isActive: true, mustChangePassword: true }
+    expect(((await requireMemberCaller(req(), true)) as NextResponse).status).toBe(403)
+    expect(await requireMemberCaller(req(), true, true)).toMatchObject({ matricule: 'OWN-UID', prospecting: true })
+    expect(((await requireMemberCaller(req(), false, true)) as NextResponse).status).toBe(403)
+    state.dossier.mustChangePassword = false
+    expect(await requireMemberCaller(req(), false, true)).toMatchObject({ matricule: 'OWN-UID', prospecting: true })
+    state.dossier.isActive = false
+    expect(((await requireMemberCaller(req(), true, true)) as NextResponse).status).toBe(403)
+    expect(state.ids.every(id => id === 'admins/OWN-UID')).toBe(true)
+  })
   it('permet seulement l’accueil de première connexion avant mot de passe et règlement', async () => {
     state.member.mustChangePassword = true
     expect(((await requireMemberCaller(req())) as NextResponse).status).toBe(

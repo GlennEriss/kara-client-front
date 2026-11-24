@@ -41,6 +41,7 @@ function RoleBadge({ role }: { role: AdminRole }) {
     Admin: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
     Secretary: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
     AgentRecouvrement: { bg: 'bg-teal-50', text: 'text-teal-700', dot: 'bg-teal-500' },
+    AgentProspection: { bg: 'bg-cyan-50', text: 'text-cyan-700', dot: 'bg-cyan-500' },
     GestionnaireVehicules: { bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-500' },
   }
   const variant = variants[role]
@@ -85,6 +86,7 @@ const COLORS = {
   Secretary: '#f59e0b',
   AgentRecouvrement: '#14b8a6',
   GestionnaireVehicules: '#f97316',
+  AgentProspection: '#0891b2',
   active: '#10b981',
   inactive: '#ef4444'
 }
@@ -135,6 +137,7 @@ export default function AdminDashboard() {
       Secretary: 0,
       AgentRecouvrement: 0,
       GestionnaireVehicules: 0,
+      AgentProspection: 0,
     }
     let active = 0
     admins.forEach((a) => {
@@ -493,6 +496,7 @@ export default function AdminDashboard() {
                   <SelectItem value="Admin">{ADMIN_ROLE_LABELS.Admin}</SelectItem>
                   <SelectItem value="Secretary">{ADMIN_ROLE_LABELS.Secretary}</SelectItem>
                   <SelectItem value="AgentRecouvrement">{ADMIN_ROLE_LABELS.AgentRecouvrement}</SelectItem>
+                  <SelectItem value="AgentProspection">{ADMIN_ROLE_LABELS.AgentProspection}</SelectItem>
                   <SelectItem value="GestionnaireVehicules">{ADMIN_ROLE_LABELS.GestionnaireVehicules}</SelectItem>
                 </SelectContent>
               </Select>

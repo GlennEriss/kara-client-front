@@ -14,7 +14,7 @@ describe('routes personnelles du lot 4',()=>{
  it('contrôle la session et le règlement avant toute donnée du lot',async()=>{
   state.caller.mockResolvedValue(NextResponse.json({error:'Interdit'},{status:403}))
   for(const resource of ['insurance','charity','groups','group'])expect((await GET(request(resource),context(resource))).status).toBe(403)
-  for(const resource of ['insurance-prospect','charity-intent']){expect((await POST(request(resource,{}),context(resource))).status).toBe(403);expect(state.caller).toHaveBeenLastCalledWith(expect.anything(),false)}
+  for(const resource of ['insurance-prospect','charity-intent']){expect((await POST(request(resource,{}),context(resource))).status).toBe(403);expect(state.caller).toHaveBeenLastCalledWith(expect.anything(),false,resource==='insurance-prospect')}
  })
  it('retourne des réponses privées et ne lit aucun groupe sans appartenance vérifiée',async()=>{
   const {db,reads}=memoryDb({'users/UID-TEST':{groupIds:[]},'groups/OTHER':{name:'secret'}});state.db=db

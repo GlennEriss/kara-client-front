@@ -31,7 +31,7 @@ const isSuperAdminRoles = (roles?: readonly string[]) =>
 
 /** Permissions enregistrées : aucune pour un superAdmin, les cases cochées sinon. */
 const permissionsForRoles = (roles: readonly string[] | undefined, permissions: string[] | undefined) =>
-  isSuperAdminRoles(roles) ? [] : effectivePermissions(permissions ?? [], {
+  isSuperAdminRoles(roles) || roles?.includes('AgentProspection') ? [] : effectivePermissions(permissions ?? [], {
     version: PERMISSIONS_VERSION,
     restrictedRole: restrictedRoleOf(roles),
   })
@@ -540,6 +540,11 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
                 )
               }
               if (!canManageAdmins) return null
+              if (selectedRoles.includes('AgentProspection')) return (
+                <p className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-800">
+                  Connexion sur le web membre et dans l’espace membre de l’app. L’agent consulte ses propres assurances et prospects.
+                </p>
+              )
               const permissions = form.watch('permissions') || []
               const restrictedRole = restrictedRoleOf(selectedRoles)
               return (
