@@ -62,12 +62,12 @@ export function InsuranceSimulator() {
     queryFn: async ({ signal }) => {
       const response = await fetch('/api/vehicules/baremes?simulation=ogar', { signal, cache: 'no-store' })
       if (!response.ok) throw Error('Barème indisponible')
-      return await response.json() as { documentId?: string; title?: string; groups: OgarTariffGroup[] }
+      return await response.json() as { gridId?: string; title?: string; groups: OgarTariffGroup[] }
     },
   })
-  const documentId = source.data?.documentId
+  const gridId = source.data?.gridId
   const groups = source.data?.groups.filter(group => group.assetTypes.includes(assetType)) ?? []
-  const verified = eligibleForOgar && !!documentId && groups.length > 0 && !source.isError && !source.isFetching
+  const verified = eligibleForOgar && !!gridId && groups.length > 0 && !source.isError && !source.isFetching
   const automatic = verified && !manualOverride
   const group = groups.find(item => item.id === groupId) ?? (groups.length === 1 ? groups[0] : undefined)
   const bandIndex = group?.bands.length === 1 ? 0 : band === '' ? -1 : Number(band)
@@ -242,8 +242,8 @@ export function InsuranceSimulator() {
                   </div>
                 </div>
               )}
-              {group?.id === 'bus-12' && bandIndex === 3 && planIndex === 3 && (
-                <p className="text-sm text-muted-foreground">Pour cette ligne, le PDF indique le même montant avec BNS 20 % et sans BNS.</p>
+              {tariffAmount === null && (
+                <p className="text-sm text-muted-foreground">Aucune prime pour ces critères. Choisissez une autre durée ou saisissez la prime du devis.</p>
               )}
             </div>
           ) : !awaitingTariff && hasAsset && hasPartner && (
@@ -288,11 +288,11 @@ export function InsuranceSimulator() {
                     {money.format(amount)} <span className="text-xs font-medium tracking-normal text-muted-foreground">FCFA</span>
                   </p>
                 </div>
-                {automatic && documentId && (
-                  <a className="inline-flex min-h-10 items-center gap-1.5 rounded-md text-sm font-medium text-primary underline underline-offset-4 dark:text-kara-primary-light"
-                    href={`/api/vehicules/baremes?document=${encodeURIComponent(documentId)}`} target="_blank" rel="noopener noreferrer">
-                    <FileText aria-hidden className="size-4 shrink-0" /> Vérifier le PDF source
-                  </a>
+                {automatic && gridId && (
+                  <Link className="inline-flex min-h-10 items-center gap-1.5 rounded-md text-sm font-medium text-primary underline underline-offset-4 dark:text-kara-primary-light"
+                    href="/vehicules/baremes#grille-tarifaire">
+                    <FileText aria-hidden className="size-4 shrink-0" /> Consulter la grille tarifaire
+                  </Link>
                 )}
               </div>
             )}

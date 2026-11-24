@@ -1,5 +1,5 @@
 import type { CollectionReference, DocumentData } from 'firebase-admin/firestore'
-import { ogarTariffGroups, ogarTariffSha256, ogarTariffTitle } from './ogar-tariff'
+import { ogarTariffSha256 } from './ogar-tariff'
 
 export const collection = 'insurance-reference-documents'
 export const legacyId = 'ogar-vehicules'
@@ -58,10 +58,4 @@ export async function listTariffDocuments(documents: CollectionReference) {
 export function verifiedOgarDocument(documents: NonNullable<ReturnType<typeof documentFor>>[]) {
   const current = documents.find(item => item.insurerId === 'ogar' && item.assetTypeId === vehicleType.id)
   return current?.sha256 === ogarTariffSha256 ? current : null
-}
-
-export function ogarSimulation(document: ReturnType<typeof verifiedOgarDocument>) {
-  return document
-    ? { documentId: document.id, title: ogarTariffTitle, groups: ogarTariffGroups }
-    : { groups: [] }
 }

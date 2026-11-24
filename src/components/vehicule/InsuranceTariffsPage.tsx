@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHero } from '@/components/ui/page-hero'
+import { InsuranceTariffGrids } from './InsuranceTariffGrids'
 
 const endpoint = '/api/vehicules/baremes'
 
@@ -95,87 +96,93 @@ export function InsuranceTariffsPage() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
-      <PageHero title="Barèmes des assureurs" subtitle="Consultez les PDF de référence par assureur et par type de bien." icon={FileText}
+      <PageHero title="Barèmes des assureurs" subtitle="Consultez et mettez à jour les grilles de primes." icon={FileText}
         action={
           <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
             <Link href="/vehicules"><ArrowLeft aria-hidden className="size-4" /> Assurances et prospections</Link>
           </Button>
         }
       />
-      {query.data?.canPublish && (
-        <form id="publier-bareme" onSubmit={publish} className="space-y-4 rounded-xl border bg-card p-4 sm:p-5">
-          <h2 className="font-semibold">Publier un barème</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="min-w-0 space-y-2">
-              <Label htmlFor="tariff-insurer">Assureur</Label>
-              <Input id="tariff-insurer" name="insurer" list="tariff-insurers" value={insurer}
-                onChange={event => setInsurer(event.target.value)} placeholder="Saisir ou choisir un assureur" required maxLength={60}
-                disabled={publishing} />
-              <datalist id="tariff-insurers">
-                {[...insurers].map(([id, name]) => <option key={id} value={name} />)}
-              </datalist>
-            </div>
-            <div className="min-w-0 space-y-2">
-              <Label htmlFor="tariff-asset-type">Type de bien</Label>
-              <Input id="tariff-asset-type" name="assetType" list="tariff-asset-types"
-                placeholder="Saisir ou choisir un type de bien" defaultValue="Véhicules"
-                required maxLength={60} disabled={publishing} />
-              <datalist id="tariff-asset-types">
-                {[...assetTypes].map(([id, name]) => <option key={id} value={name} />)}
-              </datalist>
-            </div>
-            <div className="min-w-0 space-y-2">
-              <Label htmlFor="tariff-pdf">Fichier PDF</Label>
-              <Input className="h-11 cursor-pointer" id="tariff-pdf" name="file" type="file"
-                accept="application/pdf,.pdf" required disabled={publishing} aria-describedby="tariff-size" />
-              <p id="tariff-size" className="text-xs text-muted-foreground">10 Mo maximum</p>
-            </div>
-          </div>
-          <Button type="submit" disabled={publishing}>
-            <Upload aria-hidden className="size-4" /> {publishing ? 'Publication…' : 'Publier'}
-          </Button>
-          {message && <p className="text-sm text-emerald-700" role="status">{message}</p>}
-          {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
-        </form>
-      )}
-      {query.isPending ? <p role="status">Chargement des barèmes…</p> : query.isError ? (
-        <div role="alert" className="space-y-2 rounded-xl border p-4">
-          <p>{query.error.message}</p>
-          <Button variant="outline" onClick={() => void query.refetch()}>Réessayer</Button>
-        </div>
-      ) : tariffs.size === 0 ? <p className="rounded-xl border bg-card p-4">Aucun barème publié.</p> : (
-        <div className="space-y-4">
-          {[...tariffs.values()].sort(([a], [b]) => a.insurer.localeCompare(b.insurer, 'fr') || a.assetType.localeCompare(b.assetType, 'fr')).map(([current, ...previous]) => (
-            <section key={`${current.insurerId}:${current.assetTypeId}`} className="space-y-4 rounded-xl border bg-card p-4 sm:p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="font-semibold">{current.insurer} · {current.assetType}</h2>
-                  <p className="break-all text-sm text-muted-foreground">{current.filename}</p>
-                  {current.importedAt &&
-                    <p className="text-xs text-muted-foreground">Publié le {publishedDate.format(new Date(current.importedAt))}</p>}
+      <InsuranceTariffGrids />
+      <details className="rounded-xl border bg-card p-4">
+        <summary className="cursor-pointer font-medium">Documents de référence archivés</summary>
+        <div className="mt-4 space-y-4">
+          {query.data?.canPublish && (
+            <form id="publier-bareme" onSubmit={publish} className="space-y-4 rounded-xl border bg-card p-4 sm:p-5">
+              <h2 className="font-semibold">Publier un barème</h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="min-w-0 space-y-2">
+                  <Label htmlFor="tariff-insurer">Assureur</Label>
+                  <Input id="tariff-insurer" name="insurer" list="tariff-insurers" value={insurer}
+                    onChange={event => setInsurer(event.target.value)} placeholder="Saisir ou choisir un assureur" required maxLength={60}
+                    disabled={publishing} />
+                  <datalist id="tariff-insurers">
+                    {[...insurers].map(([id, name]) => <option key={id} value={name} />)}
+                  </datalist>
                 </div>
-                <OpenTariff item={current} />
+                <div className="min-w-0 space-y-2">
+                  <Label htmlFor="tariff-asset-type">Type de bien</Label>
+                  <Input id="tariff-asset-type" name="assetType" list="tariff-asset-types"
+                    placeholder="Saisir ou choisir un type de bien" defaultValue="Véhicules"
+                    required maxLength={60} disabled={publishing} />
+                  <datalist id="tariff-asset-types">
+                    {[...assetTypes].map(([id, name]) => <option key={id} value={name} />)}
+                  </datalist>
+                </div>
+                <div className="min-w-0 space-y-2">
+                  <Label htmlFor="tariff-pdf">Fichier PDF</Label>
+                  <Input className="h-11 cursor-pointer" id="tariff-pdf" name="file" type="file"
+                    accept="application/pdf,.pdf" required disabled={publishing} aria-describedby="tariff-size" />
+                  <p id="tariff-size" className="text-xs text-muted-foreground">10 Mo maximum</p>
+                </div>
               </div>
-              {previous.length > 0 && (
-                <details className="border-t pt-3">
-                  <summary className="cursor-pointer text-sm font-medium">Versions précédentes ({previous.length})</summary>
-                  <ul className="mt-3 divide-y">
-                    {previous.map(item => (
-                      <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                        <div className="min-w-0 break-all text-sm">
-                          {item.filename}
-                          {item.importedAt && <p className="text-xs text-muted-foreground">{publishedDate.format(new Date(item.importedAt))}</p>}
-                        </div>
-                        <OpenTariff item={item} />
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-            </section>
-          ))}
+              <Button type="submit" disabled={publishing}>
+                <Upload aria-hidden className="size-4" /> {publishing ? 'Publication…' : 'Publier'}
+              </Button>
+              {message && <p className="text-sm text-emerald-700" role="status">{message}</p>}
+              {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+            </form>
+          )}
+          {query.isPending ? <p role="status">Chargement des barèmes…</p> : query.isError ? (
+            <div role="alert" className="space-y-2 rounded-xl border p-4">
+              <p>{query.error.message}</p>
+              <Button variant="outline" onClick={() => void query.refetch()}>Réessayer</Button>
+            </div>
+          ) : tariffs.size === 0 ? <p className="rounded-xl border bg-card p-4">Aucun barème publié.</p> : (
+            <div className="space-y-4">
+              {[...tariffs.values()].sort(([a], [b]) => a.insurer.localeCompare(b.insurer, 'fr') || a.assetType.localeCompare(b.assetType, 'fr')).map(([current, ...previous]) => (
+                <section key={`${current.insurerId}:${current.assetTypeId}`} className="space-y-4 rounded-xl border bg-card p-4 sm:p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="font-semibold">{current.insurer} · {current.assetType}</h2>
+                      <p className="break-all text-sm text-muted-foreground">{current.filename}</p>
+                      {current.importedAt &&
+                        <p className="text-xs text-muted-foreground">Publié le {publishedDate.format(new Date(current.importedAt))}</p>}
+                    </div>
+                    <OpenTariff item={current} />
+                  </div>
+                  {previous.length > 0 && (
+                    <details className="border-t pt-3">
+                      <summary className="cursor-pointer text-sm font-medium">Versions précédentes ({previous.length})</summary>
+                      <ul className="mt-3 divide-y">
+                        {previous.map(item => (
+                          <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                            <div className="min-w-0 break-all text-sm">
+                              {item.filename}
+                              {item.importedAt && <p className="text-xs text-muted-foreground">{publishedDate.format(new Date(item.importedAt))}</p>}
+                            </div>
+                            <OpenTariff item={item} />
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </section>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </details>
     </main>
   )
 }
