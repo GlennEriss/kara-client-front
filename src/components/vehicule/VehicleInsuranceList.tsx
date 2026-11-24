@@ -319,6 +319,14 @@ export function VehicleInsuranceList() {
         action={
           <div className="flex flex-wrap gap-2 md:gap-3">
             <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20"><Link href="/vehicules/prospection">Voir les prospects</Link></Button>
+            {can('vehicules.view') && (
+              <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+                <Link href="/api/vehicules/bareme-ogar" target="_blank" rel="noopener noreferrer">
+                  <FileText aria-hidden="true" className="h-4 w-4" />
+                  Barème OGAR
+                </Link>
+              </Button>
+            )}
             {canExport && (
               <Button
                 type="button"
