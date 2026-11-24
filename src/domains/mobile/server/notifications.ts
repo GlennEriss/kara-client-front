@@ -103,14 +103,14 @@ export async function markNotifications(request: NextRequest) {
           { error: 'Notification introuvable ou accès retiré.' },
           404,
         )
-      await ref.update({ isRead: true })
+      await ref.update({ isRead: true, readAt: FieldValue.serverTimestamp() })
     } else {
       const docs = await unread(caller)
       for (let start = 0; start < docs.length; start += 400) {
         const batch = adminFirestore!.batch()
         docs
           .slice(start, start + 400)
-          .forEach((doc) => batch.update(doc.ref, { isRead: true }))
+          .forEach((doc) => batch.update(doc.ref, { isRead: true, readAt: FieldValue.serverTimestamp() }))
         await batch.commit()
       }
     }

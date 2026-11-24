@@ -6,6 +6,7 @@ import { AlertTriangle, Banknote, CheckCircle, Loader2, Upload } from 'lucide-re
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { RefundFileInput } from '@/components/refunds/RefundFileInput'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/ui/modal'
@@ -233,7 +234,7 @@ export function FinalizeRefundHandoverModal({
           <Label htmlFor={`${fund}-handover-proof`} className="flex items-center gap-2">
             <Upload className="h-4 w-4" /> Preuve de remise *
           </Label>
-          <Input id={`${fund}-handover-proof`} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={handleProofChange} disabled={isSubmitting || isForbidden} />
+          <RefundFileInput id={`${fund}-handover-proof`} accept="image/jpeg,image/png,image/webp,application/pdf" onChange={handleProofChange} disabled={isSubmitting || isForbidden} />
           {proofFile && <p className="text-xs font-medium text-emerald-700">{proofFile.name}</p>}
         </div>
 

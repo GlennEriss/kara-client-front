@@ -184,7 +184,7 @@ describe('caisses natives membre — propriété et présentation', () => {
       hasProof: true,
     })
     expect(paymentDTO({ ...legacy, status: 'DUE' }, cs, 'caisse-speciale').legacyVersement).toBeNull()
-    expect(paymentDTO(legacy, ci, 'caisse-imprevue').legacyVersement).toBeNull()
+    expect(paymentDTO(legacy, ci, 'caisse-imprevue').legacyVersement).toEqual(payment.legacyVersement)
 
     const detailed = paymentDTO({
       ...legacy,

@@ -10,14 +10,15 @@ interface PermissionsEditorProps {
   value: string[]
   onChange: (next: string[]) => void
   disabled?: boolean
+  allowedKeys?: readonly string[]
 }
 
 /**
  * Éditeur d'accès fin par action, groupé par module.
  * `value` = liste des clés de permission accordées ; `onChange` renvoie la nouvelle liste.
  */
-export function PermissionsEditor({ value, onChange, disabled }: PermissionsEditorProps) {
-  const selected = useMemo(() => new Set(value), [value])
+export function PermissionsEditor({ value, onChange, disabled, allowedKeys }: PermissionsEditorProps) {
+  const selected = useMemo(() => new Set(allowedKeys ? value.filter(key => allowedKeys.includes(key)) : value), [value, allowedKeys])
 
   const setKeys = (keys: string[], on: boolean) => {
     const next = new Set(selected)
@@ -30,8 +31,11 @@ export function PermissionsEditor({ value, onChange, disabled }: PermissionsEdit
 
   const toggleOne = (key: string) => setKeys([key], !selected.has(key))
 
-  const mainModules = PERMISSION_MODULES.filter((m) => !m.system)
-  const systemModules = PERMISSION_MODULES.filter((m) => m.system)
+  const modules = allowedKeys ? PERMISSION_MODULES.map(module => ({
+    ...module, actions: module.actions.filter(action => allowedKeys.includes(action.key)),
+  })).filter(module => module.actions.length) : PERMISSION_MODULES
+  const mainModules = modules.filter((m) => !m.system)
+  const systemModules = modules.filter((m) => m.system)
 
   const renderModule = (module: (typeof PERMISSION_MODULES)[number]) => {
     const moduleKeys = module.actions.map((a) => a.key)
@@ -88,7 +92,7 @@ export function PermissionsEditor({ value, onChange, disabled }: PermissionsEdit
         </p>
         {!disabled && (
           <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setKeys(ALL_PERMISSION_KEYS, true)}>
+            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setKeys(allowedKeys ? [...allowedKeys] : ALL_PERMISSION_KEYS, true)}>
               Tout cocher
             </Button>
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => onChange([])}>

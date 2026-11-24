@@ -2,7 +2,8 @@ import type { Firestore } from 'firebase-admin/firestore'
 import { mobileDateKey } from '@/domains/mobile/contracts'
 import type { MemberCaller, MemberData } from './access'
 import { iso, ownedRows } from './data'
-import { memberEcheances } from './calendar'
+import { calendarSummary, memberEcheances } from './calendar'
+import { isPlacementNotice } from './notifications'
 export { iso, ownedRows } from './data'
 
 // Champs et associations issus de kara-members-front : ProfilePayloadV1,
@@ -198,9 +199,11 @@ export async function memberDashboard(
       memberSubscriptions(db, caller, now),
       memberEcheances(db, caller, now),
     ])
-  const latestNotifications = notifications
+  const latestNotifications = notifications.filter(n => !isPlacementNotice(n))
     .sort((a, b) => iso(b.createdAt).localeCompare(iso(a.createdAt)))
     .slice(0, 100)
+  const calendar = calendarSummary(echeances, now)
+  const today = mobileDateKey(now)
   return {
     activeCIContracts: ci.filter((c) => c.status === 'ACTIVE').length,
     pendingCIDemands: demands.filter((d) => d.status === 'PENDING').length,
@@ -208,8 +211,11 @@ export async function memberDashboard(
       (c) => c.isEligibleForSupport && !c.currentSupportId,
     ).length,
     supportsInProgress: ci.filter((c) => c.currentSupportId).length,
-    upcomingCount: echeances.length,
-    overdueCount: echeances.filter((e) => e.isOverdue).length,
+    upcomingCount: calendar.thisMonthCount,
+    nextEcheances: echeances.filter(row =>
+      row.day >= today && row.status !== 'PAID' && row.status !== 'CLOSED',
+    ).slice(0, 4).map(({ id, source, contractId, day, label }) => ({ id, source, contractId, day, label })),
+    overdueCount: calendar.overdueCount,
     unreadNotifications: latestNotifications.filter((n) => !n.isRead).length,
     subscription:
       subscriptions.find((s) => s.status === 'active') ??

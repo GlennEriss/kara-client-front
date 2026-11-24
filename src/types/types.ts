@@ -2938,7 +2938,7 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   SuperAdmin: 'Super Administrateur',
   Secretary: 'Secrétaire',
   AgentRecouvrement: 'Agent de recouvrement',
-  GestionnaireVehicules: 'Gestionnaire des véhicules',
+  GestionnaireVehicules: 'Gestionnaire assurances et prospections',
 }
 
 // Rôles considérés comme administrateurs

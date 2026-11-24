@@ -70,7 +70,8 @@ function Metric({ icon, label, value, detail }: { icon: ReactNode; label: string
 }
 
 export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props) {
-  const { canDownloadDocuments, can } = useMyAccess()
+  const { canDownloadDocuments, can, restrictedRole } = useMyAccess()
+  const canDownloadReceipt = canDownloadDocuments || (restrictedRole === 'GestionnaireVehicules' && can('vehicules.view'))
   if (!insurance) return null
 
   const holderFirstName = (insurance.holderType === 'member' ? insurance.memberFirstName : insurance.nonMemberFirstName) || ''
@@ -152,10 +153,10 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
             </section>
           )}
 
-          {(insurance.notes || (canDownloadDocuments && insurance.attachments?.receiptUrl)) && (
+          {(insurance.notes || (canDownloadReceipt && insurance.attachments?.receiptUrl)) && (
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               {insurance.notes && <SectionCard icon={<ReceiptText className="h-4 w-4" />} title="Notes"><p className="whitespace-pre-line text-sm leading-6 text-slate-700">{insurance.notes}</p></SectionCard>}
-              {canDownloadDocuments && insurance.attachments?.receiptUrl && (
+              {canDownloadReceipt && insurance.attachments?.receiptUrl && (
                 <SectionCard icon={<FileCheck2 className="h-4 w-4" />} title="Pièces justificatives">
                   <div className="flex flex-wrap gap-2">
                     {insurance.attachments.receiptUrl && <Button asChild variant="outline" size="sm" className="rounded-xl"><a href={insurance.attachments.receiptUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" />Reçu</a></Button>}

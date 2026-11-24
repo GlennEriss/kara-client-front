@@ -372,7 +372,7 @@ export default function AdminDashboard() {
           { title: 'Admins', value: stats.byRole.Admin, color: '#3b82f6', icon: Shield },
           { title: 'Secrétaires', value: stats.byRole.Secretary, color: '#f59e0b', icon: Edit3 },
           { title: 'Agents', value: stats.byRole.AgentRecouvrement, color: '#14b8a6', icon: Users },
-          { title: 'Véhicules', value: stats.byRole.GestionnaireVehicules, color: '#f97316', icon: Car },
+          { title: 'Assurances et prospections', value: stats.byRole.GestionnaireVehicules, color: '#f97316', icon: Car },
         ].map((stat, i) => (
           <div
             key={i}

@@ -21,6 +21,11 @@ export async function deliverPushForNotification(
   const isMemberNotification =
     typeof data.recipientId === 'string' && data.recipientId.length > 0
 
+  if (isMemberNotification && (
+    data.module === 'placement' || data.type?.startsWith('placement_') ||
+    (data.metadata && typeof data.metadata === 'object' && 'placementId' in data.metadata)
+  )) return
+
   // Tokens destinataires.
   const tokensSnap = isMemberNotification
     ? await db

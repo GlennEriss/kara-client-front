@@ -20,7 +20,7 @@ import { MemberError, memberIdentifier, memberIds } from './data'
 import {
   financeChildren,
   recordedContributions,
-  isLegacySpecialPayment,
+  isLegacyPayment,
   contractDTO,
   ownedFinanceRecord,
   type MemberFinanceModule,
@@ -66,7 +66,7 @@ export async function memberFinanceAttachmentSource(
   type: string,
   fileId: string,
   ownerIds: string[] = [record.memberId],
-  module?: MemberFinanceModule,
+  _module?: MemberFinanceModule,
 ) {
   let source = '',
     documentId = ''
@@ -97,7 +97,7 @@ export async function memberFinanceAttachmentSource(
   if (type === 'versement-proof') {
     const [paymentId, index] = fileId.split(':')
     const p = children.payments.find((p) => p.id === paymentId)
-    if (p && index === 'legacy' && module === 'caisse-speciale' && isLegacySpecialPayment(p, record))
+    if (p && index === 'legacy' && isLegacyPayment(p, record))
       source = p.proofUrl || ''
     if (p && /^\d+$/.test(index || ''))
       source = recordedContributions(p)[Number(index)]?.proofUrl || ''
@@ -215,9 +215,18 @@ export async function memberFinanceFile(
       logoSrc: await nativePdfLogo(),
     })
   }
-  const payments = children.payments.map((p) =>
-    withBusinessDates(normalizeFirestoreDates(p)),
-  ) as MemberData[]
+  const payments = children.payments.map((p) => {
+    const normalized = withBusinessDates(normalizeFirestoreDates(p)) as MemberData
+    if (module !== 'caisse-imprevue') return normalized
+    const view = dto.payments.find(payment => payment.id === p.id)
+    const entries: MemberData[] = recordedContributions(normalized).map((entry, index) => ({
+      ...entry, time: view?.versements[index]?.time || entry.time,
+    }))
+    if (!entries.length && view?.legacyVersement?.amount) {
+      entries.push({ ...view.legacyVersement, date: normalized.paidAt || normalized.date || null })
+    }
+    return { ...normalized, versements: entries } as MemberData
+  })
   let output: { base64: string; mime: string; filename: string } | undefined
   const delivery: FinancePdfDelivery = {
     logo: await nativeReceiptLogo(),
@@ -230,8 +239,17 @@ export async function memberFinanceFile(
     },
   }
   if (type === 'receipt') {
-    const payment = payments.find((p) => p.id === fileId)
-    if (!payment) throw new MemberError('Versement introuvable.', 404)
+    const [paymentId, day, ...rest] = fileId.split(':')
+    let payment = payments.find(p => p.id === paymentId)
+    if (!payment || rest.length) throw new MemberError('Versement introuvable.', 404)
+    if (day !== undefined) {
+      if (module !== 'caisse-imprevue' || record.paymentFrequency !== 'DAILY' || !/^\d{4}-\d{2}-\d{2}$/.test(day))
+        throw new MemberError('Versement introuvable.', 404)
+      const dates = dto.payments.find(p => p.id === paymentId)?.versements
+      const versements = recordedContributions(payment).filter((_, index) => dates?.[index]?.date === day)
+      if (!versements.length) throw new MemberError('Versement introuvable.', 404)
+      payment = { ...payment, versements, accumulatedAmount: versements.reduce((sum, v) => sum + Number(v.amount || 0), 0) }
+    }
     if (module === 'caisse-speciale')
       await generateSingleVersementPDF(
         {

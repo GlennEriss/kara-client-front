@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
+import { RefundFileInput } from '@/components/refunds/RefundFileInput'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -238,7 +239,7 @@ export default function EarlyWithdrawalRequestModal({
       <ModalContent className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:w-[95vw] sm:max-w-5xl lg:max-w-6xl">
         <ModalHeader icon={TrendingUp} title={title} description={description} />
 
-        <ModalBody>
+        <ModalBody className="px-3 py-3 sm:px-6 sm:py-5">
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
@@ -432,19 +433,17 @@ export default function EarlyWithdrawalRequestModal({
                 {approvalOnly ? 'Justificatif de la demande' : 'Preuve du retrait'} * (Image uniquement, max 20MB)
               </Label>
               <div className="space-y-2">
-                <Input
+                <RefundFileInput
                   id="withdrawalProof"
-                  type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={handleWithdrawalProofChange}
                   disabled={isSubmitting}
-                  className="file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
                 {withdrawalProofFile ? (
-                  <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 rounded-md">
+                  <div className="flex items-center flex-wrap gap-2 text-sm text-green-600 bg-green-50 p-2 rounded-md">
                     <CheckCircle className="h-4 w-4" />
                     <span className="font-medium">Fichier sélectionné :</span>
-                    <span className="text-xs">{withdrawalProofFile.name}</span>
+                    <span className="break-all text-xs">{withdrawalProofFile.name}</span>
                     <span className="text-xs text-gray-500">({(withdrawalProofFile.size / 1024 / 1024).toFixed(2)} MB)</span>
                   </div>
                 ) : null}
@@ -463,19 +462,17 @@ export default function EarlyWithdrawalRequestModal({
                 Document PDF signé * (max 10MB)
               </Label>
               <div className="space-y-2">
-                <Input
+                <RefundFileInput
                   id="documentPdf"
-                  type="file"
                   accept="application/pdf"
                   onChange={handleDocumentPdfChange}
                   disabled={isSubmitting}
-                  className="file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
                 />
                 {documentPdfFile ? (
-                  <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 rounded-md">
+                  <div className="flex items-center flex-wrap gap-2 text-sm text-green-600 bg-green-50 p-2 rounded-md">
                     <CheckCircle className="h-4 w-4" />
                     <span className="font-medium">PDF sélectionné :</span>
-                    <span className="text-xs">{documentPdfFile.name}</span>
+                    <span className="break-all text-xs">{documentPdfFile.name}</span>
                     <span className="text-xs text-gray-500">({(documentPdfFile.size / 1024 / 1024).toFixed(2)} MB)</span>
                   </div>
                 ) : null}
@@ -524,7 +521,7 @@ export default function EarlyWithdrawalRequestModal({
         </form>
         </ModalBody>
 
-        <ModalFooter>
+        <ModalFooter className="grid grid-cols-2 px-3 py-3 sm:flex sm:px-6 sm:py-4 [&>button]:min-w-0 [&>button]:whitespace-normal">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Annuler
           </Button>

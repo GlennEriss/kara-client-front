@@ -134,11 +134,8 @@ function contributionDTO(
       c.receiptUrl && fileId ? { kind: 'charity' as const, id: fileId } : null,
   }
 }
-export async function memberCharity(db: Firestore, caller: MemberCaller) {
-  const [eventsSnap, intents, participants, starsSnap] = await Promise.all([
-    db.collection('charity-events').where('isPublic', '==', true).get(),
-    ownedRows(db, 'charityContributions', 'participantId', caller),
-    Promise.all(
+export async function ownedCharityContributions(db: Firestore, caller: MemberCaller) {
+  const participants = await Promise.all(
       memberIds(caller).map((id) =>
         db
           .collectionGroup('participants')
@@ -146,7 +143,32 @@ export async function memberCharity(db: Firestore, caller: MemberCaller) {
           .where('participantType', '==', 'member')
           .get(),
       ),
-    ),
+    )
+  const ownedParticipants = [
+    ...new Map(
+      participants
+        .flatMap((s) => s.docs)
+        .filter((d) =>
+          /^charity-events\/[^/]+\/participants\/[^/]+$/.test(d.ref.path),
+        )
+        .map((d) => [d.ref.path, d]),
+    ).values(),
+  ]
+  return (await Promise.all(ownedParticipants.map(async p => {
+    const eventId = p.ref.path.split('/')[1]
+    const snapshot = await db.collection('charity-events').doc(eventId)
+      .collection('contributions').where('participantId', '==', p.id).get()
+    return snapshot.docs.map(d => ({
+      row: { ...d.data(), id: d.id } as MemberData, eventId, participantId: p.id,
+    }))
+  }))).flat()
+}
+
+export async function memberCharity(db: Firestore, caller: MemberCaller) {
+  const [eventsSnap, intents, contributions, starsSnap] = await Promise.all([
+    db.collection('charity-events').where('isPublic', '==', true).get(),
+    ownedRows(db, 'charityContributions', 'participantId', caller),
+    ownedCharityContributions(db, caller),
     Promise.all(
       memberIds(caller).map((id) =>
         db.collection('member-charity-summary').doc(id).get(),
@@ -165,38 +187,9 @@ export async function memberCharity(db: Firestore, caller: MemberCaller) {
     }
     return eventCache.get(id)!
   }
-  const ownedParticipants = [
-    ...new Map(
-      participants
-        .flatMap((s) => s.docs)
-        .filter((d) =>
-          /^charity-events\/[^/]+\/participants\/[^/]+$/.test(d.ref.path),
-        )
-        .map((d) => [d.ref.path, d]),
-    ).values(),
-  ]
-  const actual = (
-    await Promise.all(
-      ownedParticipants.map(async (p) => {
-        const eventId = p.ref.path.split('/')[1],
-          e = await event(eventId)
-        const snapshot = await db
-          .collection('charity-events')
-          .doc(eventId)
-          .collection('contributions')
-          .where('participantId', '==', p.id)
-          .get()
-        return snapshot.docs.map((d) =>
-          contributionDTO(
-            { ...d.data(), id: d.id },
-            e,
-            'actual',
-            `${eventId}:${p.id}:${d.id}`,
-          ),
-        )
-      }),
-    )
-  ).flat()
+  const actual = await Promise.all(contributions.map(async ({ row, eventId, participantId }) =>
+    contributionDTO(row, await event(eventId), 'actual', `${eventId}:${participantId}:${row.id}`),
+  ))
   const pending = await Promise.all(
     intents
       .filter((c) => c.status === 'pending' && memberIdentifier(c.eventId))

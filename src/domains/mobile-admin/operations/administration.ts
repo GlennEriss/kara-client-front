@@ -10,8 +10,10 @@ import { POST as resetAccount } from '@/app/api/auth/admin/reset-admin-password/
 import { POST as deleteAccount } from '@/app/api/firebase/auth/delete-user/route'
 import { adminCreateSchema } from '@/schemas/schemas'
 import {
-  PERMISSIONS_VERSION,
   PERMISSION_MODULES,
+  effectivePermissions,
+  PERMISSIONS_VERSION,
+  restrictedRoleOf,
 } from '@/constantes/permissions'
 import { ADMIN_ROLES } from '@/types/types'
 import {
@@ -225,7 +227,10 @@ export function administrationActions(
               roles,
               permissions: roles.includes('SuperAdmin')
                 ? []
-                : (d.permissions || []).map((r: any) => r.permission),
+                : effectivePermissions((d.permissions || []).map((r: any) => r.permission), {
+                    version: PERMISSIONS_VERSION,
+                    restrictedRole: restrictedRoleOf(roles),
+                  }),
             })
             const id = create
               ? await ctx.services.users.generateMatricule()

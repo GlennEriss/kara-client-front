@@ -8,6 +8,7 @@ const row = (sponsorMemberId = 'M001') => ({ ownerName: 'Contact fictif', phone:
   status: 'tracking', sponsorMemberId, sponsorName: 'Fictif', source: 'member', createdBy: 'alice', updatedBy: 'alice', createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
 before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-kara-prospects', firestore: { host: '127.0.0.1', port: 8088, rules: readFileSync(process.env.KARA_FIRESTORE_RULES_PATH || new URL('../../firestore.rules', import.meta.url), 'utf8') } })
+  await env.clearFirestore()
   await env.withSecurityRulesDisabled(async ctx => {
     const db = ctx.firestore()
     await Promise.all([
@@ -103,4 +104,29 @@ test('le catalogue est administré par le back-office et les membres peuvent cho
   await assertSucceeds(updateDoc(doc(db(), 'insurance-prospects/custom'), { status: 'contacted', updatedBy: 'alice', updatedAt: serverTimestamp() }))
   await assertSucceeds(setDoc(settings, { values, inactive: ['apartment'] }))
   await assertSucceeds(setDoc(doc(db(), 'vehicle-insurances/restored-draft'), { ...draft, vehicleType: values[0] }))
+})
+
+
+test('le gestionnaire assurances et prospections ne peut pas gérer les autres modules', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    const firestore = context.firestore()
+    await Promise.all([
+      setDoc(doc(firestore, 'admins/insurance-only'), { roles: ['GestionnaireVehicules'] }),
+      setDoc(doc(firestore, 'shops/private'), { status: 'pending', submittedBy: 'alice' }),
+      setDoc(doc(firestore, 'contractsCI/private'), { memberId: 'M001' }),
+      setDoc(doc(firestore, 'notifications/private'), { module: 'boutique', isRead: false }),
+    ])
+  })
+  for (const account of [
+    db('insurance-only'),
+    env.authenticatedContext('insurance-claim', { role: 'GestionnaireVehicules' }).firestore(),
+  ]) {
+    await assertSucceeds(getDocs(collection(account, 'insurance-prospects')))
+    await assertSucceeds(getDocs(collection(account, 'vehicle-insurances')))
+    await assertFails(getDoc(doc(account, 'shops/private')))
+    await assertFails(updateDoc(doc(account, 'shops/private'), { status: 'approved' }))
+    await assertFails(getDoc(doc(account, 'contractsCI/private')))
+    await assertFails(updateDoc(doc(account, 'notifications/private'), { isRead: true }))
+  }
+  await assertSucceeds(getDoc(doc(db('manager'), 'shops/private')))
 })

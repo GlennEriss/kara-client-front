@@ -102,6 +102,7 @@ export const publicAdminAction = (
   }
   if (assetTypes) {
     result.fields = result.fields.map((item) => {
+      if (item.key === 'catalogAssetType') return { ...item, options: insuranceAssetOptions(assetTypes, { includeInactive: true }).filter(option => option.value !== 'other').map(option => ({ ...option, label: assetTypes.inactive.includes(option.value) ? option.label + ' · Retiré' : option.label })) }
       if (item.key !== 'vehicleType') return item
       const options = insuranceAssetOptions(assetTypes, { selected: row?.vehicleType })
       return { ...item, options, initial: options.some((option) => option.value === item.initial) ? item.initial : undefined }

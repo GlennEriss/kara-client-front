@@ -24,6 +24,87 @@ const deviceSchema = z
     muted: z.boolean(),
   })
   .strict()
+export function isPlacementNotice(data: MemberData): boolean {
+  return (
+    data.module === 'placement' ||
+    String(data.type ?? '').startsWith('placement_') ||
+    (!!data.metadata &&
+      typeof data.metadata === 'object' &&
+      'placementId' in data.metadata)
+  )
+}
+export function memberNoticeTarget(data: MemberData) {
+  if (isPlacementNotice(data)) return null
+  const meta = data.metadata ?? {}
+  const id = (value: unknown) =>
+    typeof value === 'string' &&
+    /^[A-Za-z0-9_.-]{1,240}$/.test(value) &&
+    value !== '.' &&
+    value !== '..'
+      ? value
+      : undefined
+  const type = String(data.type ?? '')
+  const demand = /^(?:caisse_imprevue_|credit_speciale_)?demand_/.test(type)
+  const contract =
+    id(meta.contractId) ??
+    (!demand &&
+    (/^contract_|^payment_due$|^reminder$/.test(type) || id(meta.versementId))
+      ? id(data.entityId)
+      : undefined)
+  const demandId = id(meta.demandId) ?? (demand ? id(data.entityId) : undefined)
+  const modules: Record<string, string> = {
+    caisse_speciale: 'caisse-speciale',
+    caisse_imprevue: 'caisse-imprevue',
+    credit_speciale: 'accompagnement',
+    credit_fixe: 'accompagnement',
+    credit_aide: 'accompagnement',
+  }
+  if (modules[data.module])
+    return {
+      screen: 'member',
+      module: modules[data.module],
+      id: contract ?? demandId,
+      kind: contract
+        ? id(meta.versementId)
+          ? 'payments'
+          : 'contract'
+        : demandId
+          ? 'demand'
+          : undefined,
+      ...(data.module.startsWith('credit_')
+        ? {
+            section:
+              data.module === 'credit_fixe'
+                ? 'CREDIT_FIXE'
+                : data.module === 'credit_aide'
+                  ? 'CREDIT_AIDE'
+                  : 'CREDIT_SPECIALE',
+          }
+        : {}),
+    }
+  if (data.module === 'bienfaiteur')
+    return {
+      screen: 'member',
+      module: 'charity',
+      id: id(meta.eventId) ?? id(data.entityId),
+    }
+  if (data.module === 'vehicule') {
+    const prospect = id(meta.prospectId)
+    return {
+      screen: 'member',
+      module: 'insurance',
+      id: prospect ?? id(meta.insuranceId) ?? id(data.entityId),
+      kind: prospect ? 'prospect' : 'insurance',
+    }
+  }
+  if (data.module === 'boutique')
+    return {
+      screen: 'member',
+      module: 'shop',
+      id: id(meta.shopId) ?? id(data.entityId),
+    }
+  return null
+}
 function presentation(id: string, data: MemberData) {
   return {
     id,
@@ -34,7 +115,7 @@ function presentation(id: string, data: MemberData) {
     isRead: data.isRead === true,
     createdAt: iso(data.createdAt) || null,
     daysUntil: null,
-    target: null,
+    target: memberNoticeTarget(data),
   }
 }
 export async function memberNotificationInbox(
@@ -48,7 +129,11 @@ export async function memberNotificationInbox(
         .doc(identifier.parse(id))
         .get(),
       data = snapshot.data()
-    if (!data || !memberIds(caller).includes(data.recipientId))
+    if (
+      !data ||
+      isPlacementNotice(data) ||
+      !memberIds(caller).includes(data.recipientId)
+    )
       throw new MemberError('Notification introuvable.', 404)
     return { item: presentation(id, data) }
   }
@@ -58,7 +143,9 @@ export async function memberNotificationInbox(
     .orderBy('createdAt', 'desc')
     .limit(100)
     .get()
-  const items = snapshot.docs.map((d) => presentation(d.id, d.data()))
+  const items = snapshot.docs
+    .filter((d) => !isPlacementNotice(d.data()))
+    .map((d) => presentation(d.id, d.data()))
   return {
     items: items.slice(0, 50),
     unreadCount: items.filter((n) => !n.isRead).length,
@@ -74,27 +161,40 @@ export async function markMemberNotifications(
     const ref = db.collection('notifications').doc(input.id)
     await db.runTransaction(async (tx) => {
       const data = (await tx.get(ref)).data()
-      if (!data || !memberIds(caller).includes(data.recipientId))
+      if (
+        !data ||
+        isPlacementNotice(data) ||
+        !memberIds(caller).includes(data.recipientId)
+      )
         throw new MemberError('Notification introuvable.', 404)
-      tx.update(ref, { isRead: true, updatedAt: FieldValue.serverTimestamp() })
+      tx.update(ref, { isRead: true, readAt: FieldValue.serverTimestamp() })
     })
     return { success: true }
   }
-  const snapshot = await db
+  const query = db
     .collection('notifications')
     .where('recipientId', 'in', memberIds(caller))
     .where('isRead', '==', false)
-    .limit(500)
-    .get()
-  const batch = db.batch()
-  snapshot.docs.forEach((d) =>
-    batch.update(d.ref, {
-      isRead: true,
-      updatedAt: FieldValue.serverTimestamp(),
-    }),
-  )
-  if (snapshot.size) await batch.commit()
-  return { success: true, count: snapshot.size }
+    .orderBy('createdAt', 'desc')
+    .limit(200)
+  let page = await query.get()
+  let count = 0
+  while (page.size) {
+    const visible = page.docs.filter((d) => !isPlacementNotice(d.data()))
+    if (visible.length) {
+      const batch = db.batch()
+      for (const d of visible)
+        batch.update(d.ref, {
+          isRead: true,
+          readAt: FieldValue.serverTimestamp(),
+        })
+      await batch.commit()
+      count += visible.length
+    }
+    if (page.size < 200) break
+    page = await query.startAfter(page.docs.at(-1)!).get()
+  }
+  return { success: true, count }
 }
 /** Collection sans accès client Firestore (refusée par défaut). Le jeton est
  * lié aux seuls identifiants vérifiés du membre, jamais aux scopes admin. */
@@ -122,7 +222,7 @@ export async function saveMemberDevice(
         platform: input.platform,
         notificationScopes: ['*'],
         muted: input.muted,
-        updatedAt: FieldValue.serverTimestamp(),
+        readAt: FieldValue.serverTimestamp(),
         expiresAt: new Date(Date.now() + 30 * 86400000),
       })
   })

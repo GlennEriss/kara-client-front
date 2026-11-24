@@ -26,7 +26,7 @@ export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
   Admin: 'Administrateur',
   Secretary: 'Secrétaire',
   AgentRecouvrement: 'Agent de recouvrement',
-  GestionnaireVehicules: 'Gestionnaire des véhicules',
+  GestionnaireVehicules: 'Gestionnaire assurances et prospections',
 }
 
 export interface AdminUser {

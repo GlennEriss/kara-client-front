@@ -97,6 +97,12 @@ describe('livraison push native membre', () => {
       'admin-token',
     ])
   })
+  it('retire le placement du push membre tout en conservant les alertes admin', async () => {
+    await sendPushForNotification('PLACEMENT', { module: 'placement', recipientId: 'OWN' })
+    expect(f.send).not.toHaveBeenCalled()
+    await sendPushForNotification('ADMIN', { module: 'placement' })
+    expect(f.queries).toEqual(['fcmTokens:audience:admin'])
+  })
   it('supprime un jeton invalide dans sa collection d’origine', async () => {
     f.send.mockResolvedValue({
       successCount: 1,

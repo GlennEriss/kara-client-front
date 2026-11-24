@@ -12,13 +12,25 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    function isInsuranceManager() {
+      return isAuthenticated() && (
+        request.auth.token.get('role', '') == 'GestionnaireVehicules' ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         (get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('roles', []).hasAny(['GestionnaireVehicules']) ||
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('role', '') == 'GestionnaireVehicules'))
+      ) && !isSuperAdmin();
+    }
+
+    function canManageInsurance() {
+      return isAdmin() || isInsuranceManager();
+    }
+
     // Vérifie si l'utilisateur est admin (Admin, SuperAdmin ou Secretary)
     // Vérifie d'abord via custom claims (token.role), puis via collection admins
     function isAdmin() {
-      return isAuthenticated() && (
+      return isAuthenticated() && !isInsuranceManager() && (
         // Méthode 1 : Vérifier via custom claims (token.role)
-        (request.auth.token.role != null && 
-         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur', 'AgentRecouvrement', 'GestionnaireVehicules']) ||
+        request.auth.token.get('role', '') in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur', 'AgentRecouvrement'] ||
         // Méthode 2 : Vérifier via collection admins (fallback si custom claims non définis)
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
@@ -30,7 +42,7 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isAuthenticated() && (
         // Méthode 1 : custom claim (token.role)
-        request.auth.token.role == 'SuperAdmin' ||
+        request.auth.token.get('role', '') == 'SuperAdmin' ||
         // Méthode 2 : tableau `roles` du document admins
         (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('roles', []).hasAny(['SuperAdmin'])) ||
@@ -345,7 +357,11 @@ service cloud.firestore {
       // Lecture réservée aux administrateurs
       allow read: if isAdmin();
       // Création uniquement (journal inaltérable) : pas de modification ni suppression
-      allow create: if isAdmin();
+      allow create: if isAdmin() || (
+        isInsuranceManager() &&
+        request.resource.data.get('module', '') == 'vehicules' &&
+        request.resource.data.get('adminId', '') == request.auth.uid
+      );
       allow update, delete: if false;
     }
 
@@ -382,7 +398,7 @@ service cloud.firestore {
     // ==========================================
     match /shops/{shopId} {
       // Lecture par tout membre connecté (annuaire visible côté membre)
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && !isInsuranceManager();
 
       // Un membre soumet sa propre boutique depuis son portail : elle arrive
       // en attente et hors annuaire. Il ne peut ni se publier lui-même ni
@@ -464,10 +480,10 @@ service cloud.firestore {
     // Assurance véhicule : taux des assureurs partenaires et reversements aux
     // membres. La commission de l'assureur ne doit pas être visible des membres.
     match /vehicleInsurancePartners/{partnerId} {
-      allow read, write: if isAdmin();
+      allow read, write: if canManageInsurance();
     }
     match /vehicleInsuranceRewards/{rewardId} {
-      allow read, write: if isAdmin();
+      allow read, write: if canManageInsurance();
     }
 
     // Conditions négociées avec les boutiques partenaires de l'achat à crédit
@@ -559,6 +575,7 @@ service cloud.firestore {
       // Mise à jour : Admin ou propriétaire (pour marquer comme lu uniquement)
       allow update: if isAdmin() || (
         isAuthenticated() &&
+        isMemberOwner(resource.data.get('recipientId', '')) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'readAt'])
       );
       // Suppression : Admin uniquement
@@ -1567,8 +1584,8 @@ service cloud.firestore {
           inactive.hasOnly(insuranceAssetTypeDefaults().concat(data.values));
       }
       allow get: if isAuthenticated();
-      allow create: if isAdmin() && validCatalog(request.resource.data);
-      allow update: if isAdmin() && validCatalog(request.resource.data) &&
+      allow create: if canManageInsurance() && validCatalog(request.resource.data);
+      allow update: if canManageInsurance() && validCatalog(request.resource.data) &&
         (resource.data.get('inactive', []).size() == 0 || request.resource.data.keys().hasAll(['inactive']));
     }
 
@@ -1589,13 +1606,13 @@ service cloud.firestore {
           data.endDate is string && data.endDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
           data.notes is string && data.notes.size() <= 2000;
       }
-      allow read: if isAdmin() || ownsProspect(resource.data);
-      allow create: if isAdmin() || (ownsProspect(request.resource.data) && validProspect(request.resource.data, null) &&
+      allow read: if canManageInsurance() || ownsProspect(resource.data);
+      allow create: if canManageInsurance() || (ownsProspect(request.resource.data) && validProspect(request.resource.data, null) &&
         request.resource.data.keys().hasOnly(['ownerName','phone','whatsapp','plateNumber','vehicleType','vehicleDescription','provinceId','province','departmentId','department','communeId','districtId','district','quarterId','city','locationType','quarter','locationDetails','insuranceCompany','endDate','notes','status','sponsorMemberId','sponsorName','source','createdBy','updatedBy','createdAt','updatedAt']) &&
         request.resource.data.source == 'member' && request.resource.data.status == 'tracking' &&
         request.resource.data.createdBy == request.auth.uid && request.resource.data.updatedBy == request.auth.uid &&
         request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time);
-      allow update: if isAdmin() || (ownsProspect(resource.data) && validProspect(request.resource.data, resource.data.get('vehicleType', null)) &&
+      allow update: if canManageInsurance() || (ownsProspect(resource.data) && validProspect(request.resource.data, resource.data.get('vehicleType', null)) &&
         !(resource.data.status in ['converted','lost']) &&
         request.resource.data.status in ['tracking','contacted','quote_requested','lost'] &&
         request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time &&
@@ -1604,8 +1621,8 @@ service cloud.firestore {
       match /activities/{activityId} {
         function parent() { return get(/databases/$(database)/documents/insurance-prospects/$(prospectId)).data; }
         function nextParent() { return getAfter(/databases/$(database)/documents/insurance-prospects/$(prospectId)).data; }
-        allow read: if isAdmin() || ownsProspect(parent());
-        allow create: if isAdmin() || (ownsProspect(nextParent()) &&
+        allow read: if canManageInsurance() || ownsProspect(parent());
+        allow create: if canManageInsurance() || (ownsProspect(nextParent()) &&
           request.resource.data.by == request.auth.uid && request.resource.data.at == request.time &&
           request.resource.data.kind in ['created','edit','contacted','quote_requested','renewed_elsewhere','lost'] &&
           request.resource.data.note is string && request.resource.data.note.size() <= 2000 &&
@@ -1615,14 +1632,14 @@ service cloud.firestore {
     }
     match /vehicle-insurances/{insuranceId} {
       // Lecture : admin OU le membre propriétaire du véhicule
-      allow read: if isAdmin() || (
+      allow read: if canManageInsurance() || (
         isAuthenticated() &&
         resource.data.memberId is string &&
         isMemberOwner(resource.data.memberId)
       );
       // Création : admin OU le membre qui déclare son propre véhicule, en brouillon
       // (memberId doit pointer vers lui-même + holderType doit être 'member')
-      allow create: if isAdmin() || (
+      allow create: if canManageInsurance() || (
         isAuthenticated() &&
         request.resource.data.holderType == 'member' &&
         request.resource.data.memberId is string &&
@@ -1634,7 +1651,7 @@ service cloud.firestore {
       );
       // Le membre modifie son brouillon (ou sa déclaration refusée) et l'envoie à
       // l'administration ; seul l'admin valide ou refuse.
-      allow update: if isAdmin() || (
+      allow update: if canManageInsurance() || (
         isAuthenticated() &&
         resource.data.memberId is string &&
         isMemberOwner(resource.data.memberId) &&
@@ -1651,7 +1668,7 @@ service cloud.firestore {
         ])
       );
       // Le membre peut supprimer un brouillon ou une déclaration refusée.
-      allow delete: if isAdmin() || (
+      allow delete: if canManageInsurance() || (
         isAuthenticated() &&
         resource.data.memberId is string &&
         isMemberOwner(resource.data.memberId) &&
@@ -1660,7 +1677,7 @@ service cloud.firestore {
 
       // Sous-collections éventuelles (journal/audit/annexes)
       match /{subCollection=**} {
-        allow read, write: if isAdmin();
+        allow read, write: if canManageInsurance();
       }
     }
     
