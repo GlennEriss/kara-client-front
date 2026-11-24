@@ -2,7 +2,7 @@ import { requireAdminCaller } from "@/domains/auth/server/requireAdminCaller";
 import { adminAuth } from "@/firebase/adminAuth";
 import { NextRequest, NextResponse } from "next/server";
 import { generateTemporaryPassword } from "@/domains/auth/server/passwords";
-import { ADMIN_ROLES } from "@/types/types";
+import { STAFF_ROLES } from "@/types/types";
 
 function normalizePhoneNumber(value: unknown): string | undefined {
     const raw = typeof value === "string" ? value.trim() : "";
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             );
         }
-        if (!ADMIN_ROLES.includes(role)) {
+        if (!STAFF_ROLES.includes(role)) {
             return NextResponse.json({ error: "Rôle administrateur invalide" }, { status: 400 });
         }
 

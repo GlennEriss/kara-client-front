@@ -24,3 +24,10 @@ describe('résolution serveur des accès', () => {
     await expect(loadAdminAccess({ uid: 'admin', role: 'Admin' })).rejects.toThrow('indisponible')
   })
 })
+
+
+it('refuse le compte prospection même si une ancienne session porte un rôle admin', async () => {
+  mock.docs.set('admins/agent', { roles: ['AgentProspection'] })
+  expect(await loadAdminAccess({ uid: 'agent', role: 'Admin' })).toBeNull()
+  expect(await loadAdminAccess({ uid: 'agent', role: 'AgentProspection' })).toBeNull()
+})

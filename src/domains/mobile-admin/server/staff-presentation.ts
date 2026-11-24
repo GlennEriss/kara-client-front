@@ -20,6 +20,7 @@ export const adminRoleLabels: Record<string, string> = {
   Secretary: 'Secrétaire',
   AgentRecouvrement: 'Agent de recouvrement',
   GestionnaireVehicules: 'Gestionnaire assurances et prospections',
+  AgentProspection: 'Agent de prospection (espace membre)',
 }
 const day = (v: unknown) => (v ? archiveDay(v) : '')
 const normalize = (v: unknown) =>

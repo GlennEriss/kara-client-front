@@ -1,3 +1,4 @@
+import { isProspectingAccount } from '../prospecting-role'
 import { adminAuth } from '@/firebase/adminAuth'
 import { adminFirestore } from '@/firebase/adminFirestore'
 import { cookies } from 'next/headers'
@@ -81,13 +82,13 @@ function getBearerTokenFromRequest(request: NextRequest) {
 }
 
 async function verifyAdminClaims(claims: SessionClaims | null): Promise<SessionClaims | null> {
-  if (!claims) return null
-  if (hasAdminRoleFromClaims(claims)) return claims
-
+  if (!claims || isProspectingAccount(claims)) return null
   if (adminFirestore) {
     const adminDoc = await adminFirestore.collection('admins').doc(claims.uid).get()
+    if (isProspectingAccount(adminDoc.data())) return null
     if (adminDoc.exists) return claims
   }
+  if (hasAdminRoleFromClaims(claims)) return claims
 
   if (await isAdminByUserDoc(claims)) return claims
 
@@ -183,16 +184,8 @@ export async function verifyAdminSessionFromRequest(request: NextRequest): Promi
   try {
     const claims = await verifySessionCookie(sessionCookie, { checkRevoked: true })
     console.warn('[admin-auth] cookie claims', { uid: claims.uid, role: claims.role, email: claims.email })
-    if (hasAdminRoleFromClaims(claims)) return claims
-
-    // Fallback de compatibilité: certains comptes admin historiques n'ont pas de custom claim role.
-    if (adminFirestore) {
-      const adminDoc = await adminFirestore.collection('admins').doc(claims.uid).get()
-      if (adminDoc.exists) return claims
-    }
-
-    // Repli sur le rôle du document users (modèle de rôles de l'app).
-    if (await isAdminByUserDoc(claims)) return claims
+    const admin = await verifyAdminClaims(claims)
+    if (admin) return admin
 
     return await verifyBearerToken()
   } catch {

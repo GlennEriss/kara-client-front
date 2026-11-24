@@ -130,3 +130,28 @@ test('le gestionnaire assurances et prospections ne peut pas gérer les autres m
   }
   await assertSucceeds(getDoc(doc(db('manager'), 'shops/private')))
 })
+
+test('un agent de prospection actif accède à ses seuls dossiers et ne reçoit aucun droit admin', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    const firestore = context.firestore()
+    await Promise.all([
+      setDoc(doc(firestore, 'admins/agent'), { roles: ['AgentProspection'], isActive: true }),
+      setDoc(doc(firestore, 'insurance-prospects/agent-own'), { ...row('agent'), createdBy: 'agent', updatedBy: 'agent' }),
+      setDoc(doc(firestore, 'vehicle-insurances/agent-own'), { memberId: 'agent', declarationStatus: 'pending' }),
+      setDoc(doc(firestore, 'vehicle-insurances/other-owner'), { memberId: 'M001' }),
+      setDoc(doc(firestore, 'shops/agent-unrelated'), { status: 'pending', submittedBy: 'alice' }),
+    ])
+  })
+  const f = env.authenticatedContext('agent', { role: 'AgentProspection' }).firestore()
+  await assertSucceeds(getDocs(query(collection(f, 'insurance-prospects'), where('sponsorMemberId', '==', 'agent'))))
+  await assertSucceeds(getDocs(query(collection(f, 'vehicle-insurances'), where('memberId', '==', 'agent'))))
+  await assertSucceeds(setDoc(doc(f, 'insurance-prospects/agent-created'), { ...row('agent'), createdBy: 'agent', updatedBy: 'agent' }))
+  await assertFails(setDoc(doc(f, 'insurance-prospects/agent-spoofed'), { ...row('M001'), createdBy: 'agent', updatedBy: 'agent' }))
+  await assertFails(getDocs(collection(f, 'insurance-prospects')))
+  await assertFails(getDoc(doc(f, 'insurance-prospects/own')))
+  await assertFails(getDoc(doc(f, 'vehicle-insurances/other-owner')))
+  await assertFails(updateDoc(doc(f, 'vehicle-insurances/agent-own'), { declarationStatus: 'validated' }))
+  await assertFails(getDoc(doc(f, 'shops/agent-unrelated')))
+  await env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), 'admins/agent'), { isActive: false }))
+  await assertFails(getDoc(doc(f, 'insurance-prospects/agent-own')))
+})

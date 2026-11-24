@@ -1,6 +1,7 @@
 'use client'
 import { useAuth } from '@/hooks/useAuth'
 import { useMyAccess } from '@/hooks/useMyAccess'
+import { getAdmins } from '@/db/admin.db'
 import { getMembers } from '@/db/member.db'
 import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsuranceRepository'
 import {
@@ -23,12 +24,18 @@ export function AdminProspectsPage() {
       }}
       canCreate={can('vehicules.create')}
       canEdit={can('vehicules.edit')}
-      loadMembers={async (search) =>
-        (await getMembers({ searchQuery: search }, 1, 30)).data.map((m) => ({
-          value: m.id,
-          label: `${m.firstName} ${m.lastName} · ${m.matricule}`,
-        }))
-      }
+      loadMembers={async (search) => {
+        const [members, staff] = await Promise.all([
+          getMembers({ searchQuery: search }, 1, 30),
+          getAdmins({ roles: ['AgentProspection'] }, 1, 100),
+        ])
+        const query = search.trim().toLocaleLowerCase('fr')
+        return [
+          ...staff.data.filter(agent => agent.isActive && [agent.id, agent.firstName, agent.lastName].join(' ').toLocaleLowerCase('fr').includes(query))
+            .map(agent => ({ value: agent.id, label: `${agent.firstName} ${agent.lastName} · Agent de prospection` })),
+          ...members.data.map(member => ({ value: member.id, label: `${member.firstName} ${member.lastName} · ${member.matricule}` })),
+        ]
+      }}
       loadInsurances={async (row: InsuranceProspect) => {
         const result = await new VehicleInsuranceRepository().list(
           {

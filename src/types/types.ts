@@ -551,7 +551,7 @@ export type MembershipType = 'adherant' | 'bienfaiteur' | 'sympathisant'
 /**
  * Types de rôles possibles pour un utilisateur
  */
-export type UserRole = 'Adherant' | 'Bienfaiteur' | 'Sympathisant' | 'Admin' | 'SuperAdmin' | 'Secretary' | 'AgentRecouvrement' | 'GestionnaireVehicules'
+export type UserRole = 'Adherant' | 'Bienfaiteur' | 'Sympathisant' | 'Admin' | 'SuperAdmin' | 'Secretary' | 'AgentRecouvrement' | 'GestionnaireVehicules' | 'AgentProspection'
 
 /**
  * Type pour un utilisateur dans la collection users
@@ -2939,12 +2939,14 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   Secretary: 'Secrétaire',
   AgentRecouvrement: 'Agent de recouvrement',
   GestionnaireVehicules: 'Gestionnaire assurances et prospections',
+  AgentProspection: 'Agent de prospection (espace membre)',
 }
 
 // Rôles considérés comme administrateurs
 // Les rôles restreints (agent de recouvrement, gestionnaire des véhicules) accèdent à
 // l'espace admin, limités par les cases cochées sur leur fiche (voir RESTRICTED_ROLE_TEMPLATES).
 export const ADMIN_ROLES: UserRole[] = ['Admin', 'SuperAdmin', 'Secretary', 'AgentRecouvrement', 'GestionnaireVehicules']
+export const STAFF_ROLES: UserRole[] = [...ADMIN_ROLES, 'AgentProspection']
 
 // Labels pour les statuts de contrats Caisse Imprévue
 export const CONTRACT_CI_STATUS_LABELS: Record<ContractCIStatus, string> = {

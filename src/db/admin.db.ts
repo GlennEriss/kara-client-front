@@ -19,7 +19,7 @@ import {
 
 // ================== TYPES POUR LES ADMINS ==================
 
-export type AdminRole = 'SuperAdmin' | 'Admin' | 'Secretary' | 'AgentRecouvrement' | 'GestionnaireVehicules'
+export type AdminRole = 'SuperAdmin' | 'Admin' | 'Secretary' | 'AgentRecouvrement' | 'GestionnaireVehicules' | 'AgentProspection'
 
 export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
   SuperAdmin: 'Super Administrateur',
@@ -27,6 +27,7 @@ export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
   Secretary: 'Secrétaire',
   AgentRecouvrement: 'Agent de recouvrement',
   GestionnaireVehicules: 'Gestionnaire assurances et prospections',
+  AgentProspection: 'Agent de prospection (espace membre)',
 }
 
 export interface AdminUser {

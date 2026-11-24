@@ -79,6 +79,7 @@ export async function GET(request: NextRequest, context: Context) {
   const caller = await requireMemberCaller(
     request,
     ['me', 'rules'].includes(resource),
+    ['me', 'insurance'].includes(resource),
   )
   if (caller instanceof NextResponse) return caller
   try {
@@ -146,10 +147,11 @@ export async function GET(request: NextRequest, context: Context) {
             .filter(Boolean)
             .join(' ') || 'Membre LE KARA',
         space: 'member',
-        roleLabel: 'Membre',
+        roleLabel: caller.prospecting ? 'Agent de prospection' : 'Membre',
+        ...(caller.prospecting ? { memberScope: 'prospecting' } : {}),
         mustChangePassword: caller.member.mustChangePassword === true,
         mustAcceptRules:
-          caller.member.reglementInterieurAccepte?.version !==
+          !caller.prospecting && caller.member.reglementInterieurAccepte?.version !==
           REGLEMENT_VERSION,
         capabilities: {
           dashboard: false,
@@ -246,6 +248,7 @@ export async function POST(request: NextRequest, context: Context) {
   const caller = await requireMemberCaller(
     request,
     ['accept-rules', 'change-password'].includes(resource),
+    ['change-password', 'insurance-prospect', 'insurance-declaration'].includes(resource),
   )
   if (caller instanceof NextResponse) return caller
   try {
@@ -319,7 +322,7 @@ export async function POST(request: NextRequest, context: Context) {
         400,
       )
     await adminAuth!.updateUser(caller.uid, { password })
-    await adminFirestore!.collection('users').doc(caller.uid).update({
+    await adminFirestore!.collection(caller.prospecting ? 'admins' : 'users').doc(caller.uid).update({
       mustChangePassword: false,
       passwordChangedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),

@@ -270,7 +270,7 @@ export function ProspectsPage({
   const sponsorField = (
     <div className="space-y-3 rounded-xl border p-4">
       <p className="font-medium">Parrainage</p>
-      {choose('sponsorMemberId', 'Parrain', {
+      {choose('sponsorMemberId', 'Parrain ou agent', {
         [KARA_SPONSOR_ID]: 'LE KARA — Inconnu',
         ...(selection?.row && selection.row.sponsorMemberId !== KARA_SPONSOR_ID
           ? { [selection.row.sponsorMemberId]: selection.row.sponsorName }
@@ -280,7 +280,7 @@ export function ProspectsPage({
       <div className="flex gap-2">
         <Input
           aria-label="Rechercher un membre"
-          placeholder="Nom ou matricule du membre"
+          placeholder="Nom ou matricule du membre ou de l’agent"
           value={memberSearch}
           onChange={(e) => setMemberSearch(e.target.value)}
         />

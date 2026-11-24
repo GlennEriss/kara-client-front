@@ -1,3 +1,4 @@
+import { isProspectingAccount } from '@/domains/auth/prospecting-role'
 import { NextResponse, type NextRequest } from 'next/server'
 import { adminAuth } from '@/firebase/adminAuth'
 import { adminFirestore } from '@/firebase/adminFirestore'
@@ -11,6 +12,7 @@ export interface MemberCaller {
   matricule: string
   member: MemberData
   dossier: MemberData
+  prospecting?: boolean
 }
 
 /** Accès personnel : ne réutilise et n'élargit jamais les permissions admin.
@@ -19,6 +21,7 @@ export interface MemberCaller {
 export async function requireMemberCaller(
   request: NextRequest,
   onboarding = false,
+  allowProspecting = false,
 ): Promise<MemberCaller | NextResponse> {
   const token = request.headers
     .get('authorization')
@@ -36,6 +39,17 @@ export async function requireMemberCaller(
     )
   }
   try {
+    if (isProspectingAccount(claims)) {
+      const staff = (await adminFirestore.collection('admins').doc(claims.uid).get()).data()
+      if (!allowProspecting || !staff || !isProspectingAccount(staff) || staff.isActive === false)
+        return mobileJson({ error: 'Cette section est inaccessible à ce compte.' }, 403)
+      if (!onboarding && staff.mustChangePassword === true)
+        return mobileJson({ error: 'Choisissez votre mot de passe personnel avant de continuer.' }, 403)
+      return {
+        uid: claims.uid, email: claims.email || '', matricule: claims.uid,
+        member: staff, dossier: { identity: staff }, prospecting: true,
+      }
+    }
     const memberSnap = await adminFirestore
       .collection('users')
       .doc(claims.uid)
