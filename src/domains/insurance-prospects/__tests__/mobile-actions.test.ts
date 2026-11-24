@@ -14,6 +14,8 @@ describe('prospection dans l’API mobile', () => {
     expect(actions.map((a) => a.id).sort()).toEqual(
       [
         'prospect.create',
+        'prospect.catalog.add',
+        'prospect.catalog.toggle',
         'prospect.update',
         'prospect.contacted',
         'prospect.quote_requested',
@@ -31,6 +33,16 @@ describe('prospection dans l’API mobile', () => {
         .find((a) => a.id === 'prospect.convert')
         ?.fields.find((f) => f.key === 'insuranceId')?.source,
     ).toBe('prospectInsurances')
+  })
+  it('propose la gestion du catalogue depuis l’assurance et la prospection', () => {
+    const insurance = module.datasets.find(item => item.key === 'insurance')!
+    for (const tab of [insurance, dataset]) {
+      const actions = adminActions(module, tab)
+      for (const suffix of ['add', 'toggle']) {
+        expect(actions.find(action => action.id === `prospect.catalog.${suffix}`))
+          .toMatchObject({ scope: 'workspace', permission: 'vehicules.edit' })
+      }
+    }
   })
   it('ne compte pas les prospects comme assurés et respecte les suivis clôturés', () => {
     const metrics = sectionMetrics(

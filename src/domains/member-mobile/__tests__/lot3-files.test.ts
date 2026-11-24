@@ -111,7 +111,7 @@ describe('documents des caisses membre', () => {
       memberFinanceAttachmentSource(db, record, children, 'versement-proof', fileId, undefined, module)
     await expect(findProof('M0:legacy', 'caisse-speciale')).resolves.toBe('https://fixture/legacy')
     await expect(findProof('M1:0', 'caisse-speciale')).resolves.toBe('https://fixture/item')
-    await expect(findProof('M0:legacy', 'caisse-imprevue')).rejects.toMatchObject({ status: 404 })
+    await expect(findProof('M0:legacy', 'caisse-imprevue')).resolves.toBe('https://fixture/legacy')
     await expect(findProof('M1:legacy', 'caisse-speciale')).rejects.toMatchObject({ status: 404 })
   })
   it('refuse les sources externes et les fausses extensions ou types MIME', () => {

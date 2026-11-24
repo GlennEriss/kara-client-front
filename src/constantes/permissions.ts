@@ -131,7 +131,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     key: 'boutiques',
     label: 'Boutiques',
     pathPrefixes: ['/boutiques'],
-    actions: actions('boutiques', [VIEW, MANAGE]),
+    actions: actions('boutiques', [VIEW, ['manage', 'Gérer les boutiques et les articles']]),
   },
   {
     key: 'placements',
@@ -239,8 +239,8 @@ export const ALWAYS_ALLOWED_PREFIXES = ['/dashboard']
 export const AGENT_RECOUVREMENT_PERMISSIONS = ['calendar.view', 'bienfaiteur.view', 'events.view', 'birthdays.view'] as const
 
 /**
- * Modèle d'accès pré-coché pour le « Gestionnaire des véhicules » : tout le
- * module Véhicules (assurances), sans téléchargement des pièces jointes.
+ * Modèle d'accès pré-coché pour le « Gestionnaire assurances et prospections » : tout le
+ * module Assurances et prospections, sans téléchargement des pièces jointes.
  */
 export const VEHICULE_MANAGER_PERMISSIONS = [
   'vehicules.view',
@@ -293,7 +293,11 @@ export function effectivePermissions(
   permissions: readonly string[],
   { version, restrictedRole }: { version?: number; restrictedRole?: string | null },
 ): string[] {
-  if ((version ?? 1) >= PERMISSIONS_VERSION) return [...permissions]
+  if ((version ?? 1) >= PERMISSIONS_VERSION) {
+    return restrictedRole === 'GestionnaireVehicules'
+      ? permissions.filter(key => (VEHICULE_MANAGER_PERMISSIONS as readonly string[]).includes(key))
+      : [...permissions]
+  }
   if (restrictedRole) return [...(RESTRICTED_ROLE_TEMPLATES[restrictedRole] ?? [])]
   const granted = new Set(permissions)
   for (const [implied, source] of Object.entries(LEGACY_IMPLIED_PERMISSIONS)) {

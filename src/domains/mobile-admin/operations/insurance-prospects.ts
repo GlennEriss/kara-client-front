@@ -1,4 +1,4 @@
-import { insuranceAssetOptions, isInsuranceAssetType } from '@/domains/vehicles/asset-types'
+import { insuranceAssetOptions, isInsuranceAssetType, newInsuranceAssetType, insuranceAssetSettingsId, parseInsuranceAssetCatalog } from '@/domains/vehicles/asset-types'
 import { ensureConfiguredAssetType } from '@/domains/vehicles/asset-types-server'
 import { z } from 'zod'
 import {
@@ -20,7 +20,6 @@ const fields = [
   textField('ownerName', 'Nom du contact'),
   textField('phone', 'Téléphone'),
   textField('whatsapp', 'WhatsApp', false),
-  textField('plateNumber', 'Immatriculation ou référence du bien'),
   field('vehicleType', 'Type de bien', 'select', z.string().refine(isInsuranceAssetType), {
     options: insuranceAssetOptions(),
     initial: 'car',
@@ -28,6 +27,7 @@ const fields = [
   field('vehicleDescription', 'Précisez le type de bien', 'text', z.string().trim().max(2000).optional(), {
     showWhen: { key: 'vehicleType', value: 'other' },
   }),
+  textField('plateNumber', 'Immatriculation ou référence du bien'),
   textField('city', 'Ville'),
   selectField('locationType', 'Localisation', [
     { value: 'quarter', label: 'Quartier' },
@@ -54,7 +54,7 @@ export function insuranceProspectActions(
   module: AdminModule,
   dataset: Dataset,
 ): AdminAction[] {
-  if (module.key !== 'vehicles' || dataset.key !== 'prospects') return []
+  if (module.key !== 'vehicles' || !['insurance', 'prospects'].includes(dataset.key)) return []
   const action = (
     id: string,
     label: string,
@@ -73,7 +73,38 @@ export function insuranceProspectActions(
       return ctx.services.insuranceProspects.change(ctx.id, currentActor(ctx), kind, data)
     },
   })
+  const catalogAction = (kind: 'add' | 'toggle'): AdminAction => ({
+    id: `prospect.catalog.${kind}`,
+    label: kind === 'add' ? 'Ajouter un type de bien' : 'Retirer ou réactiver un type de bien',
+    scope: 'workspace',
+    permission: 'vehicules.edit',
+    fields: kind === 'add' ? [textField('label', 'Nom du type de bien')] : [
+      field('catalogAssetType', 'Type de bien', 'select', z.string().refine(isInsuranceAssetType), { options: insuranceAssetOptions() }),
+      selectField('state', 'Action', [{ value: 'inactive', label: 'Retirer' }, { value: 'active', label: 'Réactiver' }]),
+    ],
+    run: async ({ services }, input) => {
+      const ref = services.db.collection('settings').doc(insuranceAssetSettingsId)
+      await services.db.runTransaction(async tx => {
+        const catalog = parseInsuranceAssetCatalog((await tx.get(ref)).data())
+        if (kind === 'add') catalog.values.push(newInsuranceAssetType(input.label, catalog.values))
+        else {
+          const value = input.catalogAssetType
+          if (value === 'other' || !insuranceAssetOptions(catalog, { includeInactive: true }).some(option => option.value === value))
+            throw Error('Ce type de bien ne peut pas être modifié.')
+          const inactive = new Set(catalog.inactive)
+          if (input.state === 'inactive') inactive.add(value)
+          else inactive.delete(value)
+          catalog.inactive = [...inactive]
+        }
+        tx.set(ref, catalog, { merge: true })
+      })
+      return { success: true }
+    },
+  })
+  const catalogActions = [catalogAction('add'), catalogAction('toggle')]
+  if (dataset.key === 'insurance') return catalogActions
   return [
+    ...catalogActions,
     {
       id: 'prospect.create',
       label: 'Nouveau prospect',

@@ -196,20 +196,20 @@ export function financePolicy(
           : '',
   }
 }
-const specialPaymentTime = new Intl.DateTimeFormat('fr-FR', {
+const memberPaymentTime = new Intl.DateTimeFormat('fr-FR', {
   timeZone: 'Africa/Libreville',
   hour: '2-digit',
   minute: '2-digit',
   hourCycle: 'h23',
 })
-function versement(v: MemberData, index: number, module: MemberFinanceModule) {
-  const paidAt = module === 'caisse-speciale' && !/^\d{4}-\d{2}-\d{2}$/.test(text(v.paidAt))
-    ? iso(v.paidAt)
+function versement(v: MemberData, index: number) {
+  const paidAt = !/^\d{4}-\d{2}-\d{2}$/.test(text(v.paidAt || v.date))
+    ? iso(v.paidAt || v.date)
     : ''
   return {
     id: text(v.id) || String(index),
     date: day(v.date || v.paidAt),
-    time: text(v.time) || (paidAt ? specialPaymentTime.format(new Date(paidAt)) : ''),
+    time: text(v.time || v.paidAtTime) || (paidAt ? memberPaymentTime.format(new Date(paidAt)) : ''),
     amount: number(v.amount),
     mode: text(v.mode),
     withFees: typeof v.withFees === 'boolean' ? v.withFees : null,
@@ -228,7 +228,7 @@ export function recordedContributions(p: MemberData): MemberData[] {
   return Array.isArray(p.versements) ? p.versements : []
 }
 
-export function isLegacySpecialPayment(p: MemberData, contract: MemberData) {
+export function isLegacyPayment(p: MemberData, contract: MemberData) {
   return contract.contractType !== 'GROUP' &&
     p.status === 'PAID' &&
     recordedContributions(p).length === 0 &&
@@ -242,10 +242,10 @@ export function paymentDTO(
 ) {
   const monthIndex = number(p.dueMonthIndex ?? p.monthIndex)
   const contributions = recordedContributions(p)
-  const versements = contributions.map((v, index) => versement(v, index, module))
-  let dueAt =
-    module === 'caisse-imprevue'
-      ? iso(
+  const versements = contributions.map((v, index) => versement(v, index))
+  let dueAt = iso(p.dueAt)
+  if (!dueAt && module === 'caisse-imprevue') dueAt =
+      iso(
           getMobileCIDueDate(
             {
               firstPaymentDate: iso(c.firstPaymentDate),
@@ -254,7 +254,6 @@ export function paymentDTO(
             monthIndex,
           ),
         )
-      : iso(p.dueAt)
   if (!dueAt) {
     const start = iso(c.firstPaymentDate || c.contractStartAt)
     if (start) {
@@ -297,12 +296,12 @@ export function paymentDTO(
     bonus: number(p.bonusApplied),
     supportRepaymentAmount: number(p.supportRepaymentAmount),
     legacyVersement:
-      module === 'caisse-speciale' && isLegacySpecialPayment(p, c)
+      isLegacyPayment(p, c)
         ? versement({
             ...p,
             amount: p.accumulatedAmount ?? p.amount,
             penalty: p.penaltyApplied,
-          }, 0, module)
+          }, 0)
         : null,
     versements,
     frequency:
@@ -361,6 +360,7 @@ export function contractDTO(
       text(c.paymentFrequency) ||
       (text(c.caisseType).startsWith('JOURNALIERE') ? 'DAILY' : 'MONTHLY'),
     startAt: iso(c.contractStartAt || c.firstPaymentDate),
+    firstPaymentDate: iso(c.firstPaymentDate),
     endAt: memberContractEnd(module, c),
     nextDueAt:
       iso(c.nextDueAt) ||

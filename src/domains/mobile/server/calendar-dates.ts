@@ -14,6 +14,8 @@ export function businessWallTime(date: Date): Date {
 }
 export function withBusinessDates(value: unknown): unknown {
   if (value instanceof Date) return businessWallTime(value)
+  if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function')
+    return withBusinessDates(value.toDate())
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(T|$)/.test(value)) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T12:00:00`)
     const date = new Date(value)

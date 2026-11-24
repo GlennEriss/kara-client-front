@@ -56,7 +56,7 @@ const ModalContent = React.forwardRef<
     <DialogContent
       ref={ref}
       className={cn(
-        "flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0",
+        "flex max-h-[calc(100dvh-1rem)] flex-col sm:max-h-[90dvh] gap-0 overflow-hidden p-0",
         MODAL_SIZES[size],
         className
       )}
@@ -91,7 +91,7 @@ function ModalHeader({
     <div
       data-slot="modal-header"
       className={cn(
-        "shrink-0 border-b border-gray-100 px-6 py-4",
+        "shrink-0 border-b border-gray-100 px-4 py-3 sm:px-6 sm:py-4",
         className
       )}
       {...props}
@@ -124,7 +124,7 @@ const ModalBody = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
         ref={ref}
         data-slot="modal-body"
         className={cn(
-          "min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5",
+          "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5",
           className
         )}
         {...props}
@@ -140,7 +140,7 @@ function ModalFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="modal-footer"
       className={cn(
-        "flex shrink-0 flex-wrap justify-end gap-2 border-t border-gray-100 px-6 py-4",
+        "flex shrink-0 flex-wrap justify-end gap-2 border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4",
         className
       )}
       {...props}

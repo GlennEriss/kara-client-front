@@ -1,21 +1,32 @@
+import { memberShopDirectory, memberShops } from '@/domains/member-mobile/server/shop'
+import {
+  createMemberProspect,
+  declareMemberInsurance,
+  memberInsurance,
+  memberInsuranceQuarters,
+} from '@/domains/member-mobile/server/insurance'
 import { NextRequest, NextResponse } from 'next/server'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminAuth } from '@/firebase/adminAuth'
 import { adminFirestore } from '@/firebase/adminFirestore'
 import { mobileJson } from '@/domains/mobile/server/access'
-import { memberPaymentHistory, memberPaymentHistoryPdf } from '@/domains/member-mobile/server/payment-history'
+import {
+  memberPaymentHistory,
+  memberPaymentHistoryPdf,
+} from '@/domains/member-mobile/server/payment-history'
 import { requireMemberCaller } from '@/domains/member-mobile/server/access'
 import {
   listMemberGroups,
   getMemberGroup,
 } from '@/domains/member-mobile/groups/server/groupRepository'
 import {
-  memberPlacements,
   memberCharity,
   createSolidarityRequest,
 } from '@/domains/member-mobile/server/solidarity'
 import {
   memberEcheances,
+  ownedAccompaniment,
+  type CalendarFamily,
   calendarSummary,
   ownedCalendarContract,
 } from '@/domains/member-mobile/server/calendar'
@@ -56,7 +67,9 @@ export async function GET(request: NextRequest, context: Context) {
       'documents',
       'official',
       'contact',
-      'placements',
+      'insurance',
+      'shop',
+      'accompaniment',
       'charity',
       'groups',
       'group',
@@ -69,8 +82,27 @@ export async function GET(request: NextRequest, context: Context) {
   )
   if (caller instanceof NextResponse) return caller
   try {
-    if (resource === 'placements')
-      return mobileJson(await memberPlacements(adminFirestore!, caller))
+    if (resource === 'accompaniment')
+      return mobileJson(
+        await ownedAccompaniment(
+          adminFirestore!,
+          caller,
+          request.nextUrl.searchParams.get('id') || '',
+          request.nextUrl.searchParams.get('kind') || '',
+        ),
+      )
+    if (resource === 'shop')
+      return mobileJson({ items: request.nextUrl.searchParams.get('view') === 'directory'
+        ? await memberShopDirectory(adminFirestore!)
+        : await memberShops(adminFirestore!, caller) })
+    if (resource === 'insurance') {
+      const city = request.nextUrl.searchParams.get('city')
+      return mobileJson(
+        city
+          ? await memberInsuranceQuarters(adminFirestore!, city)
+          : await memberInsurance(adminFirestore!, caller),
+      )
+    }
     if (resource === 'charity')
       return mobileJson(await memberCharity(adminFirestore!, caller))
     if (resource === 'groups')
@@ -130,9 +162,11 @@ export async function GET(request: NextRequest, context: Context) {
     }
     if (resource === 'calendar') {
       const now = new Date(),
-        items = await memberEcheances(adminFirestore!, caller, now)
+        unavailable = new Set<CalendarFamily>(),
+        items = await memberEcheances(adminFirestore!, caller, now, unavailable)
       return mobileJson({
         items,
+        unavailable: [...unavailable],
         summary: calendarSummary(items, now),
         generatedAt: now.toISOString(),
       })
@@ -159,9 +193,11 @@ export async function GET(request: NextRequest, context: Context) {
       return mobileJson({ profile: memberProfile(caller) })
     if (resource === 'payment-history') {
       const items = await memberPaymentHistory(adminFirestore!, caller)
-      return mobileJson(request.nextUrl.searchParams.get('format') === 'pdf'
-        ? await memberPaymentHistoryPdf(items)
-        : { items })
+      return mobileJson(
+        request.nextUrl.searchParams.get('format') === 'pdf'
+          ? await memberPaymentHistoryPdf(items)
+          : { items },
+      )
     }
     if (resource === 'subscriptions')
       return mobileJson({
@@ -201,7 +237,8 @@ export async function POST(request: NextRequest, context: Context) {
     ![
       'accept-rules',
       'change-password',
-      'placement-demand',
+      'insurance-prospect',
+      'insurance-declaration',
       'charity-intent',
     ].includes(resource)
   )
@@ -213,7 +250,15 @@ export async function POST(request: NextRequest, context: Context) {
   if (caller instanceof NextResponse) return caller
   try {
     const payload = await request.json().catch(() => null)
-    if (resource === 'placement-demand' || resource === 'charity-intent') {
+    if (resource === 'insurance-declaration')
+      return mobileJson(
+        await declareMemberInsurance(adminFirestore!, caller, payload),
+      )
+    if (resource === 'insurance-prospect')
+      return mobileJson(
+        await createMemberProspect(adminFirestore!, caller, payload),
+      )
+    if (resource === 'charity-intent') {
       if (
         !payload ||
         Object.keys(payload).some(

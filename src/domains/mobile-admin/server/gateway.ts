@@ -287,7 +287,7 @@ export async function getAdminWorkspace(request: NextRequest, key: string) {
       )
       counts.set(k, (counts.get(k) || 0) + 1)
     }
-    const assetTypes = key === 'vehicles' ? await readInsuranceAssetTypes(access.services.db).catch(() => []) : undefined
+    const assetTypes = key === 'vehicles' ? await readInsuranceAssetTypes(access.services.db).catch(() => ({ values: [], inactive: [] })) : undefined
     const actions = adminActions(access.module, dataset)
       .filter((a) => a.scope === 'workspace' && canAction(access.caller, a))
       .map((a) => publicAdminAction(a, undefined, assetTypes))
@@ -591,7 +591,7 @@ export async function getAdminDetail(
           lastName: member.lastName,
         })
     }
-    const assetTypes = key === 'vehicles' ? await readInsuranceAssetTypes(access.services.db).catch(() => []) : undefined
+    const assetTypes = key === 'vehicles' ? await readInsuranceAssetTypes(access.services.db).catch(() => ({ values: [], inactive: [] })) : undefined
     const editedAccess =
       key === 'admins' ? resolveAdminAccess([row], {}) : undefined
     return mobileJson(

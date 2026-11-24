@@ -1,5 +1,5 @@
-import { expect, it, vi } from 'vitest'
-import type { Firestore } from 'firebase-admin/firestore'
+import { expect, it } from 'vitest'
+import { memoryDb } from './memory-db'
 import { memberPaymentHistory, memberPaymentHistoryPdf } from '../server/payment-history'
 
 it('alimente la liste et le PDF uniquement avec les versements du membre admis dans l’historique', async () => {
@@ -13,32 +13,29 @@ it('alimente la liste et le PDF uniquement avec les versements du membre admis d
     { id: 'ci-sync', beneficiaryId: 'MK1', paymentType: 'UnexpectedFund', amount: 30000,
       sourcePath: 'contractsCI/CI1/payments/month-0', versementId: 'v1' },
   ]
-  const db = {
-    collection: vi.fn((name: string) => {
-      if (name === 'payments') return { where: () => ({ get: async () => ({
-        docs: centralData.map(data => ({ id: data.id, data: () => ({ ...data, date: '2026-06-10' }) })),
-      }) }) }
-      if (name === 'contractsCI') return {
-        where: () => ({ get: async () => ({ docs: [{ id: 'CI1', data: () => ({ memberId: 'MK1' }) }] }) }),
-        doc: () => ({ collection: () => ({ get: async () => ({ docs: [{
-          ref: { path: 'contractsCI/CI1/payments/month-0' },
-          data: () => ({ versements: [
-            { id: 'v1', amount: 30000, date: '2026-06-10' },
-            { id: 'v2', amount: 10000, date: '2026-06-11' },
-          ] }),
-        }] }) }) }),
-      }
-      return { where: () => ({ get: async () => ({ docs: [] }) }) }
-    }),
-  }
-  const rows = await memberPaymentHistory(db as unknown as Firestore, {
+  const { db, reads } = memoryDb({
+    ...Object.fromEntries(centralData.map(({ id, ...data }) => [`payments/${id}`, { ...data, date: '2026-06-10' }])),
+    'payments/charity-sync': { beneficiaryId: 'MK1', paymentType: 'Charity', date: '2026-06-12', amount: 5000, sourcePath: 'charity-events/E1/contributions/C1' },
+    'charity-events/E1': { title: 'Collecte de Libreville' },
+    'charity-events/E1/participants/P1': { memberId: 'MK1', participantType: 'member' },
+    'charity-events/E1/contributions/C1': { participantId: 'P1', contributionType: 'money', status: 'confirmed', contributionDate: '2026-06-12', payment: { amount: 5000 } },
+    'charity-events/E1/contributions/C2': { participantId: 'P1', contributionType: 'money', status: 'confirmed', contributionDate: '2026-06-13', payment: { amount: 2500 } },
+    'charity-events/E1/contributions/C3': { participantId: 'P1', contributionType: 'money', status: 'pending', contributionDate: '2026-06-13', payment: { amount: 2500 } },
+    'contractsCI/CI1': { memberId: 'MK1' },
+    'contractsCI/CI1/payments/month-0': { versements: [
+      { id: 'v1', amount: 30000, date: '2026-06-10' },
+      { id: 'v2', amount: 10000, date: '2026-06-11' },
+    ] },
+  })
+  const rows = await memberPaymentHistory(db, {
     uid: 'uid-1', matricule: 'MK1', email: '', member: {}, dossier: { id: 'DOSSIER' },
   })
 
-  expect(rows.map(row => row.domain)).toEqual(['caisse-imprevue', 'caisse-imprevue', 'membership'])
-  expect(rows.reduce((sum, p) => sum + p.amount, 0)).toBe(50000)
-  expect(db.collection.mock.calls.flat()).not.toContain('creditContracts')
-  expect(db.collection.mock.calls.flat()).not.toContain('placements')
+  expect(rows.map(row => row.domain)).toEqual(['charity', 'charity', 'caisse-imprevue', 'caisse-imprevue', 'membership'])
+  expect(rows.reduce((sum, p) => sum + p.amount, 0)).toBe(57500)
+  expect(reads).not.toContain('creditContracts')
+  expect(reads).not.toContain('placements')
+  expect(rows.filter(row => row.domain === 'charity').map(row => row.title)).toEqual(['Collecte de Libreville', 'Collecte de Libreville'])
   const file = await memberPaymentHistoryPdf(rows)
   expect(file.mime).toBe('application/pdf')
   expect(Buffer.from(file.base64, 'base64').toString('ascii', 0, 4)).toBe('%PDF')

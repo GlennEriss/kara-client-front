@@ -13,13 +13,14 @@ import {
 } from '../server/documents'
 import {
   memberNotificationInbox,
+  memberNoticeTarget,
   markMemberNotifications,
   saveMemberDevice,
 } from '../server/notifications'
 import { memberCaller as caller, memoryDb } from './memory-db'
 
 describe('calendrier personnel membre', () => {
-  it('reprend les prochaines mensualités et reversements du membre, sans les contrats étrangers ni soldés', async () => {
+  it('reprend les échéances passées et à venir sans élargir le périmètre du membre', async () => {
     const { db } = memoryDb({
       'caisseContracts/CS': {
         memberId: caller.matricule,
@@ -83,16 +84,13 @@ describe('calendrier personnel membre', () => {
       caller,
       new Date('2026-11-21T12:00:00Z'),
     )
-    expect(rows.map((e) => e.contractId)).toEqual([
-      'CS',
-      'CI',
-      'CREDIT',
-      'PLACEMENT',
-    ])
-    expect(rows.map((e) => e.amount)).toEqual([10000, 5000, 25000, 5000])
+    expect(rows.map((e) => e.contractId)).toEqual(['CS', 'CI', 'CS', 'CI', 'CREDIT', 'CS', 'CI'])
+    expect(rows.map((e) => e.amount)).toEqual([10000, 5000, 10000, 5000, undefined, 10000, 5000])
+    expect(rows[0]).toMatchObject({ status: 'PAID', isOverdue: false })
+    expect(rows.find(e => e.contractId === 'CREDIT')).not.toHaveProperty('amount')
     expect(calendarSummary(rows, new Date('2026-11-21T12:00:00Z'))).toEqual({
       overdueCount: 3,
-      thisMonthCount: 0,
+      thisMonthCount: 3,
     })
   })
   it('calcule les mois dans le fuseau gabonais, y compris au changement de mois UTC', async () => {
@@ -106,7 +104,28 @@ describe('calendrier personnel membre', () => {
         subscriptionCIAmountPerMonth: 5000,
       },
     })
-    expect((await memberEcheances(db, caller))[0].day).toBe('2026-03-01')
+    expect((await memberEcheances(db, caller)).map(row => row.day)).toEqual(['2026-02-01', '2026-03-01', '2026-04-01'])
+  })
+  it('affiche les semaines de crédit de plusieurs cycles sans exposer les montants', async () => {
+    const { db } = memoryDb({
+      'creditContracts/WEEKLY': {
+        clientId: caller.matricule, status: 'ACTIVE', creditType: 'SPECIALE',
+        duration: 3, durationUnit: 'WEEKS', firstPaymentDate: '2026-10-06', nextDueAt: '2026-11-10',
+        creditCycles: [
+          { cycleNumber: 1, firstPaymentDate: '2026-10-06' },
+          { cycleNumber: 2, firstPaymentDate: '2026-11-03' },
+        ],
+      },
+      'creditPayments/C1_M1_P1': { creditId: 'WEEKLY', amount: 10000, paymentDate: '2026-10-07' },
+      'creditPayments/C2_M1_P2': { creditId: 'WEEKLY', amount: 10000, paymentDate: '2026-11-03' },
+      'creditPayments/C2_M2_P3': { creditId: 'WEEKLY', amount: 0, comment: 'Paiement de pénalités uniquement' },
+    })
+    const rows = await memberEcheances(db, caller, new Date('2026-11-04T12:00:00Z'))
+    expect(rows.map(row => [row.day, row.status])).toEqual([
+      ['2026-10-06', 'PAID'], ['2026-11-03', 'PAID'], ['2026-11-10', 'DUE'], ['2026-11-17', 'DUE'],
+    ])
+    expect(new Set(rows.map(row => row.id)).size).toBe(4)
+    rows.forEach(row => expect(row).not.toHaveProperty('amount'))
   })
   it('revalide le titulaire et la variante de crédit avant de présenter un contrat, sans champs admin', async () => {
     const { db } = memoryDb({
@@ -243,8 +262,17 @@ describe('notifications personnelles et appareils membres', () => {
       isRead: false,
       title: 'SECRET',
     },
+    'notifications/PLACEMENT': { module: 'placement', recipientId: caller.uid, isRead: false, createdAt: new Date('2026-11-22') },
     'notifications/ADMIN': { isRead: false, title: 'SECRET ADMIN' },
   }
+  it('dirige vers les versements du contrat et ignore les identifiants de route invalides', () => {
+    expect(memberNoticeTarget({ module: 'caisse_imprevue', type: 'contract_paid', metadata: { contractId: 'CI-1', versementId: 'V-1' } }))
+      .toMatchObject({ screen: 'member', module: 'caisse-imprevue', id: 'CI-1', kind: 'payments' })
+    expect(memberNoticeTarget({ module: 'vehicule', metadata: { prospectId: 'P-1' } }))
+      .toMatchObject({ screen: 'member', module: 'insurance', id: 'P-1', kind: 'prospect' })
+    expect(memberNoticeTarget({ module: 'placement', entityId: 'P-1' })).toBeNull()
+    expect(memberNoticeTarget({ module: 'caisse_speciale', metadata: { contractId: '../autre' } })?.id).toBeUndefined()
+  })
   it('conserve les messages lus comme sur le site membre et exclut notifications admin et autres membres', async () => {
     const { db } = memoryDb(data),
       inbox = await memberNotificationInbox(db, caller)
@@ -267,6 +295,8 @@ describe('notifications personnelles et appareils membres', () => {
     await markMemberNotifications(db, caller, { action: 'readAll' })
     expect(writes.map((w) => w.path)).toEqual(['notifications/OWN'])
     expect(records.get('notifications/OTHER')?.isRead).toBe(false)
+    expect(records.get('notifications/PLACEMENT')?.isRead).toBe(false)
+    expect(records.get('notifications/OWN')).toHaveProperty('readAt')
     expect(await memberNotificationInbox(db, caller)).toMatchObject({
       unreadCount: 0,
       items: expect.arrayContaining([

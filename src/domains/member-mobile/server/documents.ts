@@ -146,7 +146,7 @@ export async function memberDocuments(db: Firestore, caller: MemberCaller) {
   const rows: MemberDocument[] = []
   for (const row of stored) {
     const d = storedDocument(row)
-    if (d) rows.push(d)
+    if (d && d.category !== 'PLACEMENT') rows.push(d)
   }
   for (const row of subscriptions) {
     const d = sheet('subscription', row.id, row)
@@ -180,7 +180,7 @@ export async function personalDocumentSource(
   if (!memberIdentifier(id)) throw new MemberError('Document inconnu.', 404)
   if (kind === 'document') {
     const data = (await db.collection('documents').doc(id).get()).data()
-    if (!data || !memberIds(caller).includes(data.memberId))
+    if (!data || text(data.type).toUpperCase().startsWith('PLACEMENT_') || !memberIds(caller).includes(data.memberId))
       throw new MemberError('Document introuvable.', 404)
     return {
       url: text(data.url),

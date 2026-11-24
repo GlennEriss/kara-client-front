@@ -76,7 +76,7 @@ export function VehicleInsuranceFilters({ filters, onChange, onReset, companies,
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous</SelectItem>
-            {insuranceAssetOptions(customAssets, filters.vehicleType).map(({ value, label }) => (
+            {insuranceAssetOptions(customAssets, { selected: filters.vehicleType, includeInactive: true }).map(({ value, label }) => (
               <SelectItem key={value} value={value}>{label}</SelectItem>
             ))}
           </SelectContent>

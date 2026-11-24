@@ -14,6 +14,7 @@ export function memoryDb(initial: Record<string, Record<string, any>>) {
   )
   const writes: { path: string; data: unknown }[] = [],
     reads: string[] = []
+  let generatedId = 0
   const ref = (path: string): any => ({
     id: path.split('/').at(-1),
     path,
@@ -46,7 +47,7 @@ export function memoryDb(initial: Record<string, Record<string, any>>) {
     max = Infinity,
     collectionGroup = false,
   ): any => ({
-    doc: (id: string) => ref(`${path}/${id}`),
+    doc: (id = `generated-${++generatedId}`) => ref(`${path}/${id}`),
     where: (key: string, op: string, value: any) =>
       query(path, [...filters, [key, op, value]], sort, max, collectionGroup),
     orderBy: (key: string, direction = 'asc') =>
@@ -113,6 +114,7 @@ export function memoryDb(initial: Record<string, Record<string, any>>) {
     batch: () => {
       const pending: any[] = []
       return {
+        set: (r: any, data: any) => pending.push([r.path, data]),
         update: (r: any, data: any) => pending.push([r.path, data]),
         commit: async () =>
           pending.forEach(([path, data]) => update(path, data)),

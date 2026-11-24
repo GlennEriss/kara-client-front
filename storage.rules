@@ -11,10 +11,19 @@ service firebase.storage {
       return request.auth != null;
     }
     
+    function isInsuranceManager() {
+      return isAuthenticated() && request.auth.token.get('role', '') != 'SuperAdmin' && (
+        request.auth.token.get('role', '') == 'GestionnaireVehicules' ||
+        (firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
+         (firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('roles', []).hasAny(['GestionnaireVehicules']) ||
+          firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('role', '') == 'GestionnaireVehicules') &&
+         !firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('roles', []).hasAny(['SuperAdmin']))
+      );
+    }
+
     function isAdmin() {
-      return isAuthenticated() && (
-        (request.auth.token.role != null &&
-         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur', 'AgentRecouvrement', 'GestionnaireVehicules']) ||
+      return isAuthenticated() && !isInsuranceManager() && (
+        request.auth.token.get('role', '') in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur', 'AgentRecouvrement'] ||
         // Repli sur le document `admins` (robuste si le custom claim est absent,
         // ex. après une migration d'UID).
         firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
@@ -83,14 +92,14 @@ service firebase.storage {
 
     // Pièces d'une déclaration d'assurance véhicule.
     match /vehicle-insurances/{memberId}/{insuranceId}/{fileName} {
-      allow read: if isAdmin() || (
+      allow read: if isAdmin() || isInsuranceManager() || (
         isAuthenticated() && (
           request.auth.uid == memberId ||
           (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
            firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
         )
       );
-      allow create: if (isAdmin() || (
+      allow create: if (isAdmin() || isInsuranceManager() || (
         isAuthenticated() && (
           request.auth.uid == memberId ||
           (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&

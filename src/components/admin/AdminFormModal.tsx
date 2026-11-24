@@ -31,7 +31,10 @@ const isSuperAdminRoles = (roles?: readonly string[]) =>
 
 /** Permissions enregistrées : aucune pour un superAdmin, les cases cochées sinon. */
 const permissionsForRoles = (roles: readonly string[] | undefined, permissions: string[] | undefined) =>
-  isSuperAdminRoles(roles) ? [] : (permissions ?? [])
+  isSuperAdminRoles(roles) ? [] : effectivePermissions(permissions ?? [], {
+    version: PERMISSIONS_VERSION,
+    restrictedRole: restrictedRoleOf(roles),
+  })
 
 interface AdminFormModalProps {
   isOpen: boolean
@@ -567,6 +570,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
                   )}
                   <PermissionsEditor
                     value={permissions}
+                    allowedKeys={restrictedRole === 'GestionnaireVehicules' ? RESTRICTED_ROLE_TEMPLATES[restrictedRole] : undefined}
                     onChange={(next) => form.setValue('permissions', next, { shouldDirty: true })}
                   />
                 </FormItem>
