@@ -48,6 +48,9 @@ describe('documents et apparence dans les outils intégrés', () => {
     cleanup()
     expect(HTMLAnchorElement.prototype.click).toBe(click)
     expect(HTMLAnchorElement.prototype.dispatchEvent).toBe(dispatch)
+    expect(document.documentElement).not.toHaveAttribute('data-kara-mobile')
+    expect(document.documentElement).not.toHaveAttribute('data-kara-theme')
+    expect(document.documentElement).not.toHaveAttribute('data-kara-motion')
   })
   it('ne télécharge pas un fichier hébergé sur un projet étranger', async () => {
     const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock)

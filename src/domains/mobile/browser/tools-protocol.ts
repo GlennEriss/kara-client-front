@@ -8,7 +8,7 @@ export interface ToolSession {
   dark: boolean; reduceMotion: boolean
 }
 export function readToolMarker(): ToolMarker | null {
-  if (typeof window === 'undefined' || !window.ReactNativeWebView) return null
+  if (typeof window === 'undefined' || typeof window.ReactNativeWebView?.postMessage !== 'function') return null
   try {
     const value = JSON.parse(sessionStorage.getItem(TOOLS_KEY) ?? 'null')
     return value?.version === 1 && /^[a-f0-9]{48}$/.test(value.sessionId) && typeof value.uid === 'string' &&
