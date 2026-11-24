@@ -17,7 +17,7 @@ import { listVehicleRewards } from '@/db/vehicle-rewards.db'
 import { diffVehicleDeclaration } from '@/utils/vehicle-declaration'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { VehicleInsurance, VehicleInsuranceFilters } from '@/types/types'
-import { FileSpreadsheet, FileText, Percent, Plus, ShieldCheck } from 'lucide-react'
+import { Calculator, FileSpreadsheet, FileText, Percent, Plus, ShieldCheck } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -321,10 +321,15 @@ export function VehicleInsuranceList() {
             <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20"><Link href="/vehicules/prospection">Voir les prospects</Link></Button>
             {can('vehicules.view') && (
               <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
-                <Link href="/api/vehicules/bareme-ogar" target="_blank" rel="noopener noreferrer">
+                <Link href="/vehicules/baremes">
                   <FileText aria-hidden="true" className="h-4 w-4" />
-                  Barème OGAR
+                  Barèmes des assureurs
                 </Link>
+              </Button>
+            )}
+            {can('vehicules.view') && (
+              <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+                <Link href="/vehicules/simulateur"><Calculator aria-hidden className="size-4" /> Simulateur</Link>
               </Button>
             )}
             {canExport && (
