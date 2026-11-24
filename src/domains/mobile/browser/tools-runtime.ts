@@ -6,7 +6,6 @@ const MIME: Record<string, string> = { pdf: 'application/pdf', xlsx: 'applicatio
   xls: 'application/vnd.ms-excel', csv: 'text/csv', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
 const CSS = `
 html[data-kara-mobile] { overscroll-behavior: none; color-scheme: light; }
-html[data-kara-mobile] [data-kara-web-chrome],html[data-kara-mobile] [data-slot="sidebar"] { display: none !important; }
 html[data-kara-mobile] [data-kara-tool-tabs] { overflow-x: auto; padding-inline: 12px; }
 html[data-kara-mobile] [data-kara-tool-tabs] [role=tablist] { width: max-content; }
 html[data-kara-mobile] [role=dialog] { max-width: calc(100vw - 20px); }
@@ -141,6 +140,9 @@ export function installToolsRuntime(): () => void {
     delete window.KaraMobileAppearance
     delete window.KaraMobileDownload
     delete window.KaraMobileLogout
+    delete html.dataset.karaMobile
+    delete html.dataset.karaTheme
+    delete html.dataset.karaMotion
     style.remove()
   }
 }

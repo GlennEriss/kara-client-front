@@ -187,7 +187,8 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          closeLabel="Fermer le menu"
+          className="bg-sidebar text-sidebar-foreground h-dvh w-(--sidebar-width) max-w-[calc(100vw-1.5rem)] p-0 [&>button]:right-2 [&>button]:top-2 [&>button]:grid [&>button]:size-11 [&>button]:place-items-center [&>button]:bg-transparent [&>button]:text-white"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -196,8 +197,8 @@ function Sidebar({
           side={side}
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            <SheetTitle>Menu d’administration</SheetTitle>
+            <SheetDescription>Accédez aux rubriques du web admin.</SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
@@ -258,7 +259,7 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar()
+  const { isMobile, open, openMobile, toggleSidebar } = useSidebar()
 
   return (
     <Button
@@ -266,15 +267,17 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
-      className={cn("size-9 [&_svg]:size-8", className)}
+      aria-label="Menu d’administration"
+      aria-expanded={isMobile ? openMobile : open}
+      className={cn("size-9 [&_svg]:size-5", className)}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
       }}
       {...props}
     >
-      <Menu className="size-8" /> 
-      <span className="sr-only">Toggle Sidebar</span>
+      <Menu aria-hidden className="size-5" />
+      <span className="text-xs font-semibold md:hidden">Menu</span>
     </Button>
   )
 }
