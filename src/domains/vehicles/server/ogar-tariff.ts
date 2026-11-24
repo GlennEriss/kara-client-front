@@ -23,7 +23,7 @@ export type OgarTariffGroup = {
   label: string
   assetTypes: readonly string[]
   plans: readonly string[]
-  bands: readonly { label: string; rates: readonly number[] }[]
+  bands: readonly { label: string; rates: readonly (number | null)[] }[]
 }
 
 function standardGroup(

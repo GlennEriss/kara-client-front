@@ -5,9 +5,9 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { requireAdminCaller } from '@/domains/auth/server/requireAdminCaller'
 import { loadAdminAccess } from '@/domains/auth/server/admin-access'
 import {
-  archiveKey, collection, documentFor, legacyId, listTariffDocuments, ogarSimulation,
-  safeFilename, vehicleType, verifiedOgarDocument,
+  archiveKey, collection, documentFor, legacyId, listTariffDocuments, safeFilename, vehicleType,
 } from '@/domains/vehicles/server/tariff-archive'
+import { loadOgarGrid, ogarGridSimulation } from '@/domains/vehicles/server/tariff-grids'
 import { canWithAccess } from '@/domains/auth/access-policy'
 import { adminApp } from '@/firebase/admin'
 import { adminFirestore } from '@/firebase/adminFirestore'
@@ -42,6 +42,11 @@ export async function GET(request: NextRequest) {
     const access = await authorize(request)
     if (access instanceof NextResponse) return access
 
+    if (request.nextUrl.searchParams.get('simulation') === 'ogar') {
+      if (!adminFirestore) return reply({ error: 'Grille OGAR indisponible.' }, 503)
+      return reply(ogarGridSimulation(await loadOgarGrid(adminFirestore)))
+    }
+
     const { documents, bucket } = archive()
     const id = request.nextUrl.searchParams.get('document')
     if (id !== null) {
@@ -62,9 +67,6 @@ export async function GET(request: NextRequest) {
     }
 
     const archiveItems = await listTariffDocuments(documents)
-    if (request.nextUrl.searchParams.get('simulation') === 'ogar') {
-      return reply(ogarSimulation(verifiedOgarDocument(archiveItems)))
-    }
     const items = archiveItems.map(({ id, insurerId, insurer, assetTypeId, assetType, filename, importedAt }) =>
       ({ id, insurerId, insurer, assetTypeId, assetType, filename, importedAt }))
     return reply({ items, canPublish: access.canPublish })

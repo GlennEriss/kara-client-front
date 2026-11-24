@@ -8,6 +8,7 @@ const store = vi.hoisted(() => ({
   archive: vi.fn(),
   partners: vi.fn(),
   download: vi.fn(),
+  grid: vi.fn(),
 }))
 
 vi.mock('@/domains/mobile/server/access', async (importOriginal) => ({
@@ -17,7 +18,7 @@ vi.mock('@/domains/mobile/server/access', async (importOriginal) => ({
 vi.mock('@/firebase/admin', () => ({ adminApp: {} }))
 vi.mock('@/firebase/adminAuth', () => ({ adminAuth: {} }))
 vi.mock('@/firebase/adminFirestore', () => ({
-  adminFirestore: { collection: () => ({ orderBy: () => ({ get: store.archive }) }) },
+  adminFirestore: { collection: () => ({ orderBy: () => ({ get: store.archive }), doc: () => ({ get: store.grid }) }) },
 }))
 vi.mock('@/domains/vehicles/asset-types-server', () => ({
   readInsuranceAssetTypes: async () => ({ values: ['custom:Vitrine'], inactive: ['apartment'] }),
@@ -41,6 +42,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.stubEnv('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET', 'test.appspot.com')
   store.caller.mockResolvedValue(caller(['vehicules.view']))
+  store.grid.mockResolvedValue({ exists: false })
   store.archive.mockResolvedValue({
     docs: [{
       id: 'ogar-vehicules',
@@ -53,6 +55,20 @@ beforeEach(() => {
   })
   store.partners.mockResolvedValue([{ id: 'ogar', name: 'OGAR', commissionRate: 10, memberSharePercent: 30, updatedBy: 'secret' }])
   store.download.mockResolvedValue([Buffer.from('%PDF-1.4')])
+})
+
+it('utilise les primes modifiées du tableau OGAR', async () => {
+  store.grid.mockResolvedValue({ exists: true, id: 'ogar--vehicules', data: () => ({
+    insurer: 'OGAR', assetType: 'Véhicules', revision: 1, groups: [{
+      id: 'berline', label: 'Berline', assetTypes: ['car'], plans: ['1 an'],
+      bands: [{ label: '4 CV', rates: [120000] }],
+    }],
+  }) })
+  const response = await GET(request())
+  const data = await response.json()
+  expect(data.ogar.gridId).toBe('ogar--vehicules')
+  expect(data.ogar.groups[0].bands[0].rates[0]).toBe(120000)
+  expect(store.archive).not.toHaveBeenCalled()
 })
 
 it('retourne le catalogue actif, les taux et le même barème vérifié que le web', async () => {

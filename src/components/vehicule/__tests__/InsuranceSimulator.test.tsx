@@ -40,7 +40,7 @@ function expectAmount(label: string, amount: RegExp) {
 describe('simulateur d’assurance', () => {
   it('charge le barème OGAR et répartit la commission selon les taux configurés', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, json: async () => ({ documentId: 'ogar-vehicules', groups: ogarTariffGroups }),
+      ok: true, json: async () => ({ gridId: 'ogar--vehicules', groups: ogarTariffGroups }),
     }))
     renderSimulator()
     choose('Type de bien', 'car')
@@ -54,8 +54,8 @@ describe('simulateur d’assurance', () => {
     expectAmount('Commission attendue de l’assureur', /11\s503/)
     expectAmount('Part du parrain', /3\s451/)
     expectAmount('Part estimée de LE KARA', /8\s052/)
-    expect(screen.getByRole('link', { name: 'Vérifier le PDF source' })).toHaveAttribute(
-      'href', '/api/vehicules/baremes?document=ogar-vehicules',
+    expect(screen.getByRole('link', { name: 'Consulter la grille tarifaire' })).toHaveAttribute(
+      'href', '/vehicules/baremes#grille-tarifaire',
     )
     fireEvent.click(screen.getByRole('switch', { name: 'Prévoir un reversement au parrain' }))
     expectAmount('Part estimée de LE KARA', /11\s503/)

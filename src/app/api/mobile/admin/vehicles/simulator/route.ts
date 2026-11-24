@@ -6,8 +6,9 @@ import { mobileCapabilities, mobileJson, requireMobileCaller } from '@/domains/m
 import { insuranceAssetOptions } from '@/domains/vehicles/asset-types'
 import { readInsuranceAssetTypes } from '@/domains/vehicles/asset-types-server'
 import {
-  collection, listTariffDocuments, ogarSimulation, verifiedOgarDocument,
+  collection, listTariffDocuments, verifiedOgarDocument,
 } from '@/domains/vehicles/server/tariff-archive'
+import { loadOgarGrid, ogarGridSimulation } from '@/domains/vehicles/server/tariff-grids'
 import { adminApp } from '@/firebase/admin'
 import { adminFirestore } from '@/firebase/adminFirestore'
 
@@ -38,13 +39,13 @@ export async function GET(request: NextRequest) {
     const [catalog, partners, ogar] = await Promise.all([
       readInsuranceAssetTypes(db),
       rewards.listInsurancePartners(),
-      readOgar(),
+      loadOgarGrid(db),
     ])
     return mobileJson({
       assetTypes: insuranceAssetOptions(catalog),
       partners: partners.map(({ id, name, commissionRate, memberSharePercent }) =>
         ({ id, name, commissionRate, memberSharePercent })),
-      ogar: ogarSimulation(ogar),
+      ogar: ogarGridSimulation(ogar),
     })
   } catch {
     return mobileJson({ error: 'Impossible de charger les données du simulateur. Réessayez.' }, 503)
