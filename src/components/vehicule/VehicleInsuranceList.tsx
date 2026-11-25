@@ -1,5 +1,6 @@
 'use client'
 
+import { insurerLabel } from "@/domains/vehicles/insurance-companies"
 import { assetTypeLabel } from '@/domains/vehicles/asset-types'
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
@@ -31,6 +32,7 @@ import { VehicleInsuranceRenewForm } from './VehicleInsuranceRenewForm'
 import { VehicleInsuranceStats } from './VehicleInsuranceStats'
 import { VehicleInsuranceTable } from './VehicleInsuranceTable'
 import { InsuranceAssetTypesDialog } from './InsuranceAssetTypesDialog'
+import { InsuranceCompaniesDialog } from './InsuranceCompaniesDialog'
 import { InsurancePartnersDialog, VehicleRewardEstimate, VehicleRewardsPanel } from './VehicleRewards'
 
 const DEFAULT_FILTERS: VehicleInsuranceFilters = {
@@ -56,7 +58,7 @@ const EXPORT_HEADERS = [
 ]
 
 export function VehicleInsuranceList() {
-  const { can } = useMyAccess()
+  const { can, isSuperAdmin } = useMyAccess()
   const { log } = useAuditLogger()
   const canExport = can('vehicules.export')
   useVehicleInsurancesRealtimeSync(true)
@@ -77,6 +79,7 @@ export function VehicleInsuranceList() {
   )
   const [isExporting, setIsExporting] = useState(false)
   const [assetTypesOpen, setAssetTypesOpen] = useState(false)
+  const [companiesOpen, setCompaniesOpen] = useState(false)
   const [partnersOpen, setPartnersOpen] = useState(false)
   const [pageSize, setPageSize] = useState(Number(searchParams.get('limit')) || 10)
 
@@ -146,7 +149,7 @@ export function VehicleInsuranceList() {
         plateNumber,
         premiumAmount,
         warrantyMonths,
-        insurance.insuranceCompany || '',
+        insurerLabel(insurance.insuranceCompany || ''),
         paid.get(insurance.id) ?? 0,
       ]
     })
@@ -361,6 +364,11 @@ export function VehicleInsuranceList() {
                 Types de biens
               </Button>
             )}
+            {isSuperAdmin && (
+              <Button type="button" variant="outline" className="bg-white/10 hover:bg-white/20 border-white/20 text-white" onClick={() => setCompaniesOpen(true)}>
+                Liste des assureurs
+              </Button>
+            )}
             {can('vehicules.edit') && (
               <Button
                 type="button"
@@ -458,7 +466,8 @@ export function VehicleInsuranceList() {
       )}
 
       {can('vehicules.edit') && <InsuranceAssetTypesDialog open={assetTypesOpen} onOpenChange={setAssetTypesOpen} />}
-      <InsurancePartnersDialog open={partnersOpen} onOpenChange={setPartnersOpen} companies={companies} />
+      {isSuperAdmin && <InsuranceCompaniesDialog open={companiesOpen} onOpenChange={setCompaniesOpen} />}
+      <InsurancePartnersDialog open={partnersOpen} onOpenChange={setPartnersOpen} />
 
       <VehicleInsuranceDetail insurance={detailInsurance} open={!!detailInsurance} onOpenChange={open => {
         if (!open) setDetailInsurance(null)

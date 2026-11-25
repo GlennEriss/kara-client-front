@@ -7,6 +7,9 @@ import { InsuranceSimulator } from '../InsuranceSimulator'
 vi.mock('@/domains/vehicles/use-insurance-asset-types', () => ({
   useInsuranceAssetTypes: () => ({ data: { values: ['custom:Vitrine professionnelle'], inactive: [] } }),
 }))
+vi.mock('@/domains/vehicles/use-insurance-companies', () => ({
+  useInsuranceCompanies: () => ({ data: ['AXA', 'NSIA', 'OGAR'] }),
+}))
 vi.mock('@/hooks/vehicule/useVehicleRewards', () => ({
   useInsurancePartners: () => ({
     data: [

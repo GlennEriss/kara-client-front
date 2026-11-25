@@ -23,6 +23,17 @@ before(async () => {
 })
 after(async () => { await env?.cleanup() })
 const db = (uid = 'alice') => env.authenticatedContext(uid).firestore()
+test('seul un superadmin authentifié peut gérer le catalogue des assureurs', async () => {
+  const path = 'settings/insuranceCompanies'
+  const root = env.authenticatedContext('root', { role: 'SuperAdmin' }).firestore()
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), path)))
+  await assertSucceeds(getDoc(doc(db(), path)))
+  await assertFails(setDoc(doc(db(), path), { names: ['AXA'] }))
+  await assertFails(setDoc(doc(db('manager'), path), { names: ['AXA'] }))
+  await assertSucceeds(setDoc(doc(root, path), { names: ['AXA', 'NSIA', 'OGAR'] }))
+  await assertSucceeds(setDoc(doc(root, path), { names: [] }))
+  await assertFails(setDoc(doc(root, path), { names: 'OGAR' }))
+})
 test('un membre crée son prospect et son historique dans un même lot', async () => {
   const f = db(), batch = writeBatch(f)
   batch.set(doc(f, 'insurance-prospects/new'), row())

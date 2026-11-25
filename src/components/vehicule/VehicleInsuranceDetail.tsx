@@ -1,5 +1,6 @@
 'use client'
 
+import { insurerLabel } from "@/domains/vehicles/insurance-companies"
 import { assetTypeLabel, isRoadAssetType } from '@/domains/vehicles/asset-types'
 
 import { Button } from '@/components/ui/button'
@@ -111,7 +112,7 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Metric icon={<ReceiptText className="h-4 w-4" />} label="Prime" value={formatAmount(insurance.premiumAmount)} detail={insurance.warrantyMonths ? `${insurance.warrantyMonths} mois de garantie` : undefined} />
             <Metric icon={<CalendarDays className="h-4 w-4" />} label="Échéance" value={formatDate(insurance.endDate)} detail={`Début : ${formatDate(insurance.startDate)}`} />
-            <Metric icon={<Building2 className="h-4 w-4" />} label="Assureur" value={insurance.insuranceCompany || '—'} detail={insurance.policyNumber ? `Police ${insurance.policyNumber}` : 'Police non renseignée'} />
+            <Metric icon={<Building2 className="h-4 w-4" />} label="Assureur" value={insurerLabel(insurance.insuranceCompany || '—')} detail={insurance.policyNumber ? `Police ${insurance.policyNumber}` : 'Police non renseignée'} />
             <Metric icon={<History className="h-4 w-4" />} label="Renouvellements" value={String(insurance.renewalCount || 0)} detail={insurance.lastRenewedAt ? `Dernier : ${formatDate(insurance.lastRenewedAt)}` : 'Aucun renouvellement'} />
           </div>
 

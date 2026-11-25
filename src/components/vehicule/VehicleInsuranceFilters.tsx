@@ -85,7 +85,6 @@ export function VehicleInsuranceFilters({ filters, onChange, onReset, companies,
 
       <div className="space-y-2">
         <Label>Compagnie</Label>
-        {uniqueCompanies.length > 0 ? (
           <Select value={filters.insuranceCompany || 'all'} onValueChange={value => updateFilter({ insuranceCompany: value === 'all' ? undefined : value })}>
             <SelectTrigger>
               <SelectValue placeholder="Toutes les compagnies" />
@@ -99,9 +98,6 @@ export function VehicleInsuranceFilters({ filters, onChange, onReset, companies,
               ))}
             </SelectContent>
           </Select>
-        ) : (
-          <Input placeholder="Nom de l’assurance" value={filters.insuranceCompany || ''} onChange={event => updateFilter({ insuranceCompany: event.target.value || undefined })} />
-        )}
       </div>
 
       <div className="space-y-2">

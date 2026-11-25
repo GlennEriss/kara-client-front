@@ -16,13 +16,12 @@ import type { OgarTariffGroup } from '@/domains/vehicles/server/ogar-tariff'
 import { insuranceAssetOptions } from '@/domains/vehicles/asset-types'
 import { useInsuranceAssetTypes } from '@/domains/vehicles/use-insurance-asset-types'
 import { useInsurancePartners } from '@/hooks/vehicule/useVehicleRewards'
-import { computeVehicleReward, normalizeInsurerName } from '@/utils/vehicle-rewards'
+import { computeVehicleReward, findInsurancePartner } from '@/utils/vehicle-rewards'
+import { insurerKey } from '@/domains/vehicles/insurance-companies'
+import { useInsuranceCompanies } from '@/domains/vehicles/use-insurance-companies'
 
 const percent = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 })
 const ogarVehicleTypes = new Set(['car', 'van', 'motorcycle', 'bus', 'truck', 'machinery'])
-const ogarOption = '__ogar__'
-const otherPartnerOption = '__other_partner__'
-const isOgarName = (name?: string) => /^(ogar)(?: |$)/.test(normalizeInsurerName(name))
 const money = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
 const nativeSelect = 'h-12 w-full min-w-0 appearance-none truncate rounded-xl border border-input bg-background pl-3 pr-9 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:opacity-60 md:text-sm'
 const reveal = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300'
@@ -40,11 +39,11 @@ function SelectField({ children, ...props }: React.ComponentProps<'select'>) {
 export function InsuranceSimulator() {
   const assetCatalog = useInsuranceAssetTypes()
   const partners = useInsurancePartners()
+  const companies = useInsuranceCompanies()
   const assetSelect = useRef<HTMLSelectElement>(null)
   const [assetType, setAssetType] = useState('')
   const [customAsset, setCustomAsset] = useState('')
   const [partnerId, setPartnerId] = useState('')
-  const [customPartner, setCustomPartner] = useState('')
   const [premium, setPremium] = useState('')
   const [hasSponsor, setHasSponsor] = useState(true)
   const [manualOverride, setManualOverride] = useState(false)
@@ -52,8 +51,9 @@ export function InsuranceSimulator() {
   const [band, setBand] = useState('')
   const [plan, setPlan] = useState('')
 
-  const partner = partners.data?.find(item => item.id === partnerId)
-  const isOgar = partnerId === ogarOption || isOgarName(partner?.name)
+  const insurer = companies.data?.find(name => insurerKey(name) === partnerId)
+  const partner = findInsurancePartner(partners.data ?? [], insurer)
+  const isOgar = !!insurer && /^ogar(?: |$)/.test(partnerId)
   const eligibleForOgar = isOgar && ogarVehicleTypes.has(assetType)
   const source = useQuery({
     queryKey: ['insurance-tariff-simulation', 'ogar'],
@@ -78,7 +78,7 @@ export function InsuranceSimulator() {
   const amount = automatic ? tariffAmount ?? 0 : manualAmount
   const validAmount = Number.isSafeInteger(amount) && amount > 0
   const hasAsset = !!assetType && (assetType !== 'other' || !!customAsset.trim())
-  const hasPartner = !!partnerId && (partnerId !== otherPartnerOption || !!customPartner.trim())
+  const hasPartner = !!insurer
   const rates = partner && {
     commissionRate: partner.commissionRate,
     memberSharePercent: hasSponsor ? partner.memberSharePercent : 0,
@@ -109,7 +109,6 @@ export function InsuranceSimulator() {
     setAssetType('')
     setCustomAsset('')
     setPartnerId('')
-    setCustomPartner('')
     setHasSponsor(true)
     resetPricing()
     assetSelect.current?.focus()
@@ -160,11 +159,9 @@ export function InsuranceSimulator() {
             <div className="min-w-0 space-y-2">
               <Label htmlFor="simulation-partner"><ShieldCheck aria-hidden className="size-4 text-muted-foreground" /> Assureur</Label>
               <SelectField id="simulation-partner" value={partnerId}
-                onChange={event => { setPartnerId(event.target.value); resetPricing() }} disabled={partners.isPending}>
+                onChange={event => { setPartnerId(event.target.value); resetPricing() }} disabled={companies.isPending}>
                 <option value="">Choisir un assureur</option>
-                {!(partners.data ?? []).some(item => isOgarName(item.name)) && <option value={ogarOption}>OGAR</option>}
-                {(partners.data ?? []).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-                <option value={otherPartnerOption}>Autre assureur</option>
+                {companies.data?.map(name => <option key={name} value={insurerKey(name)}>{name}</option>)}
               </SelectField>
             </div>
           </div>
@@ -175,13 +172,10 @@ export function InsuranceSimulator() {
                 onChange={event => setCustomAsset(event.target.value)} />
             </div>
           )}
-          {partnerId === otherPartnerOption && (
-            <div className={`${reveal} space-y-2`}>
-              <Label htmlFor="simulation-other-partner">Nom de l’assureur</Label>
-              <Input id="simulation-other-partner" className="h-12 rounded-xl" value={customPartner}
-                onChange={event => setCustomPartner(event.target.value)} maxLength={60} />
-            </div>
-          )}
+          {companies.isError && <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm">
+            Liste des assureurs indisponible.
+            <Button size="sm" variant="outline" onClick={() => void companies.refetch()}>Réessayer</Button>
+          </div>}
           {partners.isError && (
             <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
               Les taux des assureurs sont indisponibles.

@@ -2,6 +2,9 @@
 
 import { assetTypeLabel, insuranceAssetOptions, isAvailableInsuranceAssetType, isRoadAssetType } from "@/domains/vehicles/asset-types"
 import { useInsuranceAssetTypes } from "@/domains/vehicles/use-insurance-asset-types"
+import { InsuranceCompanySelect } from '@/components/vehicule/InsuranceCompanySelect'
+import { insurerLabel, resolveInsurerSelection } from '@/domains/vehicles/insurance-companies'
+import { useInsuranceCompanies } from '@/domains/vehicles/use-insurance-companies'
 import { VehicleLocationStats } from '@/components/vehicule/VehicleLocationStats'
 import { vehicleLocationStats } from '@/domains/vehicles/location'
 import { VehicleLocationFields } from '@/components/vehicule/VehicleLocationFields'
@@ -94,6 +97,7 @@ export function ProspectsPage({
   insuranceCreateUrl?: (row: InsuranceProspect) => string
 }) {
   const { data: customAssets } = useInsuranceAssetTypes()
+  const { data: insurers } = useInsuranceCompanies(!!actor.id)
   const client = useQueryClient(),
     repository = new InsuranceProspectRepository()
   const [search, setSearch] = useState(''),
@@ -167,7 +171,7 @@ export function ProspectsPage({
             sponsorMemberId:
               row?.sponsorMemberId ||
               (actor.admin ? KARA_SPONSOR_ID : actor.memberId || ''),
-            insuranceCompany: row?.insuranceCompany || '',
+            insuranceCompany: '',
             endDate: op === 'renewed_elsewhere' ? '' : row?.endDate || '',
             note: '',
             followUpDate: row?.followUpDate || '',
@@ -249,10 +253,18 @@ export function ProspectsPage({
         const input = Object.fromEntries(
           Object.keys(empty).map((k) => [k, values[k] || '']),
         ) as ProspectInput
+        const insuranceCompany = resolveInsurerSelection(input.insuranceCompany, insurers,
+          selection.op === 'edit' ? selection.row?.insuranceCompany : undefined)
+        if (!insuranceCompany) throw Error('Choisissez un assureur dans la liste.')
+        input.insuranceCompany = insuranceCompany
         if (input.locationType === 'quarter' && !input.quarterId) throw Error('Sélectionnez un quartier de Géographie.')
         if (selection.op === 'create')
           await repository.create(input, values.sponsorMemberId, actor)
         else await repository.change(selection.row!.id, actor, 'edit', input)
+      } else if (selection.op === 'renewed_elsewhere') {
+        const insuranceCompany = resolveInsurerSelection(values.insuranceCompany, insurers)
+        if (!insuranceCompany) throw Error('Choisissez un assureur dans la liste.')
+        await repository.change(selection.row!.id, actor, selection.op, { ...values, insuranceCompany })
       } else if (selection.op !== 'history')
         await repository.change(selection.row!.id, actor, selection.op, values)
       await client.invalidateQueries({ queryKey: ['insurance-prospects'] })
@@ -502,7 +514,7 @@ export function ProspectsPage({
                       <p className="text-xs text-muted-foreground">
                         Assureur actuel
                       </p>
-                      <p className="font-semibold">{row.insuranceCompany}</p>
+                      <p className="font-semibold">{insurerLabel(row.insuranceCompany)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">
@@ -647,7 +659,11 @@ export function ProspectsPage({
                       true,
                     )}
                   <VehicleLocationFields value={{ ...values, locationType: values.locationType === 'other' ? 'other' : 'quarter' }} allowOther onChange={location => setValues({ ...values, ...location })} />
-                  {input('insuranceCompany', 'Assureur actuel', 'text', true)}
+                  <label className="grid gap-2 text-sm font-medium">Assureur actuel
+                    <InsuranceCompanySelect aria-label="Assureur actuel" required value={values.insuranceCompany || ''}
+                      legacyValue={selection.op === 'edit' ? selection.row?.insuranceCompany : undefined}
+                      onChange={value => set('insuranceCompany', value)} />
+                  </label>
                   {input(
                     'endDate',
                     'Fin de l’assurance actuelle',
@@ -671,7 +687,10 @@ export function ProspectsPage({
               input('followUpDate', 'Prochaine relance', 'date')}
             {selection?.op === 'renewed_elsewhere' && (
               <>
-                {input('insuranceCompany', 'Nouvel assureur', 'text', true)}
+                <label className="grid gap-2 text-sm font-medium">Nouvel assureur
+                  <InsuranceCompanySelect aria-label="Nouvel assureur" required value={values.insuranceCompany || ''}
+                    onChange={value => set('insuranceCompany', value)} />
+                </label>
                 {input('endDate', 'Nouvelle fin de l’assurance', 'date', true)}
                 <p className="text-sm text-muted-foreground">
                   Le prospect reste à suivre. Les rappels repartiront sur cette

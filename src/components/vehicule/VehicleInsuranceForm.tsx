@@ -19,6 +19,9 @@ import MemberSearchInput from './MemberSearchInput'
 import { VehicleLocationFields } from './VehicleLocationFields'
 import { insuranceAssetOptions, isAvailableInsuranceAssetType, isRoadAssetType } from '@/domains/vehicles/asset-types'
 import { useInsuranceAssetTypes } from '@/domains/vehicles/use-insurance-asset-types'
+import { InsuranceCompanySelect } from './InsuranceCompanySelect'
+import { resolveInsurerSelection } from '@/domains/vehicles/insurance-companies'
+import { useInsuranceCompanies } from '@/domains/vehicles/use-insurance-companies'
 import { pickVehicleLocation } from '@/domains/vehicles/location'
 
 const DEFAULT_PHONE_PREFIX = '+241 '
@@ -48,6 +51,7 @@ interface Props {
 
 export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting = false, mode = 'create', isLoadingMembers = false }: Props) {
   const { data: customAssets } = useInsuranceAssetTypes()
+  const { data: insurers } = useInsuranceCompanies()
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const defaultValues = useMemo(() => {
@@ -222,6 +226,11 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
       form.setError('vehicleType', { message: 'Sélectionnez un type de bien disponible.' }, { shouldFocus: true })
       return
     }
+    const insuranceCompany = resolveInsurerSelection(values.insuranceCompany, insurers, initialInsurance?.insuranceCompany)
+    if (!insuranceCompany) {
+      form.setError('insuranceCompany', { message: 'Choisissez un assureur dans la liste.' }, { shouldFocus: true })
+      return
+    }
     try {
       setIsUploading(true)
       const ownerId = values.memberMatricule || values.memberId || initialInsurance?.id || 'externe'
@@ -232,7 +241,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
         attachments.receiptUrl = uploaded.url
         attachments.receiptPath = uploaded.path
       }
-      await onSubmit({ ...values, attachments })
+      await onSubmit({ ...values, insuranceCompany, attachments })
     } catch (error) {
       toast.error('Impossible de téléverser le reçu de paiement', {
         description: error instanceof Error ? error.message : undefined,
@@ -558,7 +567,9 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting 
             <FormField control={form.control} name="insuranceCompany" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-sm font-semibold">Compagnie d'assurance</FormLabel>
-                <Input {...field} placeholder="Nom de l'assurance" className="h-11" />
+                <FormControl>
+                  <InsuranceCompanySelect {...field} legacyValue={initialInsurance?.insuranceCompany} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )} />
