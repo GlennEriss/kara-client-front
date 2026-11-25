@@ -1596,6 +1596,13 @@ service cloud.firestore {
         (data.vehicleDescription is string && data.vehicleDescription.size() > 0 && data.vehicleDescription.size() <= 2000));
     }
 
+    match /settings/insuranceCompanies {
+      allow get: if isAuthenticated();
+      allow create, update: if isSuperAdmin() && !isProspectingStaff() &&
+        request.resource.data.keys().hasOnly(['names']) &&
+        request.resource.data.names is list && request.resource.data.names.size() <= 100;
+    }
+
     match /settings/insuranceAssetTypes {
       function validCatalog(data) {
         let inactive = data.get('inactive', []);

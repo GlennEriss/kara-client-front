@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { insuranceAssetLabels } from '@/domains/vehicles/asset-types'
 import type { TariffGrid, TariffGridInput } from '@/domains/vehicles/tariff-grid'
+import { InsuranceCompanySelect } from './InsuranceCompanySelect'
 
 const endpoint = '/api/vehicules/baremes/grilles'
 const ogarGridId = 'ogar--vehicules'
@@ -214,8 +215,8 @@ export function InsuranceTariffGrids() {
           {editingNew && draft ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2"><Label htmlFor="new-grid-insurer">Assureur</Label>
-                <Input id="new-grid-insurer" required maxLength={60} value={draft.insurer}
-                  onChange={event => setDraft({ ...draft, insurer: event.target.value })} /></div>
+                <InsuranceCompanySelect id="new-grid-insurer" required value={draft.insurer}
+                  onChange={insurer => setDraft({ ...draft, insurer })} /></div>
               <div className="space-y-2"><Label htmlFor="new-grid-asset">Type de bien</Label>
                 <Input id="new-grid-asset" required maxLength={60} value={draft.assetType}
                   onChange={event => setDraft({ ...draft, assetType: event.target.value })} /></div>

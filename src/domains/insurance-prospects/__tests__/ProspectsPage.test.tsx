@@ -10,6 +10,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ProspectsPage } from '../ProspectsPage'
 import { prospectSchema, KARA_SPONSOR_ID } from '../model'
 
+vi.mock('@/domains/vehicles/use-insurance-companies', () => ({
+  useInsuranceCompanies: () => ({ data: ['AXA', 'NSIA', 'OGAR'] }),
+}))
+
 const f = vi.hoisted(() => ({
   list: vi.fn(),
   create: vi.fn(),
@@ -108,7 +112,7 @@ describe('parcours web de prospection', () => {
       'Nom du contact': 'Nouveau contact',
       Téléphone: '077111111',
       Immatriculation: 'TEST-456',
-      'Assureur actuel': 'Autre assureur',
+      'Assureur actuel': 'NSIA',
       'Fin de l’assurance actuelle': '2050-12-20',
     }))
       fireEvent.change(screen.getByLabelText(label), { target: { value } })

@@ -1,6 +1,7 @@
 import { VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult, VehicleInsuranceStats, VehicleInsuranceStatus, isValidatedVehicleInsurance } from '@/types/types'
 import { IRepository } from '@/repositories/IRepository'
 import { pickVehicleLocation, resolveVehicleLocation, vehicleLocationStats, type VehicleLocation } from '@/domains/vehicles/location'
+import { insurerKey, insurerLabel } from '@/domains/vehicles/insurance-companies'
 
 const getFirestore = () => import('@/firebase/firestore')
 
@@ -46,10 +47,6 @@ export class VehicleInsuranceRepository implements IRepository {
       constraints.push(where('vehicleType', '==', filters.vehicleType))
     }
 
-    if (filters?.insuranceCompany) {
-      constraints.push(where('insuranceCompany', '==', filters.insuranceCompany))
-    }
-
     if (filters?.sponsorMemberId) {
       constraints.push(where('sponsorMemberId', '==', filters.sponsorMemberId))
     }
@@ -62,6 +59,10 @@ export class VehicleInsuranceRepository implements IRepository {
     const snapshot = await getDocs(q)
 
     let items = snapshot.docs.map(doc => this.mapDocToEntity(doc.id, doc.data() as FirestoreVehicleInsurance))
+    if (filters?.insuranceCompany) {
+      const company = insurerKey(filters.insuranceCompany)
+      items = items.filter(item => insurerKey(item.insuranceCompany) === company)
+    }
     if (filters?.quarterId) items = items.filter(item => item.quarterId === filters.quarterId)
     if (filters?.communeId) items = items.filter(item => item.communeId === filters.communeId)
     if (filters?.locationMissing) items = items.filter(item => !item.quarterId && item.locationType !== 'other')
@@ -215,10 +216,13 @@ export class VehicleInsuranceRepository implements IRepository {
     const membersCount = items.filter(item => item.holderType === 'member').length
     const nonMembersCount = items.filter(item => item.holderType === 'non-member').length
 
-    const byCompanyMap = new Map<string, number>()
+    const byCompanyMap = new Map<string, { company: string; count: number }>()
     const byVehicleTypeMap = new Map<string, number>()
     items.forEach(item => {
-      byCompanyMap.set(item.insuranceCompany, (byCompanyMap.get(item.insuranceCompany) || 0) + 1)
+      const key = insurerKey(item.insuranceCompany)
+      const company = byCompanyMap.get(key)
+      if (company) company.count += 1
+      else if (key) byCompanyMap.set(key, { company: insurerLabel(item.insuranceCompany), count: 1 })
       byVehicleTypeMap.set(item.vehicleType, (byVehicleTypeMap.get(item.vehicleType) || 0) + 1)
     })
 
@@ -235,7 +239,7 @@ export class VehicleInsuranceRepository implements IRepository {
       expired: totals.expired,
       membersCount,
       nonMembersCount,
-      byCompany: Array.from(byCompanyMap.entries()).map(([company, count]) => ({ company, count })),
+      byCompany: [...byCompanyMap.values()],
       byVehicleType: Array.from(byVehicleTypeMap.entries()).map(([type, count]) => ({ type: type as any, count })),
       expiringSoonList,
       pendingDeclarations,

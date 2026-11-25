@@ -1,5 +1,6 @@
 'use client'
 
+import { insurerLabel } from "@/domains/vehicles/insurance-companies"
 import { assetTypeLabel } from '@/domains/vehicles/asset-types'
 
 import MembershipPagination from '@/components/memberships/MembershipPagination'
@@ -137,7 +138,7 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                       <div>
                         <p className="flex items-center gap-1.5 font-medium text-gray-900">
                           <Building2 className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                          {item.insuranceCompany}
+                          {insurerLabel(item.insuranceCompany)}
                         </p>
                         <p className="text-sm text-gray-500">{item.policyNumber}</p>
                       </div>

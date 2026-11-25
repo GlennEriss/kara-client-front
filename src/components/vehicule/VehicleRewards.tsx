@@ -12,6 +12,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PAYMENT_MODE_LABELS } from '@/constantes/membership-requests'
+import { useInsuranceCompanies } from '@/domains/vehicles/use-insurance-companies'
+import { insurerKey, insurerLabel, resolveInsurerSelection } from '@/domains/vehicles/insurance-companies'
+import { InsuranceCompanySelect } from './InsuranceCompanySelect'
 import {
   useInsurancePartnerMutations,
   useInsurancePartners,
@@ -467,14 +470,12 @@ export function VehicleRewardsPanel({ canManage }: { canManage: boolean }) {
 export function InsurancePartnersDialog({
   open,
   onOpenChange,
-  companies,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Noms d'assureurs déjà saisis sur les assurances, proposés à l'ajout. */
-  companies: string[]
 }) {
   const { data: partners = [], isLoading } = useInsurancePartners()
+  const { data: companies = [] } = useInsuranceCompanies(open)
   const { save, remove } = useInsurancePartnerMutations()
   const [draft, setDraft] = useState<{ id?: string; name: string; commissionRate: string; memberSharePercent: string } | null>(
     null,
@@ -494,11 +495,15 @@ export function InsurancePartnersDialog({
     if (!draft) return
     const commissionRate = Number(draft.commissionRate.replace(',', '.'))
     const memberSharePercent = Number(draft.memberSharePercent.replace(',', '.'))
-    if (!draft.name.trim()) return toast.error("Indiquez le nom de l'assureur")
+    const otherRates = partners.filter(item => item.id !== draft.id)
+    const previousName = partners.find(item => item.id === draft.id)?.name
+    const name = resolveInsurerSelection(draft.name, companies, previousName)
+    if (!name) return toast.error('Choisissez un assureur dans la liste.')
+    if (insurerKey(name) !== insurerKey(previousName) && findInsurancePartner(otherRates, name)) return toast.error('Un taux existe déjà pour cet assureur.')
     if (!(commissionRate > 0 && commissionRate <= 100)) return toast.error('Commission entre 0 et 100 % de la prime')
     if (!(memberSharePercent > 0 && memberSharePercent <= 100)) return toast.error('Part du parrain entre 0 et 100 %')
     try {
-      await save.mutateAsync({ id: draft.id, name: draft.name, commissionRate, memberSharePercent })
+      await save.mutateAsync({ id: draft.id, name, commissionRate, memberSharePercent })
       toast.success('Taux enregistré')
       setDraft(null)
     } catch {
@@ -527,7 +532,7 @@ export function InsurancePartnersDialog({
             {partners.map((partner) => (
               <div key={partner.id} className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 px-3 py-2">
                 <div>
-                  <p className="font-medium text-gray-900">{partner.name}</p>
+                  <p className="font-medium text-gray-900">{insurerLabel(partner.name, companies)}</p>
                   <p className="text-xs text-gray-500">
                     Commission {partner.commissionRate} % de la prime · parrain {partner.memberSharePercent} % de la commission
                   </p>
@@ -552,8 +557,10 @@ export function InsurancePartnersDialog({
               <div className="space-y-3 rounded-lg border border-[#234D65]/20 bg-[#234D65]/5 p-3">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="space-y-1 sm:col-span-3">
-                    <Label className="text-xs text-gray-500">Assureur</Label>
-                    <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+                    <Label htmlFor="insurance-partner-name" className="text-xs text-gray-500">Assureur</Label>
+                    <InsuranceCompanySelect id="insurance-partner-name" value={draft.name}
+                      legacyValue={partners.find(item => item.id === draft.id)?.name}
+                      onChange={name => setDraft({ ...draft, name })} />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs text-gray-500">Commission (% de la prime)</Label>
@@ -587,7 +594,7 @@ export function InsurancePartnersDialog({
             ) : (
               <div className="space-y-2">
                 <Button size="sm" variant="outline" onClick={() => startEdit()}>
-                  <Plus className="mr-1 h-4 w-4" /> Ajouter un assureur
+                  <Plus className="mr-1 h-4 w-4" /> Ajouter un taux
                 </Button>
                 {missing.length > 0 && (
                   <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500">

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHero } from '@/components/ui/page-hero'
 import { InsuranceTariffGrids } from './InsuranceTariffGrids'
+import { InsuranceCompanySelect } from './InsuranceCompanySelect'
 
 const endpoint = '/api/vehicules/baremes'
 
@@ -60,12 +61,10 @@ export function InsuranceTariffsPage() {
     ),
   })
 
-  const insurers = new Map<string, string>()
   const assetTypes = new Map([['vehicules', 'Véhicules']])
   const tariffs = new Map<string, Tariff[]>()
   for (const tariff of query.data?.items ?? []) {
     const key = `${tariff.insurerId}:${tariff.assetTypeId}`
-    if (!insurers.has(tariff.insurerId)) insurers.set(tariff.insurerId, tariff.insurer)
     if (!assetTypes.has(tariff.assetTypeId)) assetTypes.set(tariff.assetTypeId, tariff.assetType)
     const versions = tariffs.get(key) ?? []
     versions.push(tariff)
@@ -113,12 +112,8 @@ export function InsuranceTariffsPage() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="min-w-0 space-y-2">
                   <Label htmlFor="tariff-insurer">Assureur</Label>
-                  <Input id="tariff-insurer" name="insurer" list="tariff-insurers" value={insurer}
-                    onChange={event => setInsurer(event.target.value)} placeholder="Saisir ou choisir un assureur" required maxLength={60}
-                    disabled={publishing} />
-                  <datalist id="tariff-insurers">
-                    {[...insurers].map(([id, name]) => <option key={id} value={name} />)}
-                  </datalist>
+                  <InsuranceCompanySelect id="tariff-insurer" name="insurer" value={insurer}
+                    onChange={setInsurer} required disabled={publishing} />
                 </div>
                 <div className="min-w-0 space-y-2">
                   <Label htmlFor="tariff-asset-type">Type de bien</Label>

@@ -1,6 +1,7 @@
 'use client'
 
 import { assetTypeLabel, isRoadAssetType } from '@/domains/vehicles/asset-types'
+import { insurerLabel } from '@/domains/vehicles/insurance-companies'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -141,7 +142,7 @@ export function VehicleInsuranceDetailView({ insuranceId }: Props) {
           <CardTitle>Assurance</CardTitle>
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-4 text-sm">
-          <DetailRow label="Compagnie">{data.insuranceCompany}</DetailRow>
+          <DetailRow label="Compagnie">{insurerLabel(data.insuranceCompany)}</DetailRow>
           <DetailRow label="Numéro de police">{data.policyNumber}</DetailRow>
           <DetailRow label="Montant annuel">
             {data.premiumAmount.toLocaleString('fr-FR')} {data.currency}
